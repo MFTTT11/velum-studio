@@ -52,9 +52,9 @@ CURATED_BLUEPRINTS: List[Dict[str, Any]] = [
         ],
         "visual_queries": [
             "skyscraper financial district night architecture",
-            "stack of gold bars vault finance",
-            "stock market trading floor screens dark",
-            "mechanical clock gears macro dark",
+            "gold bullion bars bank vault",
+            "stock market trading floor screens",
+            "mechanical clock gears macro",
             "earth from space night city lights",
         ],
     },
