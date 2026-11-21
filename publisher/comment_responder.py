@@ -256,12 +256,44 @@ def run_comment_cycle(
             return summary
         youtube = build_youtube_service(token_path)
 
-        # 1. Fetch new comments for recent live videos & schedule 15–45 min delayed replies
+        # 0. Identify our own channel ID so we never reply to our own pinned comments
+        my_channel_id = ""
+        try:
+            me_resp = youtube.channels().list(part="id", mine=True).execute()
+            me_items = me_resp.get("items", [])
+            if me_items:
+                my_channel_id = me_items[0]["id"]
+        except Exception as exc:
+            logger.debug("Could not resolve own channel ID (%s)", type(exc).__name__)
+
+        # 1. Fetch new viewer comments for recent live videos, filter spam, and reply
         now = datetime.now(timezone.utc)
         for vid in videos[:10]:
             yt_id = vid["youtube_id"]
             titles = json.loads(vid.get("titles_json", '["VELUM"]'))
             title = titles[0] if titles else "VELUM"
+
+            # Log live video statistics (views, likes, comments)
+            try:
+                st_resp = youtube.videos().list(part="statistics", id=yt_id).execute()
+                st_items = st_resp.get("items", [])
+                if st_items:
+                    stats = st_items[0].get("statistics", {})
+                    v_cnt = int(stats.get("viewCount", 0))
+                    l_cnt = int(stats.get("likeCount", 0))
+                    c_cnt = int(stats.get("commentCount", 0))
+                    logger.info(
+                        "LIVE STATS [%s] -> views=%d | likes=%d | comments=%d",
+                        yt_id,
+                        v_cnt,
+                        l_cnt,
+                        c_cnt,
+                    )
+                    if v_cnt > 0:
+                        state_db.update_video_metrics(vid["video_uid"], v_cnt, float(vid.get("avg_view_pct", 0.0)), float(vid.get("ctr", 0.0)))
+            except Exception as exc:
+                logger.debug("Stats check skipped for %s (%s)", yt_id, type(exc).__name__)
+
             try:
                 resp = youtube.commentThreads().list(
                     part="snippet",
@@ -277,18 +309,43 @@ def run_comment_cycle(
             for item in resp.get("items", []):
                 top = item["snippet"]["topLevelComment"]
                 cid = top["id"]
+                author_ch = top["snippet"].get("authorChannelId", {}).get("value", "")
+                if my_channel_id and author_ch == my_channel_id:
+                    continue
                 if state_db.is_comment_processed(cid):
                     continue
                 summary["fetched"] += 1
                 text = top["snippet"].get("textDisplay", "")
                 decision = craft_reply(text, title, llm=llm)
-                delay_sec = random.randint(15 * 60, 45 * 60)
-                sched_iso = (now + timedelta(seconds=delay_sec)).replace(microsecond=0).isoformat()
+                sched_iso = now.replace(microsecond=0).isoformat()
                 if decision["is_spam"]:
                     summary["spam_filtered"] += 1
                     state_db.record_comment_reply(cid, yt_id, "spam", "", True, sched_iso, status="filtered_spam")
                 else:
-                    summary["queued"] += 1
+                    # Send reply immediately during the cloud cron cycle & persist in state.db
+                    sent_ok = False
+                    try:
+                        youtube.comments().insert(
+                            part="snippet",
+                            body={
+                                "snippet": {
+                                    "parentId": cid,
+                                    "textOriginal": decision["reply_text"],
+                                }
+                            },
+                        ).execute()
+                        sent_ok = True
+                        summary["sent_now"] += 1
+                        logger.info(
+                            "Replied to viewer comment (%s) on %s -> %s",
+                            decision["detected_lang"],
+                            yt_id,
+                            decision["reply_text"],
+                        )
+                    except Exception as exc:
+                        summary["queued"] += 1
+                        logger.warning("Immediate reply deferred to queue (%s)", type(exc).__name__)
+
                     state_db.record_comment_reply(
                         cid,
                         yt_id,
@@ -296,10 +353,11 @@ def run_comment_cycle(
                         decision["reply_text"],
                         False,
                         sched_iso,
-                        status="scheduled",
+                        status="sent" if sent_ok else "scheduled",
+                        replied_at=sched_iso if sent_ok else None,
                     )
 
-        # 2. Send all scheduled replies whose 15-45 min window has matured
+        # 2. Send any previously queued replies whose window has matured
         due = state_db.get_due_comment_replies(utc_now_iso())
         for row in due[:15]:
             try:
