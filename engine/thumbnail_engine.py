@@ -16,7 +16,7 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from core.config import get_logger, load_brand_config
-from engine.hud_renderer import get_font
+from engine.hud_renderer import fit_font, get_font
 from engine.media_fetcher import MediaFetcher
 
 logger = get_logger("thumbnail_engine")
@@ -142,18 +142,18 @@ def generate_ab_thumbnails(
     _draw_stroked_text(da, (760, 452), left_stat[:10], stat_f, (*cyan, 255), stroke_width=6)
     _draw_stroked_text(da, (965, 52), right_stat[:10], stat_f, (*amber, 255), stroke_width=6)
 
-    # Giant left-side max-3-word hook
-    f_huge = get_font("headline", 136)
+    # Giant left-side max-3-word hook (auto-fitted for Windows & Ubuntu fonts)
     y_txt = 155
     for idx, line in enumerate(hooks[0]):
         col = amber if idx == 0 else white
+        f_huge = fit_font(da, line, "headline", max_size=136, max_width=575, min_size=72)
         _draw_stroked_text(da, (62, y_txt), line, f_huge, (*col, 255), stroke_width=12)
         y_txt += 155
 
     # Crisp corner channel pill
     pill_f = get_font("mono", 28)
     da.rounded_rectangle([62, 595, 345, 650], radius=10, fill=(*crimson, 245))
-    da.text((84, 608), "SCALE // ZERO", font=pill_f, fill=(*white, 255))
+    da.text((84, 608), "VELUM", font=pill_f, fill=(*white, 255))
 
     canvas_a.alpha_composite(ov_a)
     path_a = out_dir / "thumbnail_A_scale_contrast.png"
@@ -177,7 +177,8 @@ def generate_ab_thumbnails(
     y_txt = 232
     for idx, line in enumerate(hooks[1]):
         col = white if idx == 0 else amber
-        _draw_stroked_text(db, (88, y_txt), line, get_font("headline", 142), (*col, 255), stroke_width=12)
+        f_b = fit_font(db, line, "headline", max_size=142, max_width=730, min_size=76)
+        _draw_stroked_text(db, (88, y_txt), line, f_b, (*col, 255), stroke_width=12)
         y_txt += 162
 
     # Right-side circular glowing anomaly reticle (auto-fit stat cleanly, zero clipping)
@@ -185,8 +186,7 @@ def generate_ab_thumbnails(
     db.ellipse([rcx - 148, rcy - 148, rcx + 148, rcy + 148], outline=(*crimson, 235), width=8)
     db.ellipse([rcx - 108, rcy - 108, rcx + 108, rcy + 108], fill=(*obsidian, 215), outline=(*amber, 240), width=5)
     stat_text = right_stat.upper()
-    rf_size = 48 if len(stat_text) <= 8 else 38
-    rf = get_font("headline", rf_size)
+    rf = fit_font(db, stat_text, "headline", max_size=48, max_width=182, min_size=24)
     rb = db.textbbox((0, 0), stat_text, font=rf)
     _draw_stroked_text(
         db,
@@ -217,10 +217,10 @@ def generate_ab_thumbnails(
     dc.rectangle([0, 0, w, 16], fill=(*cyan, 255))
 
     # Huge centered typography + sleek horizontal ratio gauge below
-    f_vox = get_font("headline", 158)
     y_txt = 96
     for idx, line in enumerate(hooks[2]):
         col = cyan if idx == 0 else white
+        f_vox = fit_font(dc, line, "headline", max_size=158, max_width=w - 160, min_size=82)
         bb = dc.textbbox((0, 0), line, font=f_vox)
         lw = bb[2] - bb[0]
         _draw_stroked_text(dc, ((w - lw) // 2, y_txt), line, f_vox, (*col, 255), stroke_width=12)
@@ -231,7 +231,7 @@ def generate_ab_thumbnails(
     dc.rounded_rectangle([144, 520, 235, 600], radius=10, fill=(*cyan, 255))
     dc.rounded_rectangle([258, 520, w - 144, 600], radius=10, fill=(*amber, 255))
     cmp_txt = f"{left_stat}   VS   {right_stat}"
-    cmp_f = get_font("headline", 54)
+    cmp_f = fit_font(dc, cmp_txt, "headline", max_size=54, max_width=(w - 144 - 258 - 40), min_size=28)
     cb = dc.textbbox((0, 0), cmp_txt, font=cmp_f)
     bar_cx = (258 + (w - 144)) // 2
     dc.text((bar_cx - (cb[2] - cb[0]) // 2, 533), cmp_txt, font=cmp_f, fill=(*obsidian, 255))

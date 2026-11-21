@@ -2,7 +2,7 @@
 
 Uses environment variables ONLY. If no LLM API key is configured, returns None so
 the calling module executes its built-in deterministic editorial intelligence engine
-(guaranteeing 100% 0-TL autonomous operation even with zero keys).
+(guaranteeing 100% Autonomous autonomous operation even with zero keys).
 """
 
 from __future__ import annotations

@@ -1,1 +1,1 @@
-"""Brand kit generator and identity assets for SCALE // ZERO."""
+"""Brand kit generator and identity assets for VELUM."""

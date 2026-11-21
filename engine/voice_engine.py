@@ -281,7 +281,10 @@ def _align_beats_to_audio(
 
 
 def synthesize_voice_and_align(
-    script: Dict[str, Any], work_dir: Path, lang: str = "en"
+    script: Dict[str, Any],
+    work_dir: Path,
+    lang: str = "en",
+    speech_rate: str = "+12%",
 ) -> Dict[str, Any]:
     """Generate Edge-TTS voiceover, strip silence, extract Whisper word timings, and align beats."""
     brand = load_brand_config()
@@ -293,8 +296,10 @@ def synthesize_voice_and_align(
     raw_mp3 = voice_dir / "narration_raw.mp3"
     clean_wav = voice_dir / "narration_clean.wav"
 
-    logger.info("Synthesizing Edge-TTS voiceover (%s)...", voice)
-    raw_boundaries = asyncio.run(_synthesize_edge_tts_async(narration_text, voice, raw_mp3))
+    logger.info("Synthesizing Edge-TTS voiceover (%s, rate=%s)...", voice, speech_rate)
+    raw_boundaries = asyncio.run(
+        _synthesize_edge_tts_async(narration_text, voice, raw_mp3, rate=speech_rate)
+    )
     raw_dur = _probe_duration(raw_mp3)
 
     clean_dur = _clean_voice_with_silenceremove(raw_mp3, clean_wav)

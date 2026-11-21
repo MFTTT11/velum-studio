@@ -1,1 +1,1 @@
-"""Anti-Slop Cinematic Video Engine for SCALE // ZERO."""
+"""Broadcast-Grade Cinematic Video Engine for VELUM."""

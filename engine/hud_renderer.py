@@ -5,7 +5,7 @@ Renders:
   system_nodes, timeline_scale, radar_alert) with smooth ease-out cubic motion
 - 0-2.0s high-contrast Shock Hook stat explosion banner (zero-latency eye capture)
 - Live top/bottom HUD telemetry overlay (progress rail, beat counter, live metric
-  pill, timecode, and SCALE // ZERO watermark)
+  pill, timecode, and VELUM watermark)
 """
 
 from __future__ import annotations
@@ -35,6 +35,25 @@ def get_font(role: str, size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFo
         except OSError:
             return ImageFont.load_default()
     return ImageFont.load_default()
+
+
+def fit_font(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    role: str,
+    max_size: int,
+    max_width: int,
+    min_size: int = 24,
+) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    """Dynamically scale font down until text fits comfortably inside max_width (Windows & Linux safe)."""
+    size = max_size
+    while size > min_size:
+        font = get_font(role, size)
+        bbox = draw.textbbox((0, 0), text, font=font)
+        if (bbox[2] - bbox[0]) <= max_width:
+            return font
+        size = max(min_size, int(size * 0.90))
+    return get_font(role, min_size)
 
 
 @lru_cache(maxsize=8)
@@ -472,7 +491,7 @@ def render_hud_overlay(
         wm_x = pad_x
         wm_y = (h - 215) if is_vertical else (h - 118)
         hud.alpha_composite(wm, dest=(wm_x, wm_y))
-        draw.text((wm_x + wm_size + 14, wm_y + 22), "SCALE // ZERO", font=mono_md, fill=(*white, 175))
+        draw.text((wm_x + wm_size + 14, wm_y + 22), "VELUM", font=mono_md, fill=(*white, 175))
 
     # --- 3. 0.0-2.0s SHOCK HOOK EXPLOSION (Frame-0 high-contrast thumb-stopper) ---
     if shock_hook_text and 0.0 <= shock_progress <= 1.0:
@@ -506,14 +525,23 @@ def render_hud_overlay(
                 fill=(*amber, int(255 * alpha_mult)),
             )
 
-            hook_font = get_font("headline", 94 if is_vertical else 104)
-            sub_font = get_font("mono", 32 if is_vertical else 30)
-
-            # Fit giant text cleanly inside shock slab
             htext = shock_hook_text.upper()
-            hb = hdraw.textbbox((0, 0), htext, font=hook_font)
-            if (hb[2] - hb[0]) > (bx1 - bx0 - 60):
-                hook_font = get_font("headline", 72 if is_vertical else 82)
+            hook_font = fit_font(
+                hdraw,
+                htext,
+                "headline",
+                max_size=94 if is_vertical else 104,
+                max_width=(bx1 - bx0 - 64),
+                min_size=46,
+            )
+            sub_font = fit_font(
+                hdraw,
+                f"[ {(shock_hook_sub or '').upper()} ]",
+                "mono",
+                max_size=32 if is_vertical else 30,
+                max_width=(bx1 - bx0 - 64),
+                min_size=20,
+            )
 
             _draw_centered_text(
                 hdraw,

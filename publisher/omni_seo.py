@@ -37,7 +37,7 @@ def slugify_keyword(keyword: str) -> str:
     """Convert a primary keyword into a clean lowercase SEO filename slug."""
     slug = re.sub(r"[^a-z0-9]+", "-", keyword.lower()).strip("-")
     slug = re.sub(r"-{2,}", "-", slug)
-    return slug[:72] or "scale-zero-breakdown"
+    return slug[:72] or "velum-breakdown"
 
 
 def _format_srt_ts(sec: float) -> str:
@@ -56,23 +56,65 @@ def _format_chapter_ts(sec: float) -> str:
     return f"{sec // 60:02d}:{sec % 60:02d}"
 
 
-def _translate_text_free(text: str, target_lang: str) -> str:
-    """Zero-cost translation via free MyMemory public endpoint (no API key) with safe fallback."""
-    if target_lang == "en" or not text.strip():
-        return text
+def _translate_lines_batch_free(lines: List[str], target_lang: str) -> List[str]:
+    """Fast, resilient Autonomous batch subtitle translation (Google GTX -> MyMemory -> safe passthrough)."""
+    if target_lang == "en" or not lines:
+        return list(lines)
+
+    # 1. Primary fast batch translation via zero-key Google Translate GTX public endpoint
+    delimiter = " ||| "
+    joined = delimiter.join(ln.strip() for ln in lines)
     try:
         resp = requests.get(
-            "https://api.mymemory.translated.net/get",
-            params={"q": text[:450], "langpair": f"en|{target_lang}"},
-            timeout=6,
+            "https://translate.googleapis.com/translate_a/single",
+            params={"client": "gtx", "sl": "en", "tl": target_lang, "dt": "t", "q": joined},
+            timeout=10,
         )
         if resp.status_code == 200:
-            translated = resp.json().get("responseData", {}).get("translatedText", "").strip()
-            if translated and "MYMEMORY WARNING" not in translated.upper():
-                return translated
+            payload = resp.json()
+            combined = "".join(seg[0] for seg in payload[0] if seg and seg[0])
+            parts = [p.strip() for p in re.split(r"\|\s*\|\s*\|", combined)]
+            if len(parts) == len(lines):
+                return parts
     except Exception as exc:
-        logger.debug("Free translation fallback for %s (%s)", target_lang, type(exc).__name__)
-    return text
+        logger.debug("GTX batch translation fallback for %s (%s)", target_lang, type(exc).__name__)
+
+    # 2. Secondary fallback via chunked MyMemory public endpoint (<=420 chars per chunk)
+    translated: List[str] = []
+    chunk: List[str] = []
+    chunk_len = 0
+
+    def _flush_chunk(items: List[str]) -> List[str]:
+        if not items:
+            return []
+        try:
+            resp = requests.get(
+                "https://api.mymemory.translated.net/get",
+                params={"q": "\n".join(items), "langpair": f"en|{target_lang}"},
+                timeout=8,
+            )
+            if resp.status_code == 200:
+                tr = resp.json().get("responseData", {}).get("translatedText", "").strip()
+                if tr and "MYMEMORY WARNING" not in tr.upper():
+                    split_tr = [s.strip() for s in tr.splitlines() if s.strip()]
+                    if len(split_tr) == len(items):
+                        return split_tr
+        except Exception as exc:
+            logger.debug("MyMemory fallback skipped for %s (%s)", target_lang, type(exc).__name__)
+        return list(items)
+
+    for ln in lines:
+        if chunk and chunk_len + len(ln) + 1 > 400:
+            translated.extend(_flush_chunk(chunk))
+            chunk = [ln]
+            chunk_len = len(ln)
+        else:
+            chunk.append(ln)
+            chunk_len += len(ln) + 1
+    if chunk:
+        translated.extend(_flush_chunk(chunk))
+
+    return translated if len(translated) == len(lines) else list(lines)
 
 
 def _build_srt_cues_from_beats(timed_beats: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -119,17 +161,7 @@ def generate_multilang_srt_tracks(
             if llm_translated:
                 translated_lines = llm_translated
             else:
-                # Batch translate via free endpoint (newline-joined to minimize HTTP calls)
-                joined = "\n".join(en_texts)
-                if len(joined) <= 440:
-                    tr_block = _translate_text_free(joined, lang_code)
-                    split_lines = [ln.strip() for ln in tr_block.splitlines() if ln.strip()]
-                    if len(split_lines) == len(en_texts):
-                        translated_lines = split_lines
-                    else:
-                        translated_lines = [_translate_text_free(ln, lang_code) for ln in en_texts]
-                else:
-                    translated_lines = [_translate_text_free(ln, lang_code) for ln in en_texts]
+                translated_lines = _translate_lines_batch_free(en_texts, lang_code)
 
         srt_blocks: List[str] = []
         for idx, (cue, line_text) in enumerate(zip(cues, translated_lines), start=1):
@@ -248,7 +280,7 @@ def _build_native_omni_seo(
     ]
 
     hashtags = [
-        "#ScaleZero",
+        "#VelumArchive",
         "#VisualComparison",
         "#HiddenSystems",
         "#DataVisualization",
@@ -287,7 +319,7 @@ def _build_native_omni_seo(
                 "data visualization",
                 "vox style explainer",
                 "scale comparison",
-                "scale zero",
+                "velum archive",
                 pillar.lower(),
                 "science anomalies",
                 "money scale",

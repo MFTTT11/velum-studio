@@ -208,7 +208,7 @@ def run_comment_cycle(
         ]
         now = datetime.now(timezone.utc)
         for cid, text in sample_comments:
-            decision = craft_reply(text, "SCALE // ZERO Visual Breakdown", llm=llm)
+            decision = craft_reply(text, "VELUM Visual Breakdown", llm=llm)
             delay_min = random.randint(15, 45)
             sched_iso = (now + timedelta(minutes=delay_min)).replace(microsecond=0).isoformat()
             summary["fetched"] += 1
@@ -260,8 +260,8 @@ def run_comment_cycle(
         now = datetime.now(timezone.utc)
         for vid in videos[:10]:
             yt_id = vid["youtube_id"]
-            titles = json.loads(vid.get("titles_json", '["SCALE // ZERO"]'))
-            title = titles[0] if titles else "SCALE // ZERO"
+            titles = json.loads(vid.get("titles_json", '["VELUM"]'))
+            title = titles[0] if titles else "VELUM"
             try:
                 resp = youtube.commentThreads().list(
                     part="snippet",

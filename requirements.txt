@@ -1,4 +1,4 @@
-# Core Video, Audio & Image Pipeline (0 TL)
+# Core Video, Audio & Image Pipeline
 edge-tts>=6.1.12
 faster-whisper>=1.1.0
 Pillow>=10.4.0
@@ -14,12 +14,12 @@ langdetect>=1.0.9
 python-dotenv>=1.0.1
 rich>=13.7.0
 
-# YouTube Data API v3 & Analytics (OAuth via ENV / GitHub Secrets)
+# YouTube Data API v3 & Analytics
 google-api-python-client>=2.140.0
 google-auth>=2.34.0
 google-auth-oauthlib>=1.2.1
 google-auth-httplib2>=0.2.0
 
-# Optional 0-TL Free-Tier LLM Providers (activated only if env key is provided)
+# Optional LLM Providers
 google-genai>=1.0.0
 openai>=1.40.0

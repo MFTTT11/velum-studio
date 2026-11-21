@@ -75,10 +75,12 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
         recommended_format = "longform"
         candidate_hours = [18]
         minute_offset = 30
+        daily_quota_reached = False
     else:
         recommended_format = "shorts"
         candidate_hours = shorts_hours
         minute_offset = 0
+        daily_quota_reached = shorts_today >= daily_shorts_cap
 
     # Collect already-scheduled publishAt timestamps so slots never collide
     existing_slots = {
@@ -116,6 +118,7 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
         "phase": phase,
         "daily_shorts_cap": daily_shorts_cap,
         "shorts_produced_today": shorts_today,
+        "daily_quota_reached": daily_quota_reached,
         "recommended_format": recommended_format,
         "publish_at": publish_at_iso,
     }

@@ -1,4 +1,4 @@
-"""SCALE // ZERO — 100% Autonomous Faceless YouTube Empire Orchestrator.
+"""VELUM — 100% Autonomous Autonomous Visual Documentary Engine Orchestrator.
 
 Single-command execution:
     python autopilot.py              # Full end-to-end production + QA + SEO + growth cycle
@@ -78,6 +78,7 @@ def run_single_cycle(
     dry_run: bool = False,
     max_qa_retries: int = 2,
     force_brand_kit: bool = False,
+    force_produce: bool = False,
 ) -> Dict[str, Any]:
     """Execute one complete autonomous cycle from ideation to QA, SEO, upload & growth."""
     t0 = time.time()
@@ -94,7 +95,7 @@ def run_single_cycle(
             f"Run #[bold yellow]{run_number}[/bold yellow]  |  "
             f"Intelligence: [bold green]{llm.active_provider()}[/bold green]  |  "
             f"YouTube Live Auth: [bold]{'CONNECTED' if has_youtube_credentials() else 'PACKAGE/DRY-RUN'}[/bold]",
-            title="AUTONOMOUS YOUTUBE EMPIRE // AUTOPILOT",
+            title="VELUM // BROADCAST AUTOPILOT",
             border_style="cyan",
         )
     )
@@ -111,6 +112,31 @@ def run_single_cycle(
         target_format,
         warmup_plan["publish_at"],
     )
+
+    # Respect Day 1-2 anti-spam warm-up cap on multi-daily CI runs: switch cleanly to Engagement-Only Mode
+    if warmup_plan.get("daily_quota_reached") and not force_produce and not dry_run and fmt_override == "auto":
+        logger.info(
+            "Daily warm-up video quota already met (%d/%d Shorts today) -> running Engagement & Growth cycle only.",
+            warmup_plan["shorts_produced_today"],
+            warmup_plan["daily_shorts_cap"],
+        )
+        comment_result = run_comment_cycle(state_db, out_dir=None, llm=llm)
+        growth_result = run_growth_mutation_cycle(state_db, out_dir=None)
+        elapsed = round(time.time() - t0, 1)
+        state_db.record_run(
+            "engagement_only",
+            None,
+            "success",
+            f"Warm-up cap respected; comments_sent={comment_result['sent_now']}, mutations={len(growth_result['mutations_applied'])}",
+        )
+        return {
+            "run_number": run_number,
+            "mode": "engagement_only",
+            "elapsed_sec": elapsed,
+            "warmup_plan": warmup_plan,
+            "comment_bot": comment_result,
+            "growth_mutator": growth_result,
+        }
 
     # 3. Viral Idea Discovery & 85+ Gate Scoring
     idea_engine = IdeaEngine(state_db, llm=llm)
@@ -149,7 +175,7 @@ def run_single_cycle(
         media_cache_dir=work_dir / "media_cache",
     )
 
-    # 9. Render Anti-Slop 1080p 60fps Cinematic Video + Automated QA Gate with Auto-Regen
+    # 9. Render Broadcast-Grade 1080p 60fps Cinematic Video + Automated QA Gate with Auto-Regen
     qa_report: Dict[str, Any] = {}
     render_meta: Dict[str, Any] = {}
     target_lufs = -14.0
@@ -165,9 +191,15 @@ def run_single_cycle(
         qa_report = run_qa_gate(final_video_path, fmt=target_format)
         if qa_report["passed"]:
             break
-        # Auto-remediate loudness or retry clean render
-        if "target_lufs" in qa_report.get("remediation", {}):
-            target_lufs = float(qa_report["remediation"]["target_lufs"])
+        # Auto-remediate loudness or duration defects before retry
+        remedy = qa_report.get("remediation", {})
+        if "target_lufs" in remedy:
+            target_lufs = float(remedy["target_lufs"])
+        if remedy.get("resynthesize_voice") and remedy.get("speech_rate"):
+            new_rate = str(remedy["speech_rate"])
+            logger.warning("Duration exceeded cap -> auto-bumping TTS speed to %s and re-aligning...", new_rate)
+            voice_data = synthesize_voice_and_align(script, work_dir, lang="en", speech_rate=new_rate)
+            seo_package = generate_omni_seo_package(topic, script, voice_data, out_dir, llm=llm)
         logger.warning("QA rejected attempt %d; auto-regenerating...", attempt)
 
     (out_dir / "qa_report.json").write_text(
@@ -265,7 +297,7 @@ def run_single_cycle(
     )
 
     # Render crisp execution proof table
-    table = Table(title=f"SCALE // ZERO — CYCLE #{run_number} COMPLETE ({elapsed}s)", border_style="green")
+    table = Table(title=f"VELUM — CYCLE #{run_number} COMPLETE ({elapsed}s)", border_style="green")
     table.add_column("Subsystem", style="cyan", no_wrap=True)
     table.add_column("Status / Proof", style="white")
     table.add_row("Public Security Lock", "VERIFIED (.gitignore active, 0 secrets stored)")
@@ -309,7 +341,7 @@ def _wipe_stray_credentials() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="SCALE // ZERO — 100% Autonomous 0-TL Faceless YouTube Empire"
+        description="VELUM — 100% Autonomous Autonomous Autonomous Visual Documentary Engine"
     )
     parser.add_argument(
         "--run-once",
@@ -338,6 +370,11 @@ def main() -> int:
         help="Force re-render of profile, banner, and watermark assets.",
     )
     parser.add_argument(
+        "--force-produce",
+        action="store_true",
+        help="Produce a new video even if today's warm-up daily cap has already been met.",
+    )
+    parser.add_argument(
         "--max-qa-retries",
         type=int,
         default=2,
@@ -354,6 +391,7 @@ def main() -> int:
                     dry_run=args.dry_run,
                     max_qa_retries=args.max_qa_retries,
                     force_brand_kit=args.force_brand_kit,
+                    force_produce=args.force_produce,
                 )
                 logger.info("Sleeping 8 hours until next scheduled autonomous cycle...")
                 time.sleep(8 * 3600)
@@ -363,6 +401,7 @@ def main() -> int:
                 dry_run=args.dry_run,
                 max_qa_retries=args.max_qa_retries,
                 force_brand_kit=args.force_brand_kit,
+                force_produce=args.force_produce,
             )
         return 0
     finally:

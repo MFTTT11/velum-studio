@@ -15,16 +15,19 @@ Closed-loop YouTube Analytics feedback engine:
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from core.config import (
+    OUTPUT_DIR,
     ephemeral_youtube_credentials,
     get_logger,
     has_youtube_credentials,
 )
 from core.state_db import StateDB
+from engine.thumbnail_engine import generate_ab_thumbnails
 from publisher.youtube_uploader import YOUTUBE_SCOPES, build_youtube_service
 
 logger = get_logger("growth_mutator")
@@ -82,6 +85,34 @@ def _fetch_live_video_metrics(analytics_svc, youtube_id: str) -> Optional[Dict[s
     except Exception as exc:
         logger.warning("Analytics query skipped for %s (%s)", youtube_id, type(exc).__name__)
         return None
+
+
+def _resolve_or_regenerate_thumbnail(
+    state_db: StateDB, topic_id: str, expected_path: str, variant_idx: int
+) -> tuple[str, Optional[Path]]:
+    """Return existing thumbnail path, or regenerate on-demand from state.db on fresh CI runners."""
+    if expected_path and Path(expected_path).exists():
+        return expected_path, None
+
+    with state_db._connect() as conn:
+        row = conn.execute(
+            "SELECT payload_json FROM topics WHERE topic_id = ?", (topic_id,)
+        ).fetchone()
+    if not row:
+        return "", None
+
+    topic = json.loads(row["payload_json"])
+    regen_dir = OUTPUT_DIR / f"_ab_regen_{topic_id}"
+    thumbs_dir = regen_dir / "thumbnails"
+    cache_dir = regen_dir / "media_cache"
+    generated = generate_ab_thumbnails(topic, thumbs_dir, cache_dir)
+    if variant_idx < len(generated):
+        logger.info(
+            "Regenerated A/B Variant #%d thumbnail on-demand for ephemeral CI runner.",
+            variant_idx + 1,
+        )
+        return generated[variant_idx], regen_dir
+    return "", regen_dir
 
 
 def _apply_live_ab_swap(
@@ -172,7 +203,14 @@ def run_growth_mutation_cycle(
 
                     if needs_swap and (cur_var + 1) < max_variants:
                         next_var = cur_var + 1
-                        ok = _apply_live_ab_swap(yt_svc, yt_id, titles[next_var], thumbs[next_var])
+                        thumb_path, temp_regen_dir = _resolve_or_regenerate_thumbnail(
+                            state_db, vid["topic_id"], thumbs[next_var], next_var
+                        )
+                        try:
+                            ok = _apply_live_ab_swap(yt_svc, yt_id, titles[next_var], thumb_path)
+                        finally:
+                            if temp_regen_dir and temp_regen_dir.exists():
+                                shutil.rmtree(temp_regen_dir, ignore_errors=True)
                         if ok:
                             state_db.set_video_variant(vid["video_uid"], next_var)
                             state_db.record_mutation(

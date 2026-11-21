@@ -579,7 +579,7 @@ class ScriptEngine:
             "pillar": topic["pillar"],
             "primary_keyword": topic["primary_keyword"],
             "hook_stat_text": topic["shock_hook_stat"],
-            "hook_subtext": topic.get("hook_subtext", "SCALE // ZERO TELEMETRY"),
+            "hook_subtext": topic.get("hook_subtext", "VELUM ARCHIVE TELEMETRY"),
             "vseo_verified_under_15s": vseo_ok,
             "full_narration": full_narration,
             "word_count": len(full_narration.split()),

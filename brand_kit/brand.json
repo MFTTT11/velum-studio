@@ -1,35 +1,35 @@
 {
-  "channel_name": "SCALE // ZERO",
-  "display_name": "SCALE ZERO",
-  "handle": "@ScaleZeroLab",
+  "channel_name": "VELUM",
+  "display_name": "VELUM",
+  "handle": "@VelumArchive",
   "tagline": "Visual Comparisons. Hidden Systems. Extreme Reality.",
   "format_lock": {
     "archetype": "Visual Comparisons, Hidden Systems & Extreme Facts",
-    "aesthetic": "Netflix Documentary x Vox Data Journalism x Bloomberg Telemetry",
+    "aesthetic": "A24 Documentary x Vox Visual Journalism x Bloomberg Telemetry",
     "pillars": [
       {
         "id": "money_scale",
-        "label": "MONEY & POWER SCALE",
+        "label": "CAPITAL & POWER",
         "accent": "#FFB800",
-        "description": "Visualizing impossible wealth gaps, hidden economic engines, trillion-dollar choke points, and financial anomalies."
+        "description": "Visualizing asymmetric wealth structures, invisible economic engines, trillion-dollar choke points, and financial anomalies."
       },
       {
         "id": "hidden_tech",
-        "label": "HIDDEN TECH SYSTEMS",
+        "label": "HIDDEN INFRASTRUCTURE",
         "accent": "#00E5FF",
-        "description": "Invisible infrastructure, submarine cables, semiconductor lithography, algorithmic black boxes, and extreme engineering limits."
+        "description": "Invisible engineering layers, submarine fiber networks, EUV lithography, algorithmic black boxes, and physical limits."
       },
       {
         "id": "mind_glitches",
-        "label": "PSYCHOLOGY & COGNITIVE TRAPS",
+        "label": "COGNITIVE ARCHITECTURE",
         "accent": "#FF2A54",
-        "description": "Weaponized behavioral economics, attention hijacking, perceptual illusions, and human decision blind spots backed by peer-reviewed data."
+        "description": "Behavioral economics, perceptual illusions, attention engineering, and human decision blind spots backed by empirical data."
       },
       {
         "id": "science_anomalies",
-        "label": "SCIENCE & COSMIC ANOMALIES",
+        "label": "EXTREME REALITY",
         "accent": "#3DF59C",
-        "description": "Extreme physical scales, deep-sea pressure, relativistic time shifts, biological outliers, and counter-intuitive physics."
+        "description": "Extreme physical thresholds, deep-ocean pressure, relativistic time shifts, biological outliers, and counter-intuitive physics."
       }
     ],
     "pacing_rules": {
@@ -42,18 +42,18 @@
       "lufs_tolerance": 2.5
     }
   },
-  "seo_bio": "We decode the invisible numbers running the modern world. Every video breaks down visual comparisons, hidden systems, and extreme facts across money, technology, psychology, and science—engineered for maximum clarity, zero fluff, and pure signal. Built for curious minds everywhere. New visual breakdowns daily.",
+  "seo_bio": "VELUM pulls back the curtain on the invisible systems shaping modern reality. Each visual documentary decodes extreme numbers, hidden infrastructure, capital asymmetries, and cognitive architecture with precision data storytelling and zero filler.",
   "seo_keywords": [
     "visual comparison",
     "hidden systems explained",
     "extreme facts",
     "data visualization documentary",
-    "money scale comparison",
+    "visual journalism",
     "hidden technology infrastructure",
-    "psychology facts explained",
+    "behavioral psychology explained",
     "science anomalies",
-    "scale zero",
-    "vox style explainer"
+    "velum archive",
+    "mini documentary"
   ],
   "palette": {
     "bg_obsidian": "#07090F",
@@ -71,22 +71,27 @@
   "typography": {
     "headline_candidates": [
       "bahnschrift.ttf",
+      "RobotoCondensed-Bold.ttf",
+      "Roboto-Bold.ttf",
+      "LiberationSansNarrow-Bold.ttf",
       "impact.ttf",
       "arialbd.ttf",
-      "DejaVuSans-Bold.ttf",
-      "LiberationSans-Bold.ttf"
+      "LiberationSans-Bold.ttf",
+      "DejaVuSans-Bold.ttf"
     ],
     "body_candidates": [
       "segoeuib.ttf",
+      "Roboto-Medium.ttf",
+      "Roboto-Regular.ttf",
       "arialbd.ttf",
-      "DejaVuSans.ttf",
-      "LiberationSans-Regular.ttf"
+      "LiberationSans-Regular.ttf",
+      "DejaVuSans.ttf"
     ],
     "mono_candidates": [
       "consolab.ttf",
       "consola.ttf",
-      "DejaVuSansMono-Bold.ttf",
-      "LiberationMono-Bold.ttf"
+      "LiberationMono-Bold.ttf",
+      "DejaVuSansMono-Bold.ttf"
     ]
   },
   "voices": {

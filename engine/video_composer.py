@@ -1,4 +1,4 @@
-"""Anti-Slop 1080p 60fps Cinematic Video Compositor (FFmpeg + OpenCV + LibASS).
+"""Broadcast-Grade 1080p 60fps Cinematic Video Compositor (FFmpeg + OpenCV + LibASS).
 
 Features:
 - True 60fps subpixel Ken Burns zoom/pan (zero zoompan integer jitter)
@@ -163,13 +163,24 @@ def build_kinetic_ass_subtitles(
     w, h = size
     is_vertical = h > w
 
-    # Resolve crisp bold font family name for libass
-    font_path = resolve_font("headline")
-    font_name = "Bahnschrift" if "bahnschrift" in font_path.lower() else (
-        "Impact" if "impact" in font_path.lower() else (
-            "Arial" if "arial" in font_path.lower() else "DejaVu Sans"
-        )
-    )
+    # Resolve crisp bold font family name for libass across Windows and Ubuntu Linux
+    font_path = resolve_font("headline").lower()
+    if "bahnschrift" in font_path:
+        font_name = "Bahnschrift"
+    elif "robotocondensed" in font_path:
+        font_name = "Roboto Condensed"
+    elif "roboto" in font_path:
+        font_name = "Roboto"
+    elif "liberationsansnarrow" in font_path:
+        font_name = "Liberation Sans Narrow"
+    elif "liberationsans" in font_path:
+        font_name = "Liberation Sans"
+    elif "impact" in font_path:
+        font_name = "Impact"
+    elif "arial" in font_path:
+        font_name = "Arial"
+    else:
+        font_name = "DejaVu Sans"
     font_size = 76 if is_vertical else 66
     margin_v = 360 if is_vertical else 76
     margin_lr = 64 if is_vertical else 120
@@ -353,7 +364,7 @@ def compose_cinematic_video(
     work_dir: Path,
     target_lufs: float = -14.0,
 ) -> Dict[str, Any]:
-    """Compose the full 1080p 60fps Anti-Slop cinematic MP4 with HUD, captions, SFX & auto-ducking."""
+    """Compose the full 1080p 60fps Broadcast-Grade cinematic MP4 with HUD, captions, SFX & auto-ducking."""
     fmt = script["format"]
     size = (1080, 1920) if fmt == "shorts" else (1920, 1080)
     w, h = size
@@ -395,7 +406,7 @@ def compose_cinematic_video(
     for idx, beat in enumerate(timed_beats):
         if beat["visual_type"] == "photo_grade":
             photo_path = fetcher.fetch_photo_plate(beat["visual_query"], size, variant_index=idx)
-            # Load via Pillow (100% Unicode-safe on Windows paths like Masaüstü\kanalcı)
+            # Load via Pillow for full cross-platform Unicode path safety
             pil_photo = Image.open(photo_path).convert("RGB")
             raw_bgr = cv2.cvtColor(np.asarray(pil_photo), cv2.COLOR_RGB2BGR)
             graded = _apply_cinematic_grade(raw_bgr)
@@ -454,7 +465,7 @@ def compose_cinematic_video(
 
     total_frames = max(1, int(round(total_dur * fps)))
     hook_text = script["hook_stat_text"]
-    hook_sub = script.get("hook_subtext", "SCALE // ZERO TELEMETRY")
+    hook_sub = script.get("hook_subtext", "VELUM ARCHIVE TELEMETRY")
     hook_window = 2.0
 
     # Pre-assign frame ranges to beats

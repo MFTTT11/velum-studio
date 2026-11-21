@@ -1,1 +1,1 @@
-"""Core infrastructure for SCALE // ZERO autonomous YouTube engine."""
+"""Core infrastructure for VELUM autonomous YouTube engine."""

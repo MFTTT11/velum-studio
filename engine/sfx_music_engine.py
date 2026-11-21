@@ -1,4 +1,4 @@
-"""Zero-Cost Procedural Cinema SFX & Dark Documentary Underscore Engine.
+"""Autonomous Procedural Cinema SFX & Dark Documentary Underscore Engine.
 
 Synthesizes 100% royalty-free, copyright-safe, broadcast-grade 48kHz stereo audio
 using NumPy + SciPy DSP:
@@ -238,7 +238,7 @@ def generate_audio_pack(work_dir: Path, total_duration: float) -> Dict[str, Path
         "tension_bed": _write_stereo_wav(sfx_dir / "tension_bed.wav", synth_tension_bed(total_duration)),
     }
     logger.info(
-        "Synthesized 0-TL cinema audio pack (%d SFX + %.1fs tension bed)",
+        "Synthesized Autonomous cinema audio pack (%d SFX + %.1fs tension bed)",
         len(assets) - 1,
         total_duration,
     )

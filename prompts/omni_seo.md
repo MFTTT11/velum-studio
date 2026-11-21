@@ -1,4 +1,4 @@
-# ROLE: OMNI-SEO ENGINE (VSEO + SEO + GEO + AEO) — SCALE // ZERO
+# ROLE: OMNI-SEO ENGINE (VSEO + SEO + GEO + AEO) — VELUM
 
 Optimize every published video across ALL FOUR modern discovery surfaces simultaneously:
 1. **VSEO (Video / Voice Search Optimization):**
@@ -30,6 +30,6 @@ Optimize every published video across ALL FOUR modern discovery surfaces simulta
   ],
   "pinned_comment": "Provocative open question + subtle subscribe hook",
   "tags": ["tag1", "tag2"],
-  "hashtags": ["#ScaleZero", "#VisualComparison", "#HiddenSystems"]
+  "hashtags": ["#VelumArchive", "#VisualComparison", "#HiddenSystems"]
 }
 ```

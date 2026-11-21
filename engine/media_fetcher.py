@@ -1,4 +1,4 @@
-"""Zero-Cost Free Visual Sourcing Engine (Wikimedia Commons + Optional Pexels/Pixabay).
+"""Autonomous Free Visual Sourcing Engine (Wikimedia Commons + Optional Pexels/Pixabay).
 
 Downloads real, license-safe high-resolution photography for `photo_grade` beats,
 validates integrity and dimensions, cover-crops with overscan (zero black borders),
@@ -22,7 +22,7 @@ from core.config import get_logger
 
 logger = get_logger("media_fetcher")
 
-USER_AGENT = "ScaleZeroDocumentaryEngine/1.0 (https://github.com/scale-zero-lab; educational)"
+USER_AGENT = "VelumBroadcastEngine/1.0 (https://github.com/MFTTT11/velum-studio; educational)"
 
 
 def _cover_resize(img: Image.Image, target_w: int, target_h: int) -> Image.Image:

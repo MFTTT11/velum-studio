@@ -165,10 +165,15 @@ def run_qa_gate(video_path: Path, fmt: str = "shorts") -> Dict[str, Any]:
     if not fps_ok:
         failures.append(f"Frame rate below 60fps target: got {actual_fps:.2f}fps")
 
-    # 3. Duration bounds check
+    # 3. Duration bounds check (auto-remediate Shorts >59.5s by bumping TTS speed)
     dur_ok = min_dur <= duration <= max_dur
     if not dur_ok:
         failures.append(f"Duration {duration:.2f}s outside {fmt} window [{min_dur}s, {max_dur}s]")
+        if fmt == "shorts" and duration > max_dur:
+            ratio = duration / 52.0
+            bump_pct = min(28, max(16, int(round((ratio - 1.0) * 100)) + 14))
+            remediation["speech_rate"] = f"+{bump_pct}%"
+            remediation["resynthesize_voice"] = True
 
     # 4. Loudness (LUFS) & peak check
     lufs, peak_dbfs = _measure_lufs_and_peak(video_path)
