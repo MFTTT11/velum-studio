@@ -1,0 +1,104 @@
+{
+  "channel_name": "SCALE // ZERO",
+  "display_name": "SCALE ZERO",
+  "handle": "@ScaleZeroLab",
+  "tagline": "Visual Comparisons. Hidden Systems. Extreme Reality.",
+  "format_lock": {
+    "archetype": "Visual Comparisons, Hidden Systems & Extreme Facts",
+    "aesthetic": "Netflix Documentary x Vox Data Journalism x Bloomberg Telemetry",
+    "pillars": [
+      {
+        "id": "money_scale",
+        "label": "MONEY & POWER SCALE",
+        "accent": "#FFB800",
+        "description": "Visualizing impossible wealth gaps, hidden economic engines, trillion-dollar choke points, and financial anomalies."
+      },
+      {
+        "id": "hidden_tech",
+        "label": "HIDDEN TECH SYSTEMS",
+        "accent": "#00E5FF",
+        "description": "Invisible infrastructure, submarine cables, semiconductor lithography, algorithmic black boxes, and extreme engineering limits."
+      },
+      {
+        "id": "mind_glitches",
+        "label": "PSYCHOLOGY & COGNITIVE TRAPS",
+        "accent": "#FF2A54",
+        "description": "Weaponized behavioral economics, attention hijacking, perceptual illusions, and human decision blind spots backed by peer-reviewed data."
+      },
+      {
+        "id": "science_anomalies",
+        "label": "SCIENCE & COSMIC ANOMALIES",
+        "accent": "#3DF59C",
+        "description": "Extreme physical scales, deep-sea pressure, relativistic time shifts, biological outliers, and counter-intuitive physics."
+      }
+    ],
+    "pacing_rules": {
+      "hook_window_seconds": 2.0,
+      "max_static_shot_seconds": 2.5,
+      "shorts_target_seconds": [36, 54],
+      "longform_target_seconds": [180, 300],
+      "target_fps": 60,
+      "target_lufs": -14.0,
+      "lufs_tolerance": 2.5
+    }
+  },
+  "seo_bio": "We decode the invisible numbers running the modern world. Every video breaks down visual comparisons, hidden systems, and extreme facts across money, technology, psychology, and science—engineered for maximum clarity, zero fluff, and pure signal. Built for curious minds everywhere. New visual breakdowns daily.",
+  "seo_keywords": [
+    "visual comparison",
+    "hidden systems explained",
+    "extreme facts",
+    "data visualization documentary",
+    "money scale comparison",
+    "hidden technology infrastructure",
+    "psychology facts explained",
+    "science anomalies",
+    "scale zero",
+    "vox style explainer"
+  ],
+  "palette": {
+    "bg_obsidian": "#07090F",
+    "bg_surface": "#0F1422",
+    "bg_panel": "#151C2F",
+    "grid_line": "#1E2942",
+    "accent_cyan": "#00E5FF",
+    "accent_amber": "#FFB800",
+    "accent_crimson": "#FF2A54",
+    "accent_emerald": "#3DF59C",
+    "text_primary": "#F4F7FA",
+    "text_secondary": "#94A3B8",
+    "text_muted": "#5E6D87"
+  },
+  "typography": {
+    "headline_candidates": [
+      "bahnschrift.ttf",
+      "impact.ttf",
+      "arialbd.ttf",
+      "DejaVuSans-Bold.ttf",
+      "LiberationSans-Bold.ttf"
+    ],
+    "body_candidates": [
+      "segoeuib.ttf",
+      "arialbd.ttf",
+      "DejaVuSans.ttf",
+      "LiberationSans-Regular.ttf"
+    ],
+    "mono_candidates": [
+      "consolab.ttf",
+      "consola.ttf",
+      "DejaVuSansMono-Bold.ttf",
+      "LiberationMono-Bold.ttf"
+    ]
+  },
+  "voices": {
+    "en": "en-US-AndrewMultilingualNeural",
+    "en_alt": "en-US-BrianNeural",
+    "tr": "tr-TR-AhmetNeural",
+    "es": "es-MX-JorgeNeural",
+    "de": "de-DE-ConradNeural"
+  },
+  "assets": {
+    "profile": "brand_kit/profile_800x800.png",
+    "banner": "brand_kit/banner_2560x1440.png",
+    "watermark": "brand_kit/watermark_150x150.png"
+  }
+}

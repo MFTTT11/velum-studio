@@ -1,0 +1,56 @@
+# ============================================================
+# PUBLIC REPO SECURITY LOCK - NEVER COMMIT CREDENTIALS OR MEDIA
+# ============================================================
+
+# OAuth / API Secrets & Credentials
+client_secrets.json
+token.json
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+secrets/
+credentials/
+
+# Generated Media & Render Output
+output/
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.wav
+*.mp3
+*.m4a
+tmp/
+temp/
+cache/
+.cache/
+
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# OS & Editor Artifacts
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
+*.bak
+*.swp
