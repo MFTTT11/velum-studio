@@ -233,10 +233,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                     # Active spoken word: pop scale 118% -> 100% + Amber (or Cyan for numbers)
                     hi_col = "&H00FFE500&" if is_numeric else "&H0000B8FF&"
                     parts.append(
-                        f"{{\\c{hi_col}\\fscx118\\fscy118\\t(0,95,\\fscx100\\fscy100)}}{raw_txt}{{\\r}}"
+                        f"{{\\rKinetic\\fs{font_size}\\c{hi_col}\\fscx118\\fscy118\\t(0,95,\\fscx100\\fscy100)}}{raw_txt}{{\\rKinetic}}"
                     )
                 else:
-                    parts.append(f"{{\\c&H00FAF7F4&\\alpha&H20&}}{raw_txt}{{\\r}}")
+                    parts.append(
+                        f"{{\\rKinetic\\fs{font_size}\\c&H00FAF7F4&\\alpha&H20&}}{raw_txt}{{\\rKinetic}}"
+                    )
 
             dialogue = (
                 f"Dialogue: 0,{_format_ass_time(start)},{_format_ass_time(end)},"
