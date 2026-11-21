@@ -155,7 +155,7 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
         "watermark_uploaded": False,
         "metadata_updated": False,
     }
-    if not force and state_db.get_meta("channel_branding_synced") == "v2":
+    if not force and state_db.get_meta("channel_branding_synced") == "v3":
         return result
 
     brand = load_brand_config()
@@ -291,8 +291,33 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
             except Exception as exc:
                 logger.warning("Video localization update skipped for %s (%s)", yt_id, exc)
 
+        # 5. Ensure top-level discussion-starter comment is posted once a video is Public
+        for vid in state_db.get_all_videos()[:5]:
+            yt_id = vid.get("youtube_id")
+            if not yt_id or state_db.get_meta(f"first_comment_posted_{yt_id}") == "true":
+                continue
+            try:
+                seo_info = json.loads(vid.get("seo_json", "{}"))
+                pinned_txt = seo_info.get(
+                    "pinned_comment",
+                    "Honest question: before seeing 11.5 DAYS next to 31.7 YEARS, did your brain assume the gap was way smaller? Which hidden system should we decode next?",
+                )
+                youtube.commentThreads().insert(
+                    part="snippet",
+                    body={
+                        "snippet": {
+                            "videoId": yt_id,
+                            "topLevelComment": {"snippet": {"textOriginal": pinned_txt}},
+                        }
+                    },
+                ).execute()
+                state_db.set_meta(f"first_comment_posted_{yt_id}", "true")
+                logger.info("Posted discussion-starter first comment on public video %s", yt_id)
+            except Exception as exc:
+                logger.debug("First comment check skipped for %s (%s)", yt_id, type(exc).__name__)
+
         if result["banner_uploaded"] and result["metadata_updated"]:
-            state_db.set_meta("channel_branding_synced", "v2")
+            state_db.set_meta("channel_branding_synced", "v3")
     except Exception as exc:
         logger.warning("Channel branding sync skipped (%s)", exc)
 
@@ -378,8 +403,7 @@ def upload_video_package(
                 "defaultAudioLanguage": "en",
             },
             "status": {
-                "privacyStatus": "private",
-                "publishAt": publish_at,
+                "privacyStatus": "public",
                 "selfDeclaredMadeForKids": False,
                 "embeddable": True,
                 "publicStatsViewable": True,
@@ -462,6 +486,7 @@ def upload_video_package(
                         }
                     },
                 ).execute()
+                state_db.set_meta(f"first_comment_posted_{yt_id}", "true")
                 manifest["comment_posted"] = True
                 logger.info("Posted discussion-starter first comment on %s", yt_id)
             except Exception as exc:
