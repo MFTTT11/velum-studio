@@ -213,7 +213,7 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
                         "timing": {"type": "offsetFromStart", "offsetMs": 0},
                         "position": {"type": "corner", "cornerPosition": "topRight"},
                     },
-                    media_body=MediaFileUpload(str(watermark_path), mimetype="image/png"),
+                    media_body=MediaFileUpload(str(watermark_path), mimetype="image/png", resumable=False),
                 ).execute()
                 result["watermark_uploaded"] = True
                 logger.info("Uploaded 150x150 channel video watermark via YouTube API -> %s", channel_id)
