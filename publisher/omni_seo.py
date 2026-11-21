@@ -30,6 +30,11 @@ TARGET_CAPTION_LANGS = {
     "es": "Spanish",
     "de": "German",
     "fr": "French",
+    "pt": "Portuguese",
+    "ar": "Arabic",
+    "hi": "Hindi",
+    "ja": "Japanese",
+    "ko": "Korean",
 }
 
 
@@ -340,6 +345,31 @@ def _build_native_omni_seo(
     }
 
 
+def generate_video_localizations(
+    primary_title: str,
+    description_full: str,
+) -> Dict[str, Dict[str, str]]:
+    """Build YouTube API `localizations` (regional native Title & Description) across 10 languages."""
+    # Extract concise 3-paragraph summary + hashtags for localized regional descriptions
+    paragraphs = [p.strip() for p in description_full.split("\n\n") if p.strip()]
+    core_excerpt = "\n\n".join(paragraphs[:3])[:1200]
+    hashtags_line = paragraphs[-1] if paragraphs and paragraphs[-1].startswith("#") else "#VelumArchive #Shorts"
+
+    localizations: Dict[str, Dict[str, str]] = {}
+    for lang_code in TARGET_CAPTION_LANGS:
+        if lang_code == "en":
+            continue
+        tr_lines = _translate_lines_batch_free([primary_title, core_excerpt], lang_code)
+        loc_title = (tr_lines[0] if tr_lines else primary_title)[:95].strip()
+        loc_desc = (tr_lines[1] if len(tr_lines) > 1 else core_excerpt).strip()
+        localizations[lang_code] = {
+            "title": loc_title or primary_title[:95],
+            "description": f"{loc_title}\n\n{loc_desc}\n\n{hashtags_line}"[:4900],
+        }
+    logger.info("Built regional Title & Description localizations for %d languages", len(localizations))
+    return localizations
+
+
 def generate_omni_seo_package(
     topic: Dict[str, Any],
     script: Dict[str, Any],
@@ -381,6 +411,9 @@ def generate_omni_seo_package(
     srt_tracks = generate_multilang_srt_tracks(
         voice_data.get("timed_beats", []), out_dir, slug, llm=llm
     )
+    localizations = generate_video_localizations(
+        package["titles_ab"][0], package["description_full"]
+    )
 
     word_count = len(package["description_full"].split())
     full_seo = {
@@ -391,6 +424,7 @@ def generate_omni_seo_package(
         "seo_description_word_count": word_count,
         "titles_ab": package["titles_ab"],
         "description_full": package["description_full"],
+        "localizations": localizations,
         "geo_summary_bullets": package["geo_summary_bullets"],
         "aeo_faq": package["aeo_faq"],
         "pinned_comment": package["pinned_comment"],

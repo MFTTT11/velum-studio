@@ -289,51 +289,52 @@ def render_banner(output_path: Path, brand: Dict) -> Path:
         col = amber if idx >= 5 else cyan
         bdraw.rectangle([bx, 1040 - bh, bx + 30, 1040], fill=(*col, 30), outline=(*col, 78), width=1)
 
-    bdraw.line([(0, 508), (w, 508)], fill=(*cyan, 50), width=2)
-    bdraw.line([(0, 932), (w, 932)], fill=(*cyan, 50), width=2)
+    bdraw.line([(0, 560), (w, 560)], fill=(*cyan, 38), width=1)
+    bdraw.line([(0, 880), (w, 880)], fill=(*cyan, 38), width=1)
 
     mono_sm = _load_font("mono", 22)
-    bdraw.text((100, 110), "VELUM ARCHIVE // VISUAL DOCUMENTARY TELEMETRY", fill=(*muted, 110), font=mono_sm)
+    bdraw.text((100, 110), "VELUM DISPATCH // VISUAL DOCUMENTARY TELEMETRY", fill=(*muted, 110), font=mono_sm)
     bdraw.text((1995, 110), "60FPS MASTER  |  EMPIRICAL DATA", fill=(*muted, 110), font=mono_sm)
     bdraw.text((100, 1300), "VISUAL COMPARISONS • HIDDEN INFRASTRUCTURE • EXTREME REALITY", fill=(*muted, 95), font=mono_sm)
     canvas.alpha_composite(bg_overlay)
 
-    # Universal safe-area frosted studio panel (x=535..2025, y=534..906)
+    # Compact dead-center ribbon layout (x=720..1860, y=600..840 -> 240px tall)
+    # Guaranteed zero vertical or horizontal clipping even on narrow split-screen viewports!
     panel = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     pdraw = ImageDraw.Draw(panel)
     pdraw.rounded_rectangle(
-        [535, 534, 2025, 906],
-        radius=26,
-        fill=(10, 14, 24, 212),
-        outline=(*cyan, 115),
+        [690, 594, 1870, 846],
+        radius=20,
+        fill=(10, 14, 24, 215),
+        outline=(*cyan, 110),
         width=2,
     )
-    pdraw.rounded_rectangle([551, 560, 561, 880], radius=5, fill=(*amber, 240))
+    pdraw.rounded_rectangle([704, 616, 712, 824], radius=4, fill=(*amber, 245))
     canvas.alpha_composite(panel)
 
-    _draw_velum_emblem(canvas, cx=735, cy=720, radius=118, palette=palette)
+    _draw_velum_emblem(canvas, cx=835, cy=720, radius=78, palette=palette)
 
     fg_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(fg_layer)
-    font_title = _load_font("headline", 122)
-    font_sub_badge = _load_font("mono", 30)
-    font_tag = _load_font("body", 31)
-    font_pill = _load_font("mono", 22)
-    font_handle = _load_font("mono", 26)
+    font_title = _load_font("headline", 84)
+    font_sub_badge = _load_font("mono", 24)
+    font_tag = _load_font("body", 22)
+    font_pill = _load_font("mono", 17)
+    font_handle = _load_font("mono", 20)
 
-    tx = 925
-    ty = 562
+    tx = 965
+    ty = 614
 
     draw.text((tx, ty), "VELUM", font=font_title, fill=(*white, 255))
     w1 = draw.textbbox((tx, ty), "VELUM", font=font_title)[2]
-    draw.text((w1 + 22, ty + 46), "// ARCHIVE", font=font_sub_badge, fill=(*amber, 245))
+    draw.text((w1 + 16, ty + 32), "// DISPATCH", font=font_sub_badge, fill=(*amber, 245))
 
-    div_y = ty + 136
-    draw.line([(tx, div_y), (1965, div_y)], fill=(*white, 55), width=2)
-    draw.line([(tx, div_y), (tx + 260, div_y)], fill=(*cyan, 255), width=3)
+    div_y = ty + 94
+    draw.line([(tx, div_y), (1830, div_y)], fill=(*white, 55), width=2)
+    draw.line([(tx, div_y), (tx + 210, div_y)], fill=(*cyan, 255), width=3)
 
     tagline = "VISUAL COMPARISONS  •  HIDDEN SYSTEMS  •  EXTREME REALITY"
-    draw.text((tx, div_y + 22), tagline, font=font_tag, fill=(*white, 235))
+    draw.text((tx, div_y + 14), tagline, font=font_tag, fill=(*white, 235))
 
     pills = [
         ("CAPITAL & POWER", amber),
@@ -342,24 +343,24 @@ def render_banner(output_path: Path, brand: Dict) -> Path:
         ("PHYSICS", emerald),
     ]
     px = tx
-    py = div_y + 82
+    py = div_y + 54
     for label, col in pills:
         tb = draw.textbbox((0, 0), label, font=font_pill)
-        pw = (tb[2] - tb[0]) + 34
-        ph = 44
+        pw = (tb[2] - tb[0]) + 24
+        ph = 32
         draw.rounded_rectangle(
             [px, py, px + pw, py + ph],
-            radius=8,
+            radius=6,
             fill=(col[0], col[1], col[2], 38),
             outline=(*col, 225),
             width=2,
         )
-        draw.text((px + 17, py + 10), label, font=font_pill, fill=(*white, 255))
-        px += pw + 16
+        draw.text((px + 12, py + 6), label, font=font_pill, fill=(*white, 255))
+        px += pw + 12
 
     handle_text = brand["handle"].upper()
     hb = draw.textbbox((0, 0), handle_text, font=font_handle)
-    draw.text((1965 - (hb[2] - hb[0]), 566), handle_text, font=font_handle, fill=(*cyan, 235))
+    draw.text((1830 - (hb[2] - hb[0]), 624), handle_text, font=font_handle, fill=(*cyan, 235))
 
     canvas.alpha_composite(fg_layer)
     final = canvas.convert("RGB")

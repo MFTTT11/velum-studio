@@ -29,6 +29,11 @@ from core.config import (
     load_brand_config,
 )
 from core.state_db import StateDB
+from publisher.omni_seo import (
+    TARGET_CAPTION_LANGS,
+    _translate_lines_batch_free,
+    generate_video_localizations,
+)
 
 logger = get_logger("youtube_uploader")
 
@@ -150,7 +155,7 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
         "watermark_uploaded": False,
         "metadata_updated": False,
     }
-    if not force and state_db.get_meta("channel_branding_synced") == "true":
+    if not force and state_db.get_meta("channel_branding_synced") == "v2":
         return result
 
     brand = load_brand_config()
@@ -189,20 +194,41 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
             except Exception as exc:
                 logger.warning("Channel banner API insert error (%s)", exc)
 
-        # 2. Update Channel Description (Bio), Keywords, and Country (TR)
-        ch_settings["description"] = brand.get("seo_bio", "")[:990]
+        # 2. Update Channel Description (Bio), Keywords, Country (TR) & 10-Language Regional Localizations
+        bio_en = brand.get("seo_bio", "")[:990]
+        ch_title = brand.get("channel_name", "Velum Dispatch")
+        ch_settings["description"] = bio_en
         kw_list = brand.get("seo_keywords", [])
         ch_settings["keywords"] = " ".join(f'"{k}"' if " " in k else k for k in kw_list)[:490]
         ch_settings["country"] = "TR"
         ch_settings["defaultLanguage"] = "en"
         branding["channel"] = ch_settings
 
+        ch_localizations: Dict[str, Dict[str, str]] = {"en": {"title": ch_title, "description": bio_en}}
+        for lang_code in TARGET_CAPTION_LANGS:
+            if lang_code == "en":
+                continue
+            tr_bio = _translate_lines_batch_free([bio_en], lang_code)
+            ch_localizations[lang_code] = {
+                "title": ch_title,
+                "description": (tr_bio[0] if tr_bio else bio_en)[:990],
+            }
+
         youtube.channels().update(
-            part="brandingSettings",
-            body={"id": channel_id, "brandingSettings": branding},
+            part="brandingSettings,localizations",
+            body={
+                "id": channel_id,
+                "brandingSettings": branding,
+                "localizations": ch_localizations,
+            },
         ).execute()
         result["metadata_updated"] = True
-        logger.info("Applied channel brandingSettings (Banner + Bio + Keywords + Country=TR) on %s", channel_id)
+        result["channel_languages"] = list(ch_localizations.keys())
+        logger.info(
+            "Applied channel brandingSettings + %d regional language localizations on %s",
+            len(ch_localizations),
+            channel_id,
+        )
 
         # 3. Upload 150x150 RGBA Video Watermark via watermarks().set
         if watermark_path.exists():
@@ -220,8 +246,40 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
             except Exception as exc:
                 logger.warning("Channel watermark API upload error (%s)", exc)
 
+        # 4. Retro-apply 10-language regional Title & Description localizations to recent uploaded videos
+        for vid in state_db.get_all_videos()[:5]:
+            yt_id = vid.get("youtube_id")
+            if not yt_id:
+                continue
+            try:
+                v_resp = youtube.videos().list(part="snippet,localizations", id=yt_id).execute()
+                v_items = v_resp.get("items", [])
+                if not v_items:
+                    continue
+                v_snip = v_items[0]["snippet"]
+                v_snip["defaultLanguage"] = "en"
+                v_snip["defaultAudioLanguage"] = "en"
+                v_locs = generate_video_localizations(
+                    v_snip.get("title", ""), v_snip.get("description", "")
+                )
+                v_locs["en"] = {
+                    "title": v_snip.get("title", "")[:95],
+                    "description": v_snip.get("description", "")[:4900],
+                }
+                youtube.videos().update(
+                    part="snippet,localizations",
+                    body={"id": yt_id, "snippet": v_snip, "localizations": v_locs},
+                ).execute()
+                logger.info(
+                    "Applied %d regional language Title/Description localizations to video %s",
+                    len(v_locs),
+                    yt_id,
+                )
+            except Exception as exc:
+                logger.warning("Video localization update skipped for %s (%s)", yt_id, exc)
+
         if result["banner_uploaded"] and result["metadata_updated"]:
-            state_db.set_meta("channel_branding_synced", "true")
+            state_db.set_meta("channel_branding_synced", "v2")
     except Exception as exc:
         logger.warning("Channel branding sync skipped (%s)", exc)
 
@@ -292,6 +350,11 @@ def upload_video_package(
         branding_sync = sync_channel_branding(youtube, state_db)
         manifest["channel_branding_sync"] = branding_sync
 
+        loc_map = dict(seo_package.get("localizations", {}))
+        loc_map["en"] = {
+            "title": primary_title,
+            "description": seo_package["description_full"][:4950],
+        }
         body = {
             "snippet": {
                 "title": primary_title,
@@ -308,11 +371,17 @@ def upload_video_package(
                 "embeddable": True,
                 "publicStatsViewable": True,
             },
+            "localizations": loc_map,
         }
 
-        logger.info("Uploading %s to YouTube (scheduled publishAt=%s)...", video_path.name, publish_at)
+        logger.info(
+            "Uploading %s to YouTube (scheduled publishAt=%s, %d regional languages)...",
+            video_path.name,
+            publish_at,
+            len(loc_map),
+        )
         media = MediaFileUpload(str(video_path), mimetype="video/mp4", resumable=True, chunksize=8 * 1024 * 1024)
-        request = youtube.videos().insert(part="snippet,status", body=body, media_body=media)
+        request = youtube.videos().insert(part="snippet,status,localizations", body=body, media_body=media)
 
         response = None
         while response is None:
@@ -335,7 +404,18 @@ def upload_video_package(
                 logger.warning("Thumbnail upload skipped/deferred (%s)", type(exc).__name__)
 
         # 2. Upload multi-language `.srt` caption tracks
-        lang_names = {"en": "English", "tr": "Türkçe", "es": "Español", "de": "Deutsch", "fr": "Français"}
+        lang_names = {
+            "en": "English",
+            "tr": "Türkçe",
+            "es": "Español",
+            "de": "Deutsch",
+            "fr": "Français",
+            "pt": "Português",
+            "ar": "العربية",
+            "hi": "हिन्दी",
+            "ja": "日本語",
+            "ko": "한국어",
+        }
         for lang_code, srt_file in seo_package.get("subtitles_srt", {}).items():
             if not Path(srt_file).exists():
                 continue
