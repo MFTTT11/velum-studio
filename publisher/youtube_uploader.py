@@ -22,9 +22,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from core.config import (
+    BRAND_DIR,
     ephemeral_youtube_credentials,
     get_logger,
     has_youtube_credentials,
+    load_brand_config,
 )
 from core.state_db import StateDB
 
@@ -138,6 +140,94 @@ def build_youtube_service(token_path: Path):
     return build("youtube", "v3", credentials=creds, cache_discovery=False)
 
 
+def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Dict[str, Any]:
+    """Automatically push Banner (2560x1440), Watermark (150x150), Bio, Keywords & Country via YouTube Data API v3."""
+    from googleapiclient.http import MediaFileUpload
+
+    result: Dict[str, Any] = {
+        "channel_id": None,
+        "banner_uploaded": False,
+        "watermark_uploaded": False,
+        "metadata_updated": False,
+    }
+    if not force and state_db.get_meta("channel_branding_synced") == "true":
+        return result
+
+    brand = load_brand_config()
+    banner_path = BRAND_DIR / "banner_2560x1440.png"
+    watermark_path = BRAND_DIR / "watermark_150x150.png"
+
+    try:
+        ch_resp = youtube.channels().list(part="id,snippet,brandingSettings", mine=True).execute()
+        items = ch_resp.get("items", [])
+        if not items:
+            logger.warning("No YouTube channel found on authenticated account for branding sync.")
+            return result
+        ch = items[0]
+        channel_id = ch["id"]
+        result["channel_id"] = channel_id
+        branding = ch.get("brandingSettings", {})
+        ch_settings = branding.get("channel", {})
+
+        # 1. Upload 2560x1440 Channel Banner via channelBanners().insert
+        banner_url = None
+        if banner_path.exists():
+            try:
+                b_resp = (
+                    youtube.channelBanners()
+                    .insert(
+                        body={},
+                        media_body=MediaFileUpload(str(banner_path), mimetype="image/png", resumable=True),
+                    )
+                    .execute()
+                )
+                banner_url = b_resp.get("url")
+                if banner_url:
+                    branding.setdefault("image", {})["bannerExternalUrl"] = banner_url
+                    result["banner_uploaded"] = True
+                    logger.info("Uploaded 2560x1440 channel banner via YouTube API -> %s", channel_id)
+            except Exception as exc:
+                logger.warning("Channel banner API insert error (%s)", exc)
+
+        # 2. Update Channel Description (Bio), Keywords, and Country (TR)
+        ch_settings["description"] = brand.get("seo_bio", "")[:990]
+        kw_list = brand.get("seo_keywords", [])
+        ch_settings["keywords"] = " ".join(f'"{k}"' if " " in k else k for k in kw_list)[:490]
+        ch_settings["country"] = "TR"
+        ch_settings["defaultLanguage"] = "en"
+        branding["channel"] = ch_settings
+
+        youtube.channels().update(
+            part="brandingSettings",
+            body={"id": channel_id, "brandingSettings": branding},
+        ).execute()
+        result["metadata_updated"] = True
+        logger.info("Applied channel brandingSettings (Banner + Bio + Keywords + Country=TR) on %s", channel_id)
+
+        # 3. Upload 150x150 RGBA Video Watermark via watermarks().set
+        if watermark_path.exists():
+            try:
+                youtube.watermarks().set(
+                    channelId=channel_id,
+                    body={
+                        "timing": {"type": "offsetFromStart", "offsetMs": 0},
+                        "position": {"type": "corner", "cornerPosition": "topRight"},
+                    },
+                    media_body=MediaFileUpload(str(watermark_path), mimetype="image/png"),
+                ).execute()
+                result["watermark_uploaded"] = True
+                logger.info("Uploaded 150x150 channel video watermark via YouTube API -> %s", channel_id)
+            except Exception as exc:
+                logger.warning("Channel watermark API upload error (%s)", exc)
+
+        if result["banner_uploaded"] and result["metadata_updated"]:
+            state_db.set_meta("channel_branding_synced", "true")
+    except Exception as exc:
+        logger.warning("Channel branding sync skipped (%s)", exc)
+
+    return result
+
+
 def upload_video_package(
     video_uid: str,
     video_path: Path,
@@ -197,6 +287,10 @@ def upload_video_package(
         if token_path is None:
             raise RuntimeError("Ephemeral YouTube token could not be materialized.")
         youtube = build_youtube_service(token_path)
+
+        # Ensure channel Banner (2560x1440), Watermark (150x150), Bio, Keywords & Country are synced via API
+        branding_sync = sync_channel_branding(youtube, state_db)
+        manifest["channel_branding_sync"] = branding_sync
 
         body = {
             "snippet": {

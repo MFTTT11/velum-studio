@@ -29,6 +29,7 @@ from core.config import (
     ROOT_DIR,
     STATE_DB_PATH,
     ensure_output_dir,
+    ephemeral_youtube_credentials,
     get_logger,
     has_youtube_credentials,
     load_brand_config,
@@ -45,7 +46,12 @@ from engine.voice_engine import synthesize_voice_and_align
 from publisher.comment_responder import run_comment_cycle
 from publisher.growth_mutator import run_growth_mutation_cycle
 from publisher.omni_seo import generate_omni_seo_package, slugify_keyword
-from publisher.youtube_uploader import compute_warmup_plan, upload_video_package
+from publisher.youtube_uploader import (
+    build_youtube_service,
+    compute_warmup_plan,
+    sync_channel_branding,
+    upload_video_package,
+)
 
 logger = get_logger("autopilot")
 console = Console()
@@ -116,10 +122,16 @@ def run_single_cycle(
     # Respect Day 1-2 anti-spam warm-up cap on multi-daily CI runs: switch cleanly to Engagement-Only Mode
     if warmup_plan.get("daily_quota_reached") and not force_produce and not dry_run and fmt_override == "auto":
         logger.info(
-            "Daily warm-up video quota already met (%d/%d Shorts today) -> running Engagement & Growth cycle only.",
+            "Daily warm-up video quota already met (%d/%d Shorts today) -> running Branding Sync, Engagement & Growth cycle.",
             warmup_plan["shorts_produced_today"],
             warmup_plan["daily_shorts_cap"],
         )
+        branding_result: Dict[str, Any] = {}
+        if has_youtube_credentials():
+            with ephemeral_youtube_credentials() as (_, token_path):
+                if token_path is not None:
+                    yt_svc = build_youtube_service(token_path)
+                    branding_result = sync_channel_branding(yt_svc, state_db)
         comment_result = run_comment_cycle(state_db, out_dir=None, llm=llm)
         growth_result = run_growth_mutation_cycle(state_db, out_dir=None)
         elapsed = round(time.time() - t0, 1)
@@ -127,13 +139,14 @@ def run_single_cycle(
             "engagement_only",
             None,
             "success",
-            f"Warm-up cap respected; comments_sent={comment_result['sent_now']}, mutations={len(growth_result['mutations_applied'])}",
+            f"Warm-up cap respected; banner_synced={branding_result.get('banner_uploaded')}, comments_sent={comment_result['sent_now']}",
         )
         return {
             "run_number": run_number,
             "mode": "engagement_only",
             "elapsed_sec": elapsed,
             "warmup_plan": warmup_plan,
+            "branding_sync": branding_result,
             "comment_bot": comment_result,
             "growth_mutator": growth_result,
         }
