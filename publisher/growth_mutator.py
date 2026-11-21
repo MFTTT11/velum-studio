@@ -32,7 +32,7 @@ from publisher.youtube_uploader import YOUTUBE_SCOPES, build_youtube_service
 
 logger = get_logger("growth_mutator")
 
-SHORTS_RETENTION_THRESHOLD = 70.0  # < 70% viewed/retention triggers A/B swap
+SHORTS_RETENTION_THRESHOLD = 58.0  # < 58% viewed/retention on 50-55s Shorts triggers A/B swap
 LONGFORM_CTR_THRESHOLD = 5.0       # < 5% CTR triggers A/B swap
 
 
