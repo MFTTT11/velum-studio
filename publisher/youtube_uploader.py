@@ -214,21 +214,34 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
                 "description": (tr_bio[0] if tr_bio else bio_en)[:990],
             }
 
+        # 2a. Update brandingSettings (Banner + Description + Keywords + Country=TR)
         youtube.channels().update(
-            part="brandingSettings,localizations",
+            part="brandingSettings",
             body={
                 "id": channel_id,
                 "brandingSettings": branding,
-                "localizations": ch_localizations,
             },
         ).execute()
         result["metadata_updated"] = True
-        result["channel_languages"] = list(ch_localizations.keys())
-        logger.info(
-            "Applied channel brandingSettings + %d regional language localizations on %s",
-            len(ch_localizations),
-            channel_id,
-        )
+        logger.info("Applied channel brandingSettings (compact Banner + Bio + Keywords + Country=TR) on %s", channel_id)
+
+        # 2b. Update 11-language Channel Localizations in a separate API call (YouTube forbids combining parts)
+        try:
+            youtube.channels().update(
+                part="localizations",
+                body={
+                    "id": channel_id,
+                    "localizations": ch_localizations,
+                },
+            ).execute()
+            result["channel_languages"] = list(ch_localizations.keys())
+            logger.info(
+                "Applied %d regional language channel localizations on %s",
+                len(ch_localizations),
+                channel_id,
+            )
+        except Exception as exc:
+            logger.warning("Channel localizations update skipped (%s)", exc)
 
         # 3. Upload 150x150 RGBA Video Watermark via watermarks().set
         if watermark_path.exists():
