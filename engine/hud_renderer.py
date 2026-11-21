@@ -186,13 +186,13 @@ def render_data_plate(
     draw = ImageDraw.Draw(layer)
     eased = ease_out_cubic(anim_t)
 
-    # Safe focal zone (keeps clear of top HUD & bottom kinetic captions!)
+    # Safe focal zone (sits cleanly below the 0-2s Shock Hook y=175..375 and above captions y=1560)
     if is_vertical:
         box_l, box_r = 76, w - 76
-        box_t, box_b = 330, 1260
+        box_t, box_b = 408, 1295
     else:
         box_l, box_r = 160, w - 160
-        box_t, box_b = 175, h - 220
+        box_t, box_b = 195, h - 210
 
     box_w = box_r - box_l
     box_h = box_b - box_t
@@ -507,21 +507,21 @@ def render_hud_overlay(
             hook_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
             hdraw = ImageDraw.Draw(hook_layer)
 
-            banner_y = int(h * 0.34) if is_vertical else int(h * 0.28)
-            banner_h = 265 if is_vertical else 225
-            bx0, bx1 = (44, w - 44) if is_vertical else (180, w - 180)
+            banner_y = 176 if is_vertical else 118
+            banner_h = 204 if is_vertical else 185
+            bx0, bx1 = (46, w - 46) if is_vertical else (180, w - 180)
 
             # High-contrast crimson/obsidian shock impact slab
             hdraw.rounded_rectangle(
                 [bx0, banner_y, bx1, banner_y + banner_h],
-                radius=22,
-                fill=(10, 12, 20, int(238 * alpha_mult)),
+                radius=20,
+                fill=(10, 12, 20, int(242 * alpha_mult)),
                 outline=(*crimson, int(255 * alpha_mult)),
                 width=5,
             )
             # Top warning bar
             hdraw.rectangle(
-                [bx0 + 4, banner_y + 4, bx1 - 4, banner_y + 18],
+                [bx0 + 4, banner_y + 4, bx1 - 4, banner_y + 16],
                 fill=(*amber, int(255 * alpha_mult)),
             )
 
@@ -530,37 +530,37 @@ def render_hud_overlay(
                 hdraw,
                 htext,
                 "headline",
-                max_size=94 if is_vertical else 104,
-                max_width=(bx1 - bx0 - 64),
-                min_size=46,
+                max_size=86 if is_vertical else 92,
+                max_width=(bx1 - bx0 - 56),
+                min_size=44,
             )
             sub_font = fit_font(
                 hdraw,
                 f"[ {(shock_hook_sub or '').upper()} ]",
                 "mono",
-                max_size=32 if is_vertical else 30,
-                max_width=(bx1 - bx0 - 64),
-                min_size=20,
+                max_size=28 if is_vertical else 26,
+                max_width=(bx1 - bx0 - 56),
+                min_size=18,
             )
 
             _draw_centered_text(
                 hdraw,
                 htext,
                 w // 2,
-                banner_y + 46,
+                banner_y + 34,
                 hook_font,
                 (*amber, int(255 * alpha_mult)),
-                max_width=(bx1 - bx0 - 50),
+                max_width=(bx1 - bx0 - 46),
             )
             if shock_hook_sub:
                 _draw_centered_text(
                     hdraw,
                     f"[ {shock_hook_sub.upper()} ]",
                     w // 2,
-                    banner_y + banner_h - 62,
+                    banner_y + banner_h - 50,
                     sub_font,
                     (*white, int(245 * alpha_mult)),
-                    max_width=(bx1 - bx0 - 60),
+                    max_width=(bx1 - bx0 - 56),
                 )
             hud.alpha_composite(hook_layer)
 
