@@ -260,17 +260,10 @@ def _align_beats_to_audio(
                         clone["visual_type"] = "data_plate"
                 rhythm_beats.append(clone)
 
-    # Guarantee 0.0-2.0s opening frame uses dramatic dark graded cinema behind the Shock Hook slab
-    # so zero underlying chart bars ever collide with the giant opening hook text!
-    if len(rhythm_beats) >= 2 and rhythm_beats[0]["visual_type"] == "data_plate":
-        # Push the opening comparison plate cleanly to Beat 2 (right after the 0-2s Shock Hook clears!)
-        saved_plate_mode = rhythm_beats[0].get("plate_mode")
-        saved_plate_data = rhythm_beats[0].get("plate_data")
-        rhythm_beats[0]["visual_type"] = "photo_grade"
-        if saved_plate_data and rhythm_beats[1]["visual_type"] == "photo_grade":
-            rhythm_beats[1]["visual_type"] = "data_plate"
-            rhythm_beats[1]["plate_mode"] = saved_plate_mode
-            rhythm_beats[1]["plate_data"] = saved_plate_data
+    # Keep Beat 1 as a high-contrast animated data plate at 0.0s (positioned below the 0-2s Shock Hook)
+    # so viewers immediately see both the Shock Hook banner and the visual comparison chart on Frame 0!
+    if rhythm_beats and rhythm_beats[0]["visual_type"] != "data_plate" and rhythm_beats[0].get("plate_data"):
+        rhythm_beats[0]["visual_type"] = "data_plate"
 
     # Recompute monotonic HUD progress 0..1 across all visual beats
     n_total = max(len(rhythm_beats), 1)
