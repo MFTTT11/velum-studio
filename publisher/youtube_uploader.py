@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -44,6 +45,68 @@ YOUTUBE_SCOPES = [
     "https://www.googleapis.com/auth/youtube.force-ssl",
     "https://www.googleapis.com/auth/yt-analytics.readonly",
 ]
+
+
+def _sanitize_youtube_text(
+    text: Any,
+    max_chars: Optional[int] = None,
+    max_bytes: int = 4950,
+) -> str:
+    """Sanitize metadata for YouTube Data API v3 (forbids `<` and `>`, enforces UTF-8 byte & char caps)."""
+    cleaned = str(text or "")
+    cleaned = re.sub(r"\s*-+>\s*", " to ", cleaned)
+    cleaned = re.sub(r"<=\s*", "at most ", cleaned)
+    cleaned = re.sub(r">=\s*", "at least ", cleaned)
+    cleaned = re.sub(r"<\s*", "under ", cleaned)
+    cleaned = re.sub(r">\s*", "over ", cleaned)
+    # Belt-and-suspenders removal of any residual angle brackets or illegal ASCII control chars
+    cleaned = cleaned.replace("<", "").replace(">", "")
+    cleaned = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", cleaned)
+    cleaned = "\n".join(re.sub(r"[ \t]{2,}", " ", ln).rstrip() for ln in cleaned.splitlines()).strip()
+
+    if max_chars is not None and len(cleaned) > max_chars:
+        cleaned = cleaned[:max_chars].rstrip()
+
+    if max_bytes is not None and max_bytes > 0:
+        encoded = cleaned.encode("utf-8")
+        if len(encoded) > max_bytes:
+            cleaned = encoded[:max_bytes].decode("utf-8", errors="ignore").rstrip()
+    return cleaned
+
+
+def _sanitize_youtube_tags(tags: List[Any], max_tags: int = 20, max_total_chars: int = 460) -> List[str]:
+    """Sanitize video tags for YouTube Data API v3 (zero `<`/`>`, total length < 500 chars)."""
+    clean_tags: List[str] = []
+    total_len = 0
+    for raw in tags[:max_tags]:
+        tag = _sanitize_youtube_text(raw, max_chars=45, max_bytes=120).replace("\n", " ").strip()
+        if not tag:
+            continue
+        cost = len(tag) + (3 if " " in tag else 1)
+        if total_len + cost > max_total_chars:
+            break
+        clean_tags.append(tag)
+        total_len += cost
+    return clean_tags
+
+
+def _sanitize_localizations(
+    loc_map: Dict[str, Any],
+    fallback_title: str,
+    fallback_desc: str,
+) -> Dict[str, Dict[str, str]]:
+    """Sanitize every regional localization title & description for YouTube Data API v3."""
+    safe_title_fb = _sanitize_youtube_text(fallback_title, max_chars=95, max_bytes=360) or "VELUM Visual Breakdown"
+    safe_desc_fb = _sanitize_youtube_text(fallback_desc, max_chars=4900, max_bytes=4900)
+    sanitized: Dict[str, Dict[str, str]] = {}
+    for lang_code, entry in (loc_map or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        loc_title = _sanitize_youtube_text(entry.get("title", ""), max_chars=95, max_bytes=360) or safe_title_fb
+        loc_desc = _sanitize_youtube_text(entry.get("description", ""), max_chars=4900, max_bytes=4900) or safe_desc_fb
+        sanitized[str(lang_code)] = {"title": loc_title, "description": loc_desc}
+    sanitized["en"] = {"title": safe_title_fb, "description": safe_desc_fb}
+    return sanitized
 
 
 def _parse_utc_iso(raw_ts: Optional[str]) -> Optional[datetime]:
@@ -296,15 +359,16 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
                 if not v_items:
                     continue
                 v_snip = v_items[0]["snippet"]
+                v_snip["title"] = _sanitize_youtube_text(v_snip.get("title", ""), max_chars=98, max_bytes=380)
+                v_snip["description"] = _sanitize_youtube_text(v_snip.get("description", ""), max_chars=4950, max_bytes=4950)
+                if isinstance(v_snip.get("tags"), list):
+                    v_snip["tags"] = _sanitize_youtube_tags(v_snip["tags"])
                 v_snip["defaultLanguage"] = "en"
                 v_snip["defaultAudioLanguage"] = "en"
-                v_locs = generate_video_localizations(
+                raw_locs = generate_video_localizations(
                     v_snip.get("title", ""), v_snip.get("description", "")
                 )
-                v_locs["en"] = {
-                    "title": v_snip.get("title", "")[:95],
-                    "description": v_snip.get("description", "")[:4900],
-                }
+                v_locs = _sanitize_localizations(raw_locs, v_snip["title"], v_snip["description"])
                 youtube.videos().update(
                     part="snippet,localizations",
                     body={"id": yt_id, "snippet": v_snip, "localizations": v_locs},
@@ -408,7 +472,9 @@ def upload_video_package(
     env_dry = os.getenv("AUTOPILOT_DRY_RUN", "false").lower() == "true"
     is_dry = env_dry if dry_run is None else dry_run
 
-    primary_title = seo_package["titles_ab"][0][:98]
+    primary_title = _sanitize_youtube_text(seo_package["titles_ab"][0], max_chars=98, max_bytes=380)
+    primary_desc = _sanitize_youtube_text(seo_package.get("description_full", ""), max_chars=4950, max_bytes=4950)
+    primary_tags = _sanitize_youtube_tags(seo_package.get("tags", []))
     primary_thumb = thumbnail_paths[0] if thumbnail_paths else ""
 
     manifest = {
@@ -460,16 +526,16 @@ def upload_video_package(
         branding_sync = sync_channel_branding(youtube, state_db)
         manifest["channel_branding_sync"] = branding_sync
 
-        loc_map = dict(seo_package.get("localizations", {}))
-        loc_map["en"] = {
-            "title": primary_title,
-            "description": seo_package["description_full"][:4950],
-        }
+        loc_map = _sanitize_localizations(
+            seo_package.get("localizations", {}),
+            primary_title,
+            primary_desc,
+        )
         body = {
             "snippet": {
                 "title": primary_title,
-                "description": seo_package["description_full"][:4950],
-                "tags": seo_package.get("tags", [])[:20],
+                "description": primary_desc,
+                "tags": primary_tags,
                 "categoryId": "27",  # Education / Documentary
                 "defaultLanguage": "en",
                 "defaultAudioLanguage": "en",

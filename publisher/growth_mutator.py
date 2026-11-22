@@ -35,7 +35,13 @@ from core.config import (
 from core.state_db import StateDB, utc_now_iso
 from engine.thumbnail_engine import generate_ab_thumbnails
 from publisher.omni_seo import _translate_lines_batch_free
-from publisher.youtube_uploader import YOUTUBE_SCOPES, build_youtube_service
+from publisher.youtube_uploader import (
+    YOUTUBE_SCOPES,
+    _sanitize_localizations,
+    _sanitize_youtube_tags,
+    _sanitize_youtube_text,
+    build_youtube_service,
+)
 
 logger = get_logger("growth_mutator")
 
@@ -220,7 +226,7 @@ def _apply_live_title_update(
     """Swap live YouTube video title (+ regional localizations when present) and optional thumbnail."""
     from googleapiclient.http import MediaFileUpload
 
-    clean_title = new_title[:98].strip()
+    clean_title = _sanitize_youtube_text(new_title, max_chars=98, max_bytes=380)
     if not clean_title:
         return False
 
@@ -235,27 +241,36 @@ def _apply_live_title_update(
         item = items[0]
         snippet = dict(item.get("snippet", {}))
         snippet["title"] = clean_title
+        snippet["description"] = _sanitize_youtube_text(
+            snippet.get("description", ""), max_chars=4950, max_bytes=4950
+        )
+        if isinstance(snippet.get("tags"), list):
+            snippet["tags"] = _sanitize_youtube_tags(snippet["tags"])
         snippet.setdefault("defaultLanguage", "en")
         existing_locs = item.get("localizations")
 
         updated_with_locs = False
         if isinstance(existing_locs, dict) and existing_locs:
-            updated_locs = dict(existing_locs)
-            en_desc = str(
-                updated_locs.get("en", {}).get("description")
-                or snippet.get("description", "")
-            )[:4900]
-            updated_locs["en"] = {"title": clean_title[:95], "description": en_desc}
+            raw_updated_locs: Dict[str, Dict[str, str]] = {}
+            en_desc = _sanitize_youtube_text(
+                existing_locs.get("en", {}).get("description")
+                or snippet.get("description", ""),
+                max_chars=4900,
+                max_bytes=4900,
+            )
+            raw_updated_locs["en"] = {"title": clean_title, "description": en_desc}
 
-            for lang_code, loc_val in list(updated_locs.items()):
+            for lang_code, loc_val in list(existing_locs.items()):
                 if lang_code == "en" or not isinstance(loc_val, dict):
                     continue
                 tr_list = _translate_lines_batch_free([clean_title[:95]], lang_code)
-                tr_title = (tr_list[0] if tr_list else clean_title)[:95].strip()
-                updated_locs[lang_code] = {
-                    "title": tr_title or clean_title[:95],
-                    "description": str(loc_val.get("description", en_desc))[:4900],
+                tr_title = tr_list[0] if tr_list else clean_title
+                raw_updated_locs[lang_code] = {
+                    "title": tr_title,
+                    "description": str(loc_val.get("description", en_desc)),
                 }
+
+            updated_locs = _sanitize_localizations(raw_updated_locs, clean_title, en_desc)
 
             try:
                 youtube_svc.videos().update(
