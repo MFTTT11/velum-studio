@@ -47,26 +47,74 @@ def _probe_duration(media_path: Path) -> float:
 async def _synthesize_edge_tts_async(
     text: str, voice: str, out_mp3: Path, rate: str = "+12%", pitch: str = "-1Hz"
 ) -> List[Dict[str, Any]]:
-    """Synthesize speech with Edge-TTS and capture native WordBoundary events as backup."""
-    communicate = edge_tts.Communicate(text=text, voice=voice, rate=rate, pitch=pitch)
-    word_boundaries: List[Dict[str, Any]] = []
+    """Synthesize speech with Edge-TTS with automatic multi-voice fallback and backoff retry."""
     out_mp3.parent.mkdir(parents=True, exist_ok=True)
-    with open(out_mp3, "wb") as fh:
-        async for chunk in communicate.stream():
-            ctype = chunk.get("type")
-            if ctype == "audio":
-                fh.write(chunk["data"])
-            elif ctype == "WordBoundary":
-                start_s = chunk["offset"] / 10_000_000.0
-                dur_s = chunk["duration"] / 10_000_000.0
-                word_boundaries.append(
-                    {
-                        "word": chunk["text"].strip(),
-                        "start": round(start_s, 3),
-                        "end": round(start_s + max(0.06, dur_s), 3),
-                    }
-                )
-    return word_boundaries
+    candidate_voices = [
+        voice,
+        "en-US-AndrewMultilingualNeural",
+        "en-US-BrianMultilingualNeural",
+        "en-US-ChristopherNeural",
+        "en-US-GuyNeural",
+        "en-US-EricNeural",
+    ]
+    # Deduplicate while preserving order
+    unique_voices: List[str] = []
+    for v in candidate_voices:
+        if v and v not in unique_voices:
+            unique_voices.append(v)
+
+    max_attempts = 6
+    last_error: Exception | None = None
+
+    for attempt in range(1, max_attempts + 1):
+        active_voice = unique_voices[min(attempt - 1, len(unique_voices) - 1)]
+        active_pitch = pitch if attempt <= 2 else "+0Hz"
+        word_boundaries: List[Dict[str, Any]] = []
+        try:
+            if out_mp3.exists():
+                out_mp3.unlink()
+            communicate = edge_tts.Communicate(
+                text=text, voice=active_voice, rate=rate, pitch=active_pitch
+            )
+            with open(out_mp3, "wb") as fh:
+                async for chunk in communicate.stream():
+                    ctype = chunk.get("type")
+                    if ctype == "audio":
+                        fh.write(chunk["data"])
+                    elif ctype == "WordBoundary":
+                        start_s = chunk["offset"] / 10_000_000.0
+                        dur_s = chunk["duration"] / 10_000_000.0
+                        word_boundaries.append(
+                            {
+                                "word": chunk["text"].strip(),
+                                "start": round(start_s, 3),
+                                "end": round(start_s + max(0.06, dur_s), 3),
+                            }
+                        )
+            if out_mp3.exists() and out_mp3.stat().st_size >= 1024:
+                if attempt > 1:
+                    logger.info(
+                        "Edge-TTS succeeded on retry #%d using voice=%s (%d bytes)",
+                        attempt,
+                        active_voice,
+                        out_mp3.stat().st_size,
+                    )
+                return word_boundaries
+            raise RuntimeError(f"Edge-TTS produced empty/tiny audio file ({out_mp3})")
+        except Exception as exc:
+            last_error = exc
+            wait_s = 1.8 * attempt
+            logger.warning(
+                "Edge-TTS attempt %d/%d failed (voice=%s, err=%s); retrying in %.1fs...",
+                attempt,
+                max_attempts,
+                active_voice,
+                exc,
+                wait_s,
+            )
+            await asyncio.sleep(wait_s)
+
+    raise RuntimeError(f"Edge-TTS failed after {max_attempts} attempts: {last_error}") from last_error
 
 
 def _clean_voice_with_silenceremove(raw_mp3: Path, clean_wav: Path) -> float:
