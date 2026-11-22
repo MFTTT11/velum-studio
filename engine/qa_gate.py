@@ -1,12 +1,12 @@
 """Automated Broadcast Quality Assurance Gate (`qa_gate.py`).
 
 Inspects every rendered MP4 before upload or delivery:
-1. Exact resolution & aspect ratio (1080x1920 Shorts or 1920x1080 Long-form)
+1. Exact resolution & aspect ratio (2160x3840 4K Shorts or 1920x1080 Long-form)
 2. True 60fps frame rate verification (>= 59.0 fps)
-3. Duration bounds compliance (Shorts: 20-59.5s; Long-form: 90-420s)
-4. Integrated Loudness (LUFS) & True Peak check via FFmpeg `ebur128` (-17..-11 LUFS)
-5. Zero black borders / letterboxing check via FFmpeg `cropdetect`
-6. Static / frozen frame slop audit via FFmpeg `freezedetect` (max 2.6s static)
+3. Duration bounds compliance (Shorts: 20.0-39.5s; Long-form: 60.0-420.0s)
+4. Integrated Loudness (LUFS) & True Peak check via FFmpeg `ebur128` (-17.5..-11.0 LUFS)
+5. Zero black borders / letterboxing check via fast downscaled FFmpeg `cropdetect`
+6. Static / frozen frame slop audit via fast downscaled FFmpeg `freezedetect` (max 1.85s static)
 7. Stream codec integrity (H.264 yuv420p + AAC stereo 48kHz)
 
 Returns structured pass/fail report with remediation hints so autopilot can
@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import re
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -66,13 +67,20 @@ def _measure_lufs_and_peak(video_path: Path) -> Tuple[Optional[float], Optional[
 
 
 def _detect_black_borders(video_path: Path, expected_w: int, expected_h: int) -> Tuple[bool, str]:
-    """Run FFmpeg cropdetect on sampled frames to guarantee zero letterbox/pillarbox bars."""
+    """Run downscaled FFmpeg cropdetect on keyframes to guarantee zero letterbox/pillarbox bars."""
+    probe_w = 540 if expected_h > expected_w else 640
+    probe_h = max(2, int(round(expected_h * (probe_w / max(expected_w, 1)) / 2.0)) * 2)
     cmd = [
         get_ffmpeg_bin(),
+        "-threads",
+        "0",
+        "-skip_frame",
+        "nokey",
         "-i",
         str(video_path),
+        "-an",
         "-vf",
-        "fps=1,cropdetect=limit=18:round=2:reset=0",
+        f"scale={probe_w}:{probe_h}:flags=fast_bilinear,cropdetect=limit=18:round=2:reset=0:skip=0",
         "-t",
         "12",
         "-f",
@@ -83,36 +91,51 @@ def _detect_black_borders(video_path: Path, expected_w: int, expected_h: int) ->
     matches = re.findall(r"crop=(\d+):(\d+):(\d+):(\d+)", res.stderr or "")
     if not matches:
         return True, f"{expected_w}x{expected_h} (clean)"
-    # Use last stable converged crop box
+    # Use last stable converged crop box and scale back cleanly to expected resolution
     cw, ch, cx, cy = [int(v) for v in matches[-1]]
-    w_ratio = cw / max(expected_w, 1)
-    h_ratio = ch / max(expected_h, 1)
+    w_ratio = cw / max(probe_w, 1)
+    h_ratio = ch / max(probe_h, 1)
+    scale_x = expected_w / max(probe_w, 1)
+    scale_y = expected_h / max(probe_h, 1)
+    est_cw = min(expected_w, int(round(cw * scale_x)))
+    est_ch = min(expected_h, int(round(ch * scale_y)))
+    est_cx = int(round(cx * scale_x))
+    est_cy = int(round(cy * scale_y))
     ok = w_ratio >= 0.96 and h_ratio >= 0.96
-    return ok, f"active={cw}x{ch}+{cx}+{cy} ({w_ratio*100:.1f}%x{h_ratio*100:.1f}%)"
+    return ok, f"active={est_cw}x{est_ch}+{est_cx}+{est_cy} ({w_ratio*100:.1f}%x{h_ratio*100:.1f}%)"
 
 
-def _detect_frozen_frames(video_path: Path, max_freeze_sec: float = 2.65) -> Tuple[bool, int]:
-    """Verify no static frame freezes beyond the 2.5s pacing rule."""
+def _detect_frozen_frames(video_path: Path, max_freeze_sec: float = 1.85) -> Tuple[bool, int]:
+    """Verify no static frame freezes beyond max_freeze_sec using fast downscaled analysis."""
     cmd = [
         get_ffmpeg_bin(),
+        "-threads",
+        "0",
+        "-skip_frame",
+        "noref",
         "-i",
         str(video_path),
-        "-vf",
-        f"freezedetect=n=-60dB:d={max_freeze_sec:.2f}",
         "-an",
+        "-vf",
+        f"fps=8,scale=540:-2:flags=fast_bilinear,freezedetect=n=-60dB:d={max_freeze_sec:.2f}",
         "-f",
         "null",
         "-",
     ]
     res = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
-    freezes = re.findall(r"freeze_duration:\s*([\d.]+)", res.stderr or "")
-    return len(freezes) == 0, len(freezes)
+    stderr = res.stderr or ""
+    # FFmpeg emits freeze_start as soon as a freeze exceeds `d`; freeze_duration is only emitted
+    # if the freeze ends before EOF, so counting max(starts, durations) catches tail freezes too.
+    freeze_starts = re.findall(r"freeze_start:\s*([\d.]+)", stderr)
+    freeze_durs = re.findall(r"freeze_duration:\s*([\d.]+)", stderr)
+    freeze_count = max(len(freeze_starts), len(freeze_durs))
+    return freeze_count == 0, freeze_count
 
 
 def run_qa_gate(video_path: Path, fmt: str = "shorts") -> Dict[str, Any]:
     """Execute full automated QA audit on a rendered MP4."""
-    expected_w, expected_h = (1080, 1920) if fmt == "shorts" else (1920, 1080)
-    min_dur, max_dur = (20.0, 59.5) if fmt == "shorts" else (60.0, 420.0)
+    expected_w, expected_h = (2160, 3840) if fmt == "shorts" else (1920, 1080)
+    min_dur, max_dur = (20.0, 39.5) if fmt == "shorts" else (60.0, 420.0)
 
     failures: List[str] = []
     remediation: Dict[str, Any] = {}
@@ -165,18 +188,26 @@ def run_qa_gate(video_path: Path, fmt: str = "shorts") -> Dict[str, Any]:
     if not fps_ok:
         failures.append(f"Frame rate below 60fps target: got {actual_fps:.2f}fps")
 
-    # 3. Duration bounds check (auto-remediate Shorts >59.5s by bumping TTS speed)
+    # 3. Duration bounds check (auto-remediate Shorts >39.5s by bumping TTS speed targeting 33.0s)
     dur_ok = min_dur <= duration <= max_dur
     if not dur_ok:
         failures.append(f"Duration {duration:.2f}s outside {fmt} window [{min_dur}s, {max_dur}s]")
         if fmt == "shorts" and duration > max_dur:
-            ratio = duration / 52.0
-            bump_pct = min(28, max(16, int(round((ratio - 1.0) * 100)) + 14))
+            ratio = duration / 33.0
+            bump_pct = min(32, max(18, int(round((ratio - 1.0) * 100)) + 16))
             remediation["speech_rate"] = f"+{bump_pct}%"
             remediation["resynthesize_voice"] = True
 
+    # 4-6. Run loudness, downscaled border & downscaled freeze checks in parallel for <8s 4K QA
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        fut_lufs = pool.submit(_measure_lufs_and_peak, video_path)
+        fut_borders = pool.submit(_detect_black_borders, video_path, expected_w, expected_h)
+        fut_motion = pool.submit(_detect_frozen_frames, video_path, 1.85)
+        lufs, peak_dbfs = fut_lufs.result()
+        borders_ok, border_detail = fut_borders.result()
+        motion_ok, freeze_count = fut_motion.result()
+
     # 4. Loudness (LUFS) & peak check
-    lufs, peak_dbfs = _measure_lufs_and_peak(video_path)
     lufs_ok = lufs is not None and (-17.5 <= lufs <= -11.0)
     if not lufs_ok:
         failures.append(f"Loudness out of broadcast range [-17.5, -11.0] LUFS: got {lufs}")
@@ -187,14 +218,12 @@ def run_qa_gate(video_path: Path, fmt: str = "shorts") -> Dict[str, Any]:
         failures.append(f"Audio clipping detected: peak {peak_dbfs} dBFS > -0.1 dBFS")
 
     # 5. Zero black border check
-    borders_ok, border_detail = _detect_black_borders(video_path, expected_w, expected_h)
     if not borders_ok:
         failures.append(f"Black borders / letterboxing detected: {border_detail}")
 
-    # 6. Static freeze check (>2.65s violates 2.5s rhythm rule)
-    motion_ok, freeze_count = _detect_frozen_frames(video_path, max_freeze_sec=2.65)
+    # 6. Static freeze check (>1.85s violates V3 fluid continuous-motion standard)
     if not motion_ok:
-        failures.append(f"Detected {freeze_count} static frozen segment(s) > 2.65s")
+        failures.append(f"Detected {freeze_count} static frozen segment(s) > 1.85s")
 
     # 7. Codec & compatibility check
     codec_ok = v_codec == "h264" and pix_fmt == "yuv420p" and a_codec == "aac" and a_ch == 2 and a_sr == 48000

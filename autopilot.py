@@ -1,9 +1,10 @@
-"""VELUM — 100% Autonomous Autonomous Visual Documentary Engine Orchestrator.
+"""VELUM V3 — 100% Autonomous 4K Visual Documentary Engine Orchestrator.
 
 Single-command execution:
-    python autopilot.py              # Full end-to-end production + QA + SEO + growth cycle
-    python autopilot.py --run-once   # Explicit single-shot mode for GitHub Actions CI
-    python autopilot.py --daemon     # Continuous local 24/7 autonomous scheduler (every 8h)
+    python autopilot.py                   # Full end-to-end 4K production + QA + SEO + growth cycle
+    python autopilot.py --run-once        # Explicit single-shot mode for GitHub Actions CI (every 2h)
+    python autopilot.py --force-produce   # Bypass daily Shorts cap & 3h anti-spam spacing guard
+    python autopilot.py --daemon          # Continuous local 24/7 autonomous scheduler (every 2h)
 
 SECURITY:
 - Never reads hardcoded secrets; all OAuth & API keys come exclusively from env/GitHub Secrets.
@@ -20,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict
 
+from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -79,6 +81,69 @@ def verify_public_repo_security_lock() -> None:
     logger.info("Public Repo Security Lock verified (.gitignore protects all %d secret/media patterns)", len(required_rules))
 
 
+def _collect_velocity_summary(state_db: StateDB, growth_result: Dict[str, Any]) -> Dict[str, Any]:
+    """Assemble V3 real-time velocity, title-rescue, and Part-2 breakout queue metrics."""
+    videos = state_db.get_all_videos()
+    total_views = sum(int(v.get("views", 0) or 0) for v in videos)
+    live_videos = sum(1 for v in videos if v.get("youtube_id"))
+    mutations_count = len(growth_result.get("mutations_applied", []))
+    videos_evaluated = int(growth_result.get("videos_evaluated", len(videos)))
+    cloned_pillar = (growth_result.get("cloned_winner") or {}).get("pillar")
+
+    breakout_winner: Dict[str, Any] | None = None
+    breakout_raw = state_db.get_meta("breakout_winner_json")
+    if breakout_raw:
+        try:
+            parsed_breakout = json.loads(breakout_raw)
+            if isinstance(parsed_breakout, dict):
+                breakout_winner = parsed_breakout
+        except (ValueError, TypeError):
+            breakout_winner = None
+
+    part2_queue_count = 0
+    part2_raw = state_db.get_meta("part2_queue_json")
+    if part2_raw:
+        try:
+            parsed_queue = json.loads(part2_raw)
+            if isinstance(parsed_queue, list):
+                part2_queue_count = len(parsed_queue)
+        except (ValueError, TypeError):
+            part2_queue_count = 0
+
+    parts = [
+        f"evaluated={videos_evaluated}",
+        f"live={live_videos}",
+        f"total_views={total_views:,}",
+        f"mutations={mutations_count}",
+        f"part2_queue={part2_queue_count}",
+        f"winner_pillar={cloned_pillar or 'none'}",
+    ]
+    if breakout_winner:
+        b_label = (
+            breakout_winner.get("pillar")
+            or breakout_winner.get("source_topic_id")
+            or breakout_winner.get("topic_id")
+            or "active"
+        )
+        b_views = int(breakout_winner.get("views", breakout_winner.get("source_views", 0)) or 0)
+        b_vph = breakout_winner.get("views_per_hour")
+        if b_vph is not None:
+            parts.append(f"breakout={b_label} ({b_views:,}v @ {float(b_vph):.1f}v/h)")
+        else:
+            parts.append(f"breakout={b_label} ({b_views:,}v)")
+
+    return {
+        "videos_evaluated": videos_evaluated,
+        "live_videos": live_videos,
+        "total_views": total_views,
+        "mutations": mutations_count,
+        "part2_queue_count": part2_queue_count,
+        "cloned_winner_pillar": cloned_pillar,
+        "breakout_winner": breakout_winner,
+        "summary_line": " | ".join(parts),
+    }
+
+
 def run_single_cycle(
     fmt_override: str = "auto",
     dry_run: bool = False,
@@ -101,7 +166,7 @@ def run_single_cycle(
             f"Run #[bold yellow]{run_number}[/bold yellow]  |  "
             f"Intelligence: [bold green]{llm.active_provider()}[/bold green]  |  "
             f"YouTube Live Auth: [bold]{'CONNECTED' if has_youtube_credentials() else 'PACKAGE/DRY-RUN'}[/bold]",
-            title="VELUM // BROADCAST AUTOPILOT",
+            title="VELUM V3 // 4K BROADCAST AUTOPILOT",
             border_style="cyan",
         )
     )
@@ -109,23 +174,53 @@ def run_single_cycle(
     # 1. Ensure Brand Kit assets exist (Profile 800x800, Banner 2560x1440, Watermark 150x150)
     brand_assets = ensure_brand_kit(force=force_brand_kit)
 
-    # 2. Check 7-Day Anti-Spam Warm-Up Schedule & lock video format
+    # 2. Check V3 7-Day Hyper-Growth Schedule, Daily Cap & 3h Anti-Spam Spacing Guard
     warmup_plan = compute_warmup_plan(state_db)
     target_format = warmup_plan["recommended_format"] if fmt_override == "auto" else fmt_override
+    daily_cap = int(warmup_plan.get("daily_shorts_cap", 4))
+    shorts_today = int(warmup_plan.get("shorts_produced_today", 0))
+    hours_since_last = float(warmup_plan.get("hours_since_last_upload", 999.0))
+    daily_quota_reached = bool(warmup_plan.get("daily_quota_reached", False))
+    spacing_guard_active = bool(warmup_plan.get("spacing_guard_active", False))
+
     logger.info(
-        "Warm-up phase: %s | Selected format: %s | Next slot: %s",
+        "Warm-up phase: %s | Selected format: %s | Today: %d/%d Shorts | Last upload: %.2fh ago | Spacing guard: %s | Next slot: %s",
         warmup_plan["phase"],
         target_format,
+        shorts_today,
+        daily_cap,
+        hours_since_last,
+        spacing_guard_active,
         warmup_plan["publish_at"],
     )
 
-    # Respect Day 1-2 anti-spam warm-up cap on multi-daily CI runs: switch cleanly to Engagement-Only Mode
-    if warmup_plan.get("daily_quota_reached") and not force_produce and not dry_run and fmt_override == "auto":
-        logger.info(
-            "Daily warm-up video quota already met (%d/%d Shorts today) -> running Branding Sync, Engagement & Growth cycle.",
-            warmup_plan["shorts_produced_today"],
-            warmup_plan["daily_shorts_cap"],
-        )
+    # Respect V3 daily 4-Short cap OR 3-hour anti-spam spacing window: switch cleanly to Engagement & Velocity Blitz
+    if (
+        (daily_quota_reached or spacing_guard_active)
+        and not force_produce
+        and not dry_run
+        and fmt_override == "auto"
+    ):
+        if daily_quota_reached:
+            guard_reason = f"Daily {daily_cap}-Short cap reached ({shorts_today}/{daily_cap} Shorts today)"
+            logger.info(
+                "Engagement & Velocity Blitz: respecting daily %d-Short cap (%d/%d Shorts today) -> running Branding Sync, Comment Responder & Real-Time Velocity Growth Mutator.",
+                daily_cap,
+                shorts_today,
+                daily_cap,
+            )
+        else:
+            guard_reason = (
+                f"3-hour anti-spam spacing window active ({hours_since_last:.2f}h since last upload; "
+                f"{shorts_today}/{daily_cap} Shorts today)"
+            )
+            logger.info(
+                "Engagement & Velocity Blitz: respecting 3-hour anti-spam spacing window (%.2fh since last upload; %d/%d Shorts today) -> running Branding Sync, Comment Responder & Real-Time Velocity Growth Mutator.",
+                hours_since_last,
+                shorts_today,
+                daily_cap,
+            )
+
         branding_result: Dict[str, Any] = {}
         if has_youtube_credentials():
             with ephemeral_youtube_credentials() as (_, token_path):
@@ -134,21 +229,53 @@ def run_single_cycle(
                     branding_result = sync_channel_branding(yt_svc, state_db)
         comment_result = run_comment_cycle(state_db, out_dir=None, llm=llm)
         growth_result = run_growth_mutation_cycle(state_db, out_dir=None)
+        velocity_info = _collect_velocity_summary(state_db, growth_result)
         elapsed = round(time.time() - t0, 1)
+
         state_db.record_run(
             "engagement_only",
             None,
             "success",
-            f"Warm-up cap respected; banner_synced={branding_result.get('banner_uploaded')}, comments_sent={comment_result['sent_now']}",
+            (
+                f"{guard_reason}; banner_synced={branding_result.get('banner_uploaded')}, "
+                f"comments_sent={comment_result['sent_now']}, {velocity_info['summary_line']}"
+            ),
         )
+
+        blitz_table = Table(box=box.SIMPLE_HEAD, show_header=True, header_style="bold cyan")
+        blitz_table.add_column("Subsystem", style="cyan", no_wrap=True)
+        blitz_table.add_column("Status / Telemetry", style="white")
+        blitz_table.add_row("Public Security Lock", "VERIFIED (.gitignore active, 0 secrets stored)")
+        blitz_table.add_row("V3 Cadence Guard", guard_reason)
+        blitz_table.add_row(
+            "Channel Branding Sync",
+            f"banner={branding_result.get('banner_uploaded', False)} | "
+            f"watermark={branding_result.get('watermark_uploaded', False)}",
+        )
+        blitz_table.add_row(
+            "Comment Responder",
+            f"checked={comment_result['fetched']} | spam_blocked={comment_result['spam_filtered']} | "
+            f"queued={comment_result['queued']} | sent={comment_result['sent_now']}",
+        )
+        blitz_table.add_row("V3 Velocity & Growth", velocity_info["summary_line"])
+        console.print(
+            Panel.fit(
+                blitz_table,
+                title=f"VELUM V3 // ENGAGEMENT & VELOCITY BLITZ #{run_number} COMPLETE ({elapsed}s)",
+                border_style="yellow",
+            )
+        )
+
         return {
             "run_number": run_number,
             "mode": "engagement_only",
+            "guard_reason": guard_reason,
             "elapsed_sec": elapsed,
             "warmup_plan": warmup_plan,
             "branding_sync": branding_result,
             "comment_bot": comment_result,
             "growth_mutator": growth_result,
+            "velocity_summary": velocity_info,
         }
 
     # 3. Viral Idea Discovery & 85+ Gate Scoring
@@ -179,6 +306,7 @@ def run_single_cycle(
 
     # 7. Omni-SEO Package (VSEO + 300+ word SEO + GEO + AEO FAQ + Pinned Comment + 5x SRT)
     seo_package = generate_omni_seo_package(topic, script, voice_data, out_dir, llm=llm)
+    seo_package.setdefault("format", target_format)
     final_video_path = out_dir / seo_package["slug_filename"]
 
     # 8. Generate 3 High-Contrast A/B/C Thumbnails (1280x720, <= 3 bold words)
@@ -188,7 +316,7 @@ def run_single_cycle(
         media_cache_dir=work_dir / "media_cache",
     )
 
-    # 9. Render Broadcast-Grade 1080p 60fps Cinematic Video + Automated QA Gate with Auto-Regen
+    # 9. Render Broadcast-Grade V3 4K 60fps Shorts / 1080p 60fps Long-Form + Automated QA Gate
     qa_report: Dict[str, Any] = {}
     render_meta: Dict[str, Any] = {}
     target_lufs = -14.0
@@ -213,6 +341,7 @@ def run_single_cycle(
             logger.warning("Duration exceeded cap -> auto-bumping TTS speed to %s and re-aligning...", new_rate)
             voice_data = synthesize_voice_and_align(script, work_dir, lang="en", speech_rate=new_rate)
             seo_package = generate_omni_seo_package(topic, script, voice_data, out_dir, llm=llm)
+            seo_package.setdefault("format", target_format)
         logger.warning("QA rejected attempt %d; auto-regenerating...", attempt)
 
     (out_dir / "qa_report.json").write_text(
@@ -267,8 +396,24 @@ def run_single_cycle(
     # 11. Multilingual Anti-Spam Comment Responder (15–45 min human delay)
     comment_result = run_comment_cycle(state_db, out_dir=out_dir, llm=llm)
 
-    # 12. Growth Mutator (Shorts <70% / Long-form <5% CTR A/B swap + Winner Format Clone)
+    # 12. V3 Real-Time Velocity Growth Mutator (18h A/B Title Rescue + Breakout Part-2 Cloner)
     growth_result = run_growth_mutation_cycle(state_db, out_dir=out_dir)
+    velocity_info = _collect_velocity_summary(state_db, growth_result)
+
+    qa_checks = qa_report.get("checks", {})
+    res_val = str(
+        qa_checks.get("resolution", {}).get("value")
+        or f"{render_meta.get('width', 2160)}x{render_meta.get('height', 3840)}"
+    )
+    fps_val = qa_checks.get("fps", {}).get("value", 60.0)
+    dur_val = qa_checks.get("duration_sec", {}).get("value", 0.0)
+    lufs_val = qa_checks.get("loudness_lufs", {}).get("value", -14.0)
+    if res_val == "2160x3840":
+        res_tier = "4K Vertical UHD"
+    elif res_val == "3840x2160":
+        res_tier = "4K UHD"
+    else:
+        res_tier = "1080p HD"
 
     elapsed = round(time.time() - t0, 1)
     summary = {
@@ -276,15 +421,19 @@ def run_single_cycle(
         "elapsed_sec": elapsed,
         "video_uid": video_uid,
         "format": target_format,
+        "resolution": res_val,
+        "resolution_tier": res_tier,
         "topic_score": topic["total_score"],
+        "is_part2_followup": bool(topic.get("is_part2_followup", False)),
         "video_file": str(final_video_path),
         "qa_passed": qa_report["passed"],
-        "qa_checks": qa_report["checks"],
+        "qa_checks": qa_checks,
         "thumbnails": thumbnail_paths,
         "seo_file": str(out_dir / "omni_seo_package.json"),
         "subtitles_srt": seo_package["subtitles_srt"],
         "upload_mode": upload_result["mode"],
         "publish_at": upload_result["publishAt"],
+        "force_produce": force_produce,
         "comment_bot": {
             "mode": comment_result["mode"],
             "spam_filtered": comment_result["spam_filtered"],
@@ -292,9 +441,12 @@ def run_single_cycle(
             "sent_now": comment_result["sent_now"],
         },
         "growth_mutator": {
-            "mutations": len(growth_result["mutations_applied"]),
-            "cloned_winner_pillar": (growth_result.get("cloned_winner") or {}).get("pillar"),
+            "mutations": velocity_info["mutations"],
+            "cloned_winner_pillar": velocity_info["cloned_winner_pillar"],
+            "part2_queue_count": velocity_info["part2_queue_count"],
+            "total_views": velocity_info["total_views"],
         },
+        "velocity_summary": velocity_info,
         "brand_assets": {k: str(v) for k, v in brand_assets.items()},
     }
 
@@ -305,22 +457,25 @@ def run_single_cycle(
         "single_cycle",
         video_uid,
         "success",
-        f"QA passed ({qa_report['checks']['resolution']['value']} @ {qa_report['checks']['fps']['value']}fps, "
-        f"{qa_report['checks']['loudness_lufs']['value']} LUFS) in {elapsed}s",
+        (
+            f"QA passed ({res_tier} {res_val} @ {fps_val}fps, {lufs_val} LUFS) in {elapsed}s | "
+            f"{velocity_info['summary_line']}"
+        ),
     )
 
-    # Render crisp execution proof table
-    table = Table(title=f"VELUM — CYCLE #{run_number} COMPLETE ({elapsed}s)", border_style="green")
+    # Render crisp V3 Rich completion panel with 4K resolution and real-time velocity telemetry
+    produced_shorts_count = shorts_today + (1 if target_format == "shorts" else 0)
+    part2_tag = " [PART-2 BREAKOUT CLONE]" if topic.get("is_part2_followup") else ""
+    table = Table(box=box.SIMPLE_HEAD, show_header=True, header_style="bold cyan")
     table.add_column("Subsystem", style="cyan", no_wrap=True)
     table.add_column("Status / Proof", style="white")
     table.add_row("Public Security Lock", "VERIFIED (.gitignore active, 0 secrets stored)")
     table.add_row("Brand Kit", "800x800 Profile + 2560x1440 Banner + 150x150 Watermark")
-    table.add_row("Idea Viral Gate", f"{topic['topic_id']} -> {topic['total_score']}/100 (>=85 PASS)")
+    table.add_row("Idea Viral Gate", f"{topic['topic_id']} -> {topic['total_score']}/100 (>=85 PASS){part2_tag}")
     table.add_row(
-        "Cinematic Video + QA",
-        f"PASSED | {final_video_path.name} | {qa_report['checks']['resolution']['value']} @ "
-        f"{qa_report['checks']['fps']['value']}fps | {qa_report['checks']['duration_sec']['value']}s | "
-        f"{qa_report['checks']['loudness_lufs']['value']} LUFS",
+        "V3 4K Video + QA",
+        f"PASSED | {res_tier} ({res_val} @ {fps_val}fps) | {dur_val}s | "
+        f"{lufs_val} LUFS | {final_video_path.name}",
     )
     table.add_row("A/B/C Thumbnails", f"{len(thumbnail_paths)}x 1280x720 high-contrast PNGs")
     table.add_row(
@@ -329,18 +484,24 @@ def run_single_cycle(
         f"Desc={seo_package['seo_description_word_count']}w | "
         f"SRTs={','.join(seo_package['subtitles_srt'].keys())}",
     )
-    table.add_row("Warm-Up Schedule", f"{upload_result['mode']} -> publishAt {upload_result['publishAt']}")
+    table.add_row(
+        "V3 Cadence & Upload",
+        f"{upload_result['mode']} | {produced_shorts_count}/{daily_cap} Shorts today | "
+        f"force_produce={force_produce} | slot={upload_result['publishAt']}",
+    )
     table.add_row(
         "Comment Responder",
         f"checked={comment_result['fetched']} | spam_blocked={comment_result['spam_filtered']} | "
         f"queued={comment_result['queued']} | sent={comment_result['sent_now']}",
     )
-    table.add_row(
-        "Growth Mutator",
-        f"mutations={len(growth_result['mutations_applied'])} | "
-        f"cloned_pillar={(growth_result.get('cloned_winner') or {}).get('pillar')}",
+    table.add_row("V3 Velocity & Growth", velocity_info["summary_line"])
+    console.print(
+        Panel.fit(
+            table,
+            title=f"VELUM V3 // 4K CYCLE #{run_number} COMPLETE ({elapsed}s)",
+            border_style="green",
+        )
     )
-    console.print(table)
     return summary
 
 
@@ -354,7 +515,7 @@ def _wipe_stray_credentials() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="VELUM — 100% Autonomous Autonomous Autonomous Visual Documentary Engine"
+        description="VELUM V3 — 100% Autonomous 4K Visual Documentary Engine"
     )
     parser.add_argument(
         "--run-once",
@@ -364,13 +525,13 @@ def main() -> int:
     parser.add_argument(
         "--daemon",
         action="store_true",
-        help="Run continuously on an 8-hour autonomous interval (3x/day local daemon).",
+        help="Run continuously on a 2-hour autonomous V3 cadence (12x/day local daemon).",
     )
     parser.add_argument(
         "--format",
         choices=["auto", "shorts", "longform"],
         default="auto",
-        help="Video format override (default: auto via 7-day warm-up schedule).",
+        help="Video format override (default: auto via V3 7-day hyper-growth schedule).",
     )
     parser.add_argument(
         "--dry-run",
@@ -385,7 +546,7 @@ def main() -> int:
     parser.add_argument(
         "--force-produce",
         action="store_true",
-        help="Produce a new video even if today's warm-up daily cap has already been met.",
+        help="Bypass daily Shorts cap & 3-hour anti-spam spacing guard to produce immediately.",
     )
     parser.add_argument(
         "--max-qa-retries",
@@ -397,7 +558,7 @@ def main() -> int:
 
     try:
         if args.daemon and not args.run_once:
-            logger.info("Starting 24/7 local autopilot daemon (interval: 8 hours / 3x daily)...")
+            logger.info("Starting 24/7 local V3 autopilot daemon (interval: 2 hours / 12x daily)...")
             while True:
                 run_single_cycle(
                     fmt_override=args.format,
@@ -406,8 +567,8 @@ def main() -> int:
                     force_brand_kit=args.force_brand_kit,
                     force_produce=args.force_produce,
                 )
-                logger.info("Sleeping 8 hours until next scheduled autonomous cycle...")
-                time.sleep(8 * 3600)
+                logger.info("Sleeping 2 hours until next scheduled autonomous V3 cycle...")
+                time.sleep(2 * 3600)
         else:
             run_single_cycle(
                 fmt_override=args.format,

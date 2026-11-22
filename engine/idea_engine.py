@@ -728,6 +728,567 @@ CURATED_BLUEPRINTS: List[Dict[str, Any]] = [
             "lonely ocean waves aerial view",
         ],
     },
+    # ===================== V2 ULTRA-VIRAL HIGH-CTR EXPANSION (16 NEW BANGERS) =====================
+    {
+        "topic_id": "asteroid-psyche-10-quintillion-gold",
+        "pillar": "money_scale",
+        "format_signature": "cosmic_wealth_paradox",
+        "primary_keyword": "16 Psyche asteroid 10 quintillion metal",
+        "title_variants": [
+            "NASA Found One Asteroid Worth $10 Quintillion (And It Would Crash Earth)",
+            "16 Psyche: The Space Rock Worth $1.2 Billion for Every Human Alive",
+            "Why Mining This $10 Quintillion Asteroid Would Make Gold Worthless",
+        ],
+        "thumbnail_hooks": [["$10 QUINTILLION", "ASTEROID"], ["$1.2B EACH", "FOR ALL"], ["NASA FOUND", "GOLD ROCK"]],
+        "shock_hook_stat": "$10,000,000,000,000,000,000",
+        "hook_subtext": "16 PSYCHE METAL ASTEROID",
+        "debate_hook": {
+            "question": "IF WE MINED IT, WOULD IT SAVE OR CRASH THE ECONOMY?",
+            "option_a": "CRASH IT",
+            "option_b": "SAVE IT",
+            "pinned": "Honest debate: if NASA brought back even 1% of 16 Psyche's metal, would it make humanity rich or collapse metal prices overnight?",
+        },
+        "wiki_entity": "16_Psyche",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 14, "data_density": 10, "search_demand": 8},
+        "key_facts": [
+            {"label": "ALL EARTH ECONOMY", "value": "$105 TRILLION", "numeric": 105, "unit": "T"},
+            {"label": "16 PSYCHE VALUE", "value": "$10 QUINTILLION", "numeric": 100000, "unit": "T"},
+            {"label": "PER HUMAN SHARE", "value": "$1.2 BILLION", "numeric": 1.2, "unit": "B"},
+            {"label": "ASTEROID WIDTH", "value": "226 KM WIDE", "numeric": 226, "unit": "KM"},
+        ],
+        "visual_queries": [
+            "asteroid space nasa orbit",
+            "spacecraft rocket launch nasa",
+            "gold bullion bars vault",
+            "earth from space orbit nasa",
+            "solar system planet asteroid belt",
+        ],
+    },
+    {
+        "topic_id": "titan-implosion-20-milliseconds",
+        "pillar": "science_anomalies",
+        "format_signature": "physics_reaction_race",
+        "primary_keyword": "deep ocean implosion milliseconds vs brain",
+        "title_variants": [
+            "Why Your Brain Literally Cannot Feel a Deep-Sea Implosion",
+            "20 Milliseconds vs 150 Milliseconds: The Physics of Deep Ocean Pressure",
+            "At 3,800 Meters Deep, Water Crushes Steel Faster Than a Nerve Signal",
+        ],
+        "thumbnail_hooks": [["20 MS vs", "150 MS"], ["FASTER THAN", "PAIN"], ["3,800M", "PRESSURE"]],
+        "shock_hook_stat": "20 MS vs 150 MS BRAIN",
+        "hook_subtext": "DEEP OCEAN IMPLOSION PHYSICS",
+        "debate_hook": {
+            "question": "WOULD YOU EVER RIDE A SUBMARINE TO 4,000 METERS?",
+            "option_a": "NO CHANCE",
+            "option_b": "YES, ONCE",
+            "pinned": "Be honest: knowing steel collapses in 20 milliseconds while a pain signal takes 150 milliseconds, would you ever dive to the Titanic?",
+        },
+        "wiki_entity": "Implosion_(mechanical_process)",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 14, "data_density": 10, "search_demand": 8},
+        "key_facts": [
+            {"label": "IMPLOSION TIME", "value": "20 MILLISEC", "numeric": 20, "unit": "MS"},
+            {"label": "BRAIN PAIN SIGNAL", "value": "150 MILLISEC", "numeric": 150, "unit": "MS"},
+            {"label": "TITANIC DEPTH", "value": "3,800 METERS", "numeric": 3800, "unit": "M"},
+            {"label": "HULL PRESSURE", "value": "375 ATM", "numeric": 375, "unit": "ATM"},
+        ],
+        "visual_queries": [
+            "deep ocean submarine underwater",
+            "ocean waves storm sea surface",
+            "submarine hull steel engineering",
+            "deep sea abyss underwater water",
+            "titanic ocean underwater sonar",
+        ],
+    },
+    {
+        "topic_id": "airplane-window-tiny-hole-secret",
+        "pillar": "hidden_tech",
+        "format_signature": "everyday_survival_engineering",
+        "primary_keyword": "airplane window tiny hole bleed valve",
+        "title_variants": [
+            "Why Every Airplane Window Has That Tiny Pin-Hole (It Saves Your Life)",
+            "The 1-Millimeter Hole Stopping Airplane Windows From Exploding",
+            "Never Cover This Tiny Hole on an Airplane Window",
+        ],
+        "thumbnail_hooks": [["1MM HOLE", "SAVES YOU"], ["AIRPLANE", "WINDOW SECRET"], ["WHY IT", "EXISTS"]],
+        "shock_hook_stat": "1 MM HOLE = CABIN LIFE",
+        "hook_subtext": "THE BLEED HOLE ENGINEERING",
+        "debate_hook": {
+            "question": "DID YOU KNOW WHAT THAT TINY WINDOW HOLE DOES?",
+            "option_a": "HAD NO IDEA",
+            "option_b": "KNEW IT",
+            "pinned": "Quick poll: did you actually know that tiny hole in airplane windows equalizes 35,000-foot cabin pressure, or did you always wonder why it's there?",
+        },
+        "wiki_entity": "Cabin_pressurization",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 14, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "BLEED HOLE SIZE", "value": "1.5 MM WIDE", "numeric": 1.5, "unit": "MM"},
+            {"label": "CRUISE ALTITUDE", "value": "11,000 METERS", "numeric": 11000, "unit": "M"},
+            {"label": "OUTSIDE TEMP", "value": "-56 CELSIUS", "numeric": 56, "unit": "C"},
+            {"label": "WINDOW LAYERS", "value": "3 ACRYLIC PANES", "numeric": 3, "unit": "PANES"},
+        ],
+        "visual_queries": [
+            "airplane window clouds sky flight",
+            "commercial jet wing flying clouds",
+            "aircraft fuselage aviation cockpit",
+            "passenger jet cabin window view",
+            "airplane flying sunset sky",
+        ],
+    },
+    {
+        "topic_id": "how-fast-you-move-sitting-still",
+        "pillar": "science_anomalies",
+        "format_signature": "hidden_velocity_stack",
+        "primary_keyword": "how fast are we moving through space",
+        "title_variants": [
+            "You Are Moving 2.1 Million KM/H Right Now While Sitting Still",
+            "The Insane Speed You Travel Through Space Without Feeling a Thing",
+            "Why You Never Feel Earth Hurdling at 107,000 KM/H",
+        ],
+        "thumbnail_hooks": [["2.1 MILLION", "KM PER HOUR"], ["SITTING STILL", "IS A LIE"], ["EARTH SPEED", "EXPOSED"]],
+        "shock_hook_stat": "2,100,000 KM/H RIGHT NOW",
+        "hook_subtext": "YOUR HIDDEN COSMIC VELOCITY",
+        "debate_hook": {
+            "question": "WHAT IF EARTH STOPPED SPINNING FOR JUST 1 SECOND?",
+            "option_a": "INSTANT CHAOS",
+            "option_b": "EXPLAIN NEXT",
+            "pinned": "Since you finished watching this 30-second video, you just traveled over 17,000 kilometers through the universe. Should we break down what happens if Earth stopped spinning for 1 second?",
+        },
+        "wiki_entity": "Earth%27s_orbit",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 19, "comment_velocity": 14, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "EARTH SPIN", "value": "1,670 KM/H", "numeric": 1670, "unit": "KM/H"},
+            {"label": "ORBIT AROUND SUN", "value": "107,000 KM/H", "numeric": 107000, "unit": "KM/H"},
+            {"label": "MILKY WAY SPEED", "value": "828,000 KM/H", "numeric": 828000, "unit": "KM/H"},
+            {"label": "COSMIC TOTAL", "value": "2.1M KM/H", "numeric": 2100000, "unit": "KM/H"},
+        ],
+        "visual_queries": [
+            "earth rotation from space nasa",
+            "milky way galaxy stars night sky",
+            "sun solar flare space nasa",
+            "astronaut spacewalk earth orbit nasa",
+            "deep space nebula stars nasa",
+        ],
+    },
+    {
+        "topic_id": "one-grain-of-sand-space-bullet",
+        "pillar": "science_anomalies",
+        "format_signature": "kinetic_impact_shock",
+        "primary_keyword": "space debris paint fleck orbital velocity",
+        "title_variants": [
+            "A Single Paint Fleck in Space Hits Like a Bowling Ball at 100 MPH",
+            "Why a 1-Millimeter Piece of Space Trash Can Punch Through Steel",
+            "28,000 KM/H: The Deadliest Bullet Floating Above Your Head",
+        ],
+        "thumbnail_hooks": [["1 PAINT FLECK", "= BOWLING BALL"], ["28,000 KM/H", "SPACE TRASH"], ["ORBITAL", "BULLETS"]],
+        "shock_hook_stat": "0.2 GRAMS = BOWLING BALL",
+        "hook_subtext": "ORBITAL KINETIC ENERGY",
+        "debate_hook": {
+            "question": "WILL SPACE JUNK TRAP HUMANITY ON EARTH ONE DAY?",
+            "option_a": "YES, KESSLER",
+            "option_b": "WE CLEAN IT",
+            "pinned": "Over 100 million microscopic fragments are whipping around Earth at 10x rifle bullet speed right now. Do you think space junk will trap us on Earth?",
+        },
+        "wiki_entity": "Space_debris",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 19, "comment_velocity": 13, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "RIFLE BULLET", "value": "3,000 KM/H", "numeric": 3000, "unit": "KM/H"},
+            {"label": "ORBITAL PAINT FLECK", "value": "28,000 KM/H", "numeric": 28000, "unit": "KM/H"},
+            {"label": "TRACKED OBJECTS", "value": "100 MILLION+", "numeric": 100, "unit": "M"},
+            {"label": "SHUTTLE WINDOW HIT", "value": "4 MM CRATER", "numeric": 4, "unit": "MM"},
+        ],
+        "visual_queries": [
+            "international space station earth orbit nasa",
+            "space shuttle window earth orbit nasa",
+            "satellite orbit space debris nasa",
+            "astronaut earth horizon nasa",
+            "rocket launch space atmosphere nasa",
+        ],
+    },
+    {
+        "topic_id": "one-line-of-code-370m-rocket-crash",
+        "pillar": "hidden_tech",
+        "format_signature": "catastrophic_bug_autopsy",
+        "primary_keyword": "Ariane 5 integer overflow 370 million crash",
+        "title_variants": [
+            "One Single Number Bug Blew Up a $370 Million Rocket in 37 Seconds",
+            "The Most Expensive Software Error in Human History (Ariane 5)",
+            "How 64-Bit vs 16-Bit Code Turned a $370M Rocket Into Fire",
+        ],
+        "thumbnail_hooks": [["1 CODE BUG", "= -$370M"], ["37 SECONDS", "TO BOOM"], ["64-BIT vs", "16-BIT"]],
+        "shock_hook_stat": "1 BUG = -$370,000,000",
+        "hook_subtext": "ARIANE 5 FLIGHT 501 AUTOPSY",
+        "debate_hook": {
+            "question": "WOULD YOU TRUST PURE AI CODE TO FLY A ROCKET?",
+            "option_a": "NEVER",
+            "option_b": "YES",
+            "pinned": "Ten years of engineering and $370 million vanished in 37 seconds because one 64-bit number overflowed a 16-bit slot. Would you trust AI to write flight-control code?",
+        },
+        "wiki_entity": "Ariane_flight_V88",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 14, "data_density": 10, "search_demand": 8},
+        "key_facts": [
+            {"label": "ROCKET COST", "value": "$370 MILLION", "numeric": 370, "unit": "M"},
+            {"label": "FLIGHT LIFETIME", "value": "37 SECONDS", "numeric": 37, "unit": "SEC"},
+            {"label": "MAX 16-BIT LIMIT", "value": "32,767", "numeric": 32767, "unit": "INT"},
+            {"label": "DEV TIME LOST", "value": "10 YEARS", "numeric": 10, "unit": "YRS"},
+        ],
+        "visual_queries": [
+            "rocket launch fire exhaust nasa",
+            "mission control room nasa computers",
+            "software code computer screen monitor",
+            "space launch pad rocket night nasa",
+            "explosion fire smoke launch",
+        ],
+    },
+    {
+        "topic_id": "traffic-jam-phantom-wave-1-brake",
+        "pillar": "mind_glitches",
+        "format_signature": "emergent_chaos_math",
+        "primary_keyword": "phantom traffic jam single brake wave",
+        "title_variants": [
+            "How ONE Driver Tapping the Brakes Causes a 2-Hour Traffic Jam",
+            "The Invisible Shockwave Behind Every Traffic Jam With No Accident",
+            "Japanese Scientists Proved Traffic Jams Appear Out of Thin Air",
+        ],
+        "thumbnail_hooks": [["1 BRAKE TAP", "= 2HR JAM"], ["PHANTOM", "TRAFFIC WAVE"], ["NO ACCIDENT", "AT ALL"]],
+        "shock_hook_stat": "1 BRAKE TAP = 2 HOUR JAM",
+        "hook_subtext": "PHANTOM TRAFFIC SHOCKWAVE",
+        "debate_hook": {
+            "question": "WHAT CAUSES MORE TRAFFIC: SLOW DRIVERS OR TAILGATERS?",
+            "option_a": "TAILGATERS",
+            "option_b": "SLOW DRIVERS",
+            "pinned": "Scientists put 22 cars on a closed circular track with zero obstacles — and a full traffic jam formed in 40 seconds. Who causes more traffic: tailgaters or left-lane campers?",
+        },
+        "wiki_entity": "Traffic_wave",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 19, "comment_velocity": 15, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "TEST TRACK CARS", "value": "22 DRIVERS", "numeric": 22, "unit": "CARS"},
+            {"label": "JAM FORMATION", "value": "40 SECONDS", "numeric": 40, "unit": "SEC"},
+            {"label": "BACKWARD WAVE", "value": "20 KM/H", "numeric": 20, "unit": "KM/H"},
+            {"label": "HUMAN REACTION", "value": "1.2 SECONDS", "numeric": 1.2, "unit": "SEC"},
+        ],
+        "visual_queries": [
+            "highway traffic jam cars aerial",
+            "freeway car headlights night traffic",
+            "cars brake lights road congestion",
+            "city highway interchange aerial",
+            "road traffic rush hour cars",
+        ],
+    },
+    {
+        "topic_id": "casino-no-clocks-psychological-trap",
+        "pillar": "mind_glitches",
+        "format_signature": "architectural_time_distortion",
+        "primary_keyword": "why casinos have no clocks or windows",
+        "title_variants": [
+            "Why You Never Find a Clock or Window Inside Any Casino",
+            "5 Hidden Architecture Traps Casinos Use to Erase Your Sense of Time",
+            "How Casino Carpets Are Scientifically Designed to Keep You Awake",
+        ],
+        "thumbnail_hooks": [["ZERO CLOCKS", "BY DESIGN"], ["CASINO", "MIND TRAP"], ["TIME ERASED", "INDOORS"]],
+        "shock_hook_stat": "0 CLOCKS · 0 WINDOWS",
+        "hook_subtext": "ENGINEERED TIME BLINDNESS",
+        "debate_hook": {
+            "question": "DO CASINOS ACTUALLY PUMP EXTRA OXYGEN? YES OR MYTH?",
+            "option_a": "MYTH",
+            "option_b": "REAL",
+            "pinned": "Fun fact: pumping oxygen is actually illegal (fire hazard), so casinos use maze layouts, zero clocks, and loud ugly carpets instead. Ever lost track of 4+ hours indoors?",
+        },
+        "wiki_entity": "Casino_design",
+        "scores": {"shock_hook": 24, "visualizability": 19, "curiosity_gap": 19, "comment_velocity": 14, "data_density": 9, "search_demand": 10},
+        "key_facts": [
+            {"label": "WALL CLOCKS", "value": "0 ALLOWED", "numeric": 1, "unit": "CLOCK"},
+            {"label": "AVG STAY LIFT", "value": "+42% LONGER", "numeric": 42, "unit": "%"},
+            {"label": "HOUSE EDGE", "value": "2% TO 15%", "numeric": 15, "unit": "%"},
+            {"label": "LAS VEGAS REV", "value": "$15B / YEAR", "numeric": 15, "unit": "B"},
+        ],
+        "visual_queries": [
+            "las vegas casino neon lights night",
+            "slot machine casino floor lights",
+            "roulette table casino interior",
+            "las vegas strip night architecture",
+            "playing cards poker chips table",
+        ],
+    },
+    {
+        "topic_id": "you-never-actually-touch-anything",
+        "pillar": "science_anomalies",
+        "format_signature": "quantum_reality_paradox",
+        "primary_keyword": "atomic repulsion never physically touch anything",
+        "title_variants": [
+            "Physically, You Have Never Touched Anything in Your Entire Life",
+            "You Are Hovering Above Your Chair Right Now (Atomic Repulsion)",
+            "The Quantum Force Field Keeping Your Atoms From Fusing Together",
+        ],
+        "thumbnail_hooks": [["YOU NEVER", "TOUCH ANYTHING"], ["HOVERING", "RIGHT NOW"], ["99.9999%", "EMPTY SPACE"]],
+        "shock_hook_stat": "99.9999999% EMPTY SPACE",
+        "hook_subtext": "ELECTROMAGNETIC REPULSION",
+        "debate_hook": {
+            "question": "IF ATOMS NEVER TOUCH, WHY DOES GETTING HIT STILL HURT?",
+            "option_a": "FORCE FIELD",
+            "option_b": "NERVES",
+            "pinned": "Right now your skin is hovering about 0.00000001 centimeters above your phone screen, repelled by electron fields. Does that blow your mind or feel fake?",
+        },
+        "wiki_entity": "Pauli_exclusion_principle",
+        "scores": {"shock_hook": 25, "visualizability": 19, "curiosity_gap": 20, "comment_velocity": 14, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "EMPTY ATOM SPACE", "value": "99.9999999%", "numeric": 99.99, "unit": "%"},
+            {"label": "HOVER GAP", "value": "10^-10 METERS", "numeric": 10, "unit": "NM"},
+            {"label": "REPULSION SPEED", "value": "LIGHT SPEED", "numeric": 300000, "unit": "KM/S"},
+            {"label": "HUMAN ATOMS", "value": "7 OCTILLION", "numeric": 7, "unit": "OCT"},
+        ],
+        "visual_queries": [
+            "physics laboratory laser beam",
+            "microscope atoms science research",
+            "human hand light shadow",
+            "particle accelerator cern physics",
+            "quantum crystal light refraction",
+        ],
+    },
+    {
+        "topic_id": "trillion-dollar-platinum-coin-loophole",
+        "pillar": "money_scale",
+        "format_signature": "legal_monetary_glitch",
+        "primary_keyword": "one trillion dollar platinum coin loophole",
+        "title_variants": [
+            "The Real Legal Loophole That Lets the US Mint One $1 Trillion Coin",
+            "How One 1-Ounce Platinum Coin Could Legally Erase $1 Trillion Debt",
+            "The Strangest Loophole Still Sitting Inside US Federal Law",
+        ],
+        "thumbnail_hooks": [["$1 TRILLION", "SINGLE COIN"], ["LEGAL", "MONEY GLITCH"], ["1 OUNCE", "PLATINUM"]],
+        "shock_hook_stat": "1 COIN = $1,000,000,000,000",
+        "hook_subtext": "31 USC SECTION 5112(K)",
+        "debate_hook": {
+            "question": "IF THEY MINTED IT, WOULD INFLATION EXPLODE IMMEDIATELY?",
+            "option_a": "HYPERINFLATION",
+            "option_b": "NOTHING HAPPENS",
+            "pinned": "Under 31 U.S.C. § 5112(k), the Treasury Secretary can legally mint a platinum coin of ANY denomination — even $1 trillion — in 24 hours. Smart backup or economic disaster?",
+        },
+        "wiki_entity": "Trillion-dollar_coin",
+        "scores": {"shock_hook": 25, "visualizability": 19, "curiosity_gap": 20, "comment_velocity": 14, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "COIN METAL VALUE", "value": "$1,000 METAL", "numeric": 1000, "unit": "USD"},
+            {"label": "LEGAL FACE VALUE", "value": "$1 TRILLION", "numeric": 1000000000000, "unit": "USD"},
+            {"label": "VALUE MULTIPLIER", "value": "1 BILLION X", "numeric": 1000000000, "unit": "X"},
+            {"label": "LAW SECTION", "value": "31 USC 5112", "numeric": 5112, "unit": "LAW"},
+        ],
+        "visual_queries": [
+            "united states treasury building washington",
+            "federal reserve bank building vault",
+            "silver platinum coin bullion",
+            "us dollar currency printing money",
+            "capitol building washington dc",
+        ],
+    },
+    {
+        "topic_id": "kola-superdeep-borehole-limit",
+        "pillar": "science_anomalies",
+        "format_signature": "planetary_depth_limit",
+        "primary_keyword": "Kola Superdeep Borehole deepest hole Earth",
+        "title_variants": [
+            "Why Humans Stopped Digging at 12 KM (The Earth Started Melting Steel)",
+            "The Deepest Hole Ever Dug Barely Scratched 0.2% of Planet Earth",
+            "What Scientists Actually Found 12,262 Meters Underground",
+        ],
+        "thumbnail_hooks": [["STOPPED AT", "12.2 KM"], ["ONLY 0.2%", "OF EARTH"], ["180°C ROCK", "LIKE PLASTIC"]],
+        "shock_hook_stat": "12.2 KM = 0.2% OF EARTH",
+        "hook_subtext": "KOLA SUPERDEEP BOREHOLE",
+        "debate_hook": {
+            "question": "WHAT DO YOU THINK WE'LL REACH FIRST: MARS OR EARTH'S MANTLE?",
+            "option_a": "MARS FIRST",
+            "option_b": "MANTLE FIRST",
+            "pinned": "It took 20 years of drilling just to pierce 0.2% of Earth's radius before rock turned to 180°C plastic. Will humans walk on Mars before we ever reach Earth's mantle?",
+        },
+        "wiki_entity": "Kola_Superdeep_Borehole",
+        "scores": {"shock_hook": 24, "visualizability": 19, "curiosity_gap": 19, "comment_velocity": 14, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "HOLE DEPTH", "value": "12.2 KM DEEP", "numeric": 12.2, "unit": "KM"},
+            {"label": "EARTH RADIUS", "value": "6,371 KM", "numeric": 6371, "unit": "KM"},
+            {"label": "BOTTOM HEAT", "value": "180 CELSIUS", "numeric": 180, "unit": "C"},
+            {"label": "HOLE DIAMETER", "value": "23 CM WIDE", "numeric": 23, "unit": "CM"},
+        ],
+        "visual_queries": [
+            "drilling rig industrial borehole",
+            "volcano lava magma glowing rock",
+            "earth planet globe space nasa",
+            "underground mine tunnel rock",
+            "geology canyon deep earth layers",
+        ],
+    },
+    {
+        "topic_id": "cargo-ship-250k-tons-float-physics",
+        "pillar": "hidden_tech",
+        "format_signature": "counterintuitive_buoyancy_scale",
+        "primary_keyword": "how 250000 ton steel cargo ships float",
+        "title_variants": [
+            "How a 250,000-Ton Steel Ship Floats While a 1-Gram Pebble Sinks",
+            "The Simple Physics Trick Holding Up 24,000 Steel Containers on Water",
+            "Why Solid Steel Sinks Instantly — Yet This 400-Meter Giant Floats",
+        ],
+        "thumbnail_hooks": [["250,000 TONS", "STILL FLOATS"], ["1G PEBBLE", "SINKS FAST"], ["STEEL HULL", "SECRET"]],
+        "shock_hook_stat": "250,000 TONS ON WATER",
+        "hook_subtext": "ARCHIMEDES DISPLACEMENT",
+        "debate_hook": {
+            "question": "IF YOU FLOOD HALF THE HULL, HOW FAST DOES IT SINK?",
+            "option_a": "UNDER 10 MIN",
+            "option_b": "HOURS",
+            "pinned": "A 400-meter container ship weighs 250,000 tons yet has an average density lower than water because 90% of its hull is trapped air. Would you ever work on an ocean freighter?",
+        },
+        "wiki_entity": "Buoyancy",
+        "scores": {"shock_hook": 23, "visualizability": 20, "curiosity_gap": 18, "comment_velocity": 13, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "SHIP WEIGHT", "value": "250,000 TONS", "numeric": 250000, "unit": "TONS"},
+            {"label": "SHIP LENGTH", "value": "400 METERS", "numeric": 400, "unit": "M"},
+            {"label": "CONTAINERS", "value": "24,000 BOXES", "numeric": 24000, "unit": "TEU"},
+            {"label": "TRAPPED AIR", "value": "90% VOLUME", "numeric": 90, "unit": "%"},
+        ],
+        "visual_queries": [
+            "container ship ocean sea cargo",
+            "shipping port cranes containers",
+            "cargo vessel hull shipyard steel",
+            "ocean waves freighter sea",
+            "massive ship sailing water",
+        ],
+    },
+    {
+        "topic_id": "slot-machine-near-miss-brain-hack",
+        "pillar": "mind_glitches",
+        "format_signature": "neurological_near_miss_exploit",
+        "primary_keyword": "slot machine near miss dopamine psychology",
+        "title_variants": [
+            "Why 'Almost Winning' Lights Up Your Brain Just Like Actually Winning",
+            "The 1-Millimeter Slot Machine Illusion Engineered to Drain Wallets",
+            "How Near-Misses Trick Human Dopamine Into Playing 33% Longer",
+        ],
+        "thumbnail_hooks": [["ALMOST WON", "= DOPAMINE"], ["+33% LONGER", "PLAY TIME"], ["NEAR-MISS", "BRAIN HACK"]],
+        "shock_hook_stat": "ALMOST WIN = REAL WIN SIGNAL",
+        "hook_subtext": "THE NEAR-MISS NEURAL LOOP",
+        "debate_hook": {
+            "question": "SHOULD NEAR-MISS ALGORITHMS IN GAMES BE BANNED?",
+            "option_a": "BAN THEM",
+            "option_b": "KEEP LEGAL",
+            "pinned": "Brain scans show losing by 'one slot' fires the exact same reward circuit as winning — and mobile loot boxes copied the exact formula. Should near-miss mechanics be regulated?",
+        },
+        "wiki_entity": "Near-miss_effect",
+        "scores": {"shock_hook": 24, "visualizability": 19, "curiosity_gap": 19, "comment_velocity": 15, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "TRUE LOSS", "value": "0% PAYOUT", "numeric": 1, "unit": "%"},
+            {"label": "PLAY EXTENSION", "value": "+33% LONGER", "numeric": 33, "unit": "%"},
+            {"label": "REEL WEIGHTING", "value": "12X NEAR-MISS", "numeric": 12, "unit": "X"},
+            {"label": "GLOBAL MARKET", "value": "$100B+ / YR", "numeric": 100, "unit": "B"},
+        ],
+        "visual_queries": [
+            "slot machine casino jackpot lights",
+            "neon arcade game machine lights",
+            "brain mri scan neurology",
+            "las vegas slot machines row",
+            "smartphone gaming screen hands",
+        ],
+    },
+    {
+        "topic_id": "gold-never-rusts-5000-years",
+        "pillar": "money_scale",
+        "format_signature": "relativistic_chemistry_value",
+        "primary_keyword": "why gold never rusts Einstein relativity",
+        "title_variants": [
+            "Why Gold Never Rusts After 5,000 Years (And Why It's Actually Yellow)",
+            "Einstein's Relativity Is the Secret Reason Gold Still Shines Forever",
+            "Pull Iron Out of the Ocean and It Crumbles — Pull Gold Out and It Glows",
+        ],
+        "thumbnail_hooks": [["5,000 YEARS", "ZERO RUST"], ["EINSTEIN", "MADE IT GOLD"], ["58% SPEED", "OF LIGHT"]],
+        "shock_hook_stat": "5,000 YEARS · ZERO RUST",
+        "hook_subtext": "RELATIVISTIC GOLD ELECTRONS",
+        "debate_hook": {
+            "question": "WHICH HOLDS VALUE BETTER IN 50 YEARS: GOLD OR BITCOIN?",
+            "option_a": "GOLD",
+            "option_b": "BITCOIN",
+            "pinned": "Gold's inner electrons orbit at 58% of light speed, locking out oxygen forever — which is why 5,000-year-old shipwreck gold shines brand new. Next 50 years: Gold or Bitcoin?",
+        },
+        "wiki_entity": "Relativistic_quantum_chemistry",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 19, "comment_velocity": 15, "data_density": 9, "search_demand": 8},
+        "key_facts": [
+            {"label": "ELECTRON SPEED", "value": "58% LIGHT SPEED", "numeric": 58, "unit": "% C"},
+            {"label": "RUST AFTER 5000Y", "value": "0.00% DECAY", "numeric": 1, "unit": "%"},
+            {"label": "ATOMIC NUMBER", "value": "79 PROTONS", "numeric": 79, "unit": "Z"},
+            {"label": "SHIPWRECK GOLD", "value": "100% INTACT", "numeric": 100, "unit": "%"},
+        ],
+        "visual_queries": [
+            "gold bullion bars treasury shine",
+            "ancient egyptian gold mask museum",
+            "gold coins treasure underwater",
+            "chemistry laboratory gold metal",
+            "federal reserve gold vault",
+        ],
+    },
+    {
+        "topic_id": "lithium-battery-thermal-runaway-chain",
+        "pillar": "hidden_tech",
+        "format_signature": "microscopic_energy_chain",
+        "primary_keyword": "lithium battery thermal runaway chain reaction",
+        "title_variants": [
+            "How One Microscopic Scratch Inside a Phone Battery Triggers 1,000°C Fire",
+            "Why Water Cannot Put Out a Lithium Battery Fire (It Makes Its Own Oxygen)",
+            "Inside the 20-Micron Barrier Stopping Your Phone From Catching Fire",
+        ],
+        "thumbnail_hooks": [["20 MICRONS", "TO 1,000°C"], ["MAKES OWN", "OXYGEN"], ["BATTERY", "CHAIN FIRE"]],
+        "shock_hook_stat": "20 MICRONS = 1,000°C FIRE",
+        "hook_subtext": "THERMAL RUNAWAY PHYSICS",
+        "debate_hook": {
+            "question": "DO YOU SLEEP WITH YOUR PHONE CHARGING UNDER YOUR PILLOW?",
+            "option_a": "GUILTY",
+            "option_b": "NEVER",
+            "pinned": "Only a 20-micron plastic film — thinner than a human hair — separates your phone battery's energy layers. Do you leave your phone charging overnight next to your bed?",
+        },
+        "wiki_entity": "Thermal_runaway",
+        "scores": {"shock_hook": 24, "visualizability": 19, "curiosity_gap": 19, "comment_velocity": 14, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "SEPARATOR FILM", "value": "20 MICRONS", "numeric": 20, "unit": "UM"},
+            {"label": "HUMAN HAIR", "value": "70 MICRONS", "numeric": 70, "unit": "UM"},
+            {"label": "RUNAWAY PEAK", "value": "1,000 CELSIUS", "numeric": 1000, "unit": "C"},
+            {"label": "IGNITION TIME", "value": "UNDER 3 SEC", "numeric": 3, "unit": "SEC"},
+        ],
+        "visual_queries": [
+            "smartphone battery circuit electronics",
+            "electric car battery pack factory",
+            "fire sparks thermal heat",
+            "lithium battery cells technology",
+            "microscope electronics silicon",
+        ],
+    },
+    {
+        "topic_id": "survive-on-every-planet-seconds",
+        "pillar": "science_anomalies",
+        "format_signature": "planetary_survival_countdown",
+        "primary_keyword": "how long can you survive on each planet",
+        "title_variants": [
+            "How Many Seconds You Would Survive on Venus vs Mars Without a Suit",
+            "Mars Gives You 90 Seconds — Venus Kills You in Under 1 Second",
+            "The Brutal Countdown of Every Planet in Our Solar System",
+        ],
+        "thumbnail_hooks": [["MARS: 90S", "VENUS: <1S"], ["NO SUIT", "SURVIVAL"], ["465°C +", "ACID AIR"]],
+        "shock_hook_stat": "MARS 90 SEC vs VENUS <1 SEC",
+        "hook_subtext": "PLANETARY SURVIVAL LIMITS",
+        "debate_hook": {
+            "question": "IF GIVEN A FREE ONE-WAY TICKET TO MARS COLONY, WOULD YOU GO?",
+            "option_a": "SIGN ME UP",
+            "option_b": "STAY ON EARTH",
+            "pinned": "Mars gives you roughly 90 seconds before low pressure kills you, while Venus crushes and cooks you at 465°C in under 1 second. Would you ever take a one-way ticket to Mars?",
+        },
+        "wiki_entity": "Atmosphere_of_Venus",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "VENUS SURVIVAL", "value": "UNDER 1 SEC", "numeric": 1, "unit": "SEC"},
+            {"label": "MARS SURVIVAL", "value": "90 SECONDS", "numeric": 90, "unit": "SEC"},
+            {"label": "VENUS HEAT", "value": "465 CELSIUS", "numeric": 465, "unit": "C"},
+            {"label": "VENUS PRESSURE", "value": "92 ATM", "numeric": 92, "unit": "ATM"},
+        ],
+        "visual_queries": [
+            "planet venus space nasa",
+            "planet mars surface rover nasa",
+            "jupiter storm space nasa",
+            "solar system planets orbit nasa",
+            "astronaut mars space suit nasa",
+        ],
+    },
 ]
 
 # Dynamic Wikipedia anomaly seed pool used after all 24 curated blueprints are exhausted (0-key infinite mode)
@@ -792,12 +1353,18 @@ class IdeaEngine:
         raw.setdefault("visual_queries", [raw.get("primary_keyword", "modern technology architecture")] * 5)
         return raw
 
-    def _synthesize_live_wikipedia_blueprint(self, used_ids: set[str]) -> Dict[str, Any]:
+    def _synthesize_live_wikipedia_blueprint(
+        self, used_ids: set[str], preferred_pillar: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Zero-key dynamic Wikipedia anomaly synthesizer for endless unique topics."""
         candidates = [
             s for s in DYNAMIC_WIKI_SEEDS
             if f"wiki-{s['entity'].lower().replace('_', '-')}" not in used_ids
         ]
+        if preferred_pillar:
+            pillar_matches = [s for s in candidates if s["pillar"] == preferred_pillar]
+            if pillar_matches:
+                candidates = pillar_matches
         seed = candidates[0] if candidates else random.choice(DYNAMIC_WIKI_SEEDS)
         entity = seed["entity"]
         slug_id = f"wiki-{entity.lower().replace('_', '-')}"
@@ -812,7 +1379,7 @@ class IdeaEngine:
 
         return {
             "topic_id": slug_id,
-            "pillar": seed["pillar"],
+            "pillar": preferred_pillar or seed["pillar"],
             "format_signature": "live_wiki_anomaly",
             "primary_keyword": seed["kw"],
             "title_variants": [
@@ -834,7 +1401,7 @@ class IdeaEngine:
                 {"label": "PRIMARY METRIC", "value": n0[:14] or "EXTREME", "numeric": 10.0, "unit": "UNIT"},
                 {"label": "SECONDARY SCALE", "value": n1[:14] or "1,000X", "numeric": 1000.0, "unit": "UNIT"},
                 {"label": "VERIFICATION", "value": "100% DATA", "numeric": 100.0, "unit": "%"},
-                {"label": "SYSTEM CLASS", "value": seed["pillar"].replace("_", " ").upper()[:12], "numeric": 1.0, "unit": "TIER"},
+                {"label": "SYSTEM CLASS", "value": (preferred_pillar or seed["pillar"]).replace("_", " ").upper()[:12], "numeric": 1.0, "unit": "TIER"},
             ],
             "visual_queries": [
                 f"{clean_name} science engineering",
@@ -844,6 +1411,64 @@ class IdeaEngine:
                 "modern infrastructure architecture",
             ],
         }
+
+    def _synthesize_part2_variant(
+        self, queue_entry: Dict[str, Any], used_ids: set[str]
+    ) -> Dict[str, Any]:
+        """Synthesize a fresh Part-2 sequel variant when all curated blueprints in a pillar are used."""
+        pillar = str(queue_entry.get("pillar") or "science_anomalies")
+        source_topic_id = str(queue_entry.get("source_topic_id") or "")
+        source_title = str(queue_entry.get("source_title") or "")
+
+        # Prefer unused dynamic Wikipedia seed in the same pillar first
+        wiki_pillar_unused = [
+            s for s in DYNAMIC_WIKI_SEEDS
+            if s["pillar"] == pillar and f"wiki-{s['entity'].lower().replace('_', '-')}" not in used_ids
+        ]
+        if wiki_pillar_unused:
+            return self._synthesize_live_wikipedia_blueprint(used_ids, preferred_pillar=pillar)
+
+        # Otherwise derive a fresh Part-2 sequel blueprint from the breakout winner or pillar flagship
+        base_bp = next((bp for bp in CURATED_BLUEPRINTS if bp["topic_id"] == source_topic_id), None)
+        if base_bp is None:
+            pillar_bps = [bp for bp in CURATED_BLUEPRINTS if bp["pillar"] == pillar]
+            base_bp = max(pillar_bps, key=lambda b: sum(b.get("scores", {}).values())) if pillar_bps else CURATED_BLUEPRINTS[0]
+
+        base_slug = re.sub(r"-part2(?:-\d+)?$", "", base_bp["topic_id"])
+        sequel_id = f"{base_slug}-part2"
+        suffix = 2
+        while sequel_id in used_ids:
+            suffix += 1
+            sequel_id = f"{base_slug}-part2-{suffix}"
+
+        variant = json.loads(json.dumps(base_bp))
+        variant["topic_id"] = sequel_id
+        variant["pillar"] = pillar
+        variant["format_signature"] = f"{base_bp.get('format_signature', 'scale_contrast')}_part2"
+        orig_titles = list(base_bp.get("title_variants", []))
+        ref_short = (source_title or (orig_titles[0] if orig_titles else base_bp["primary_keyword"]))[:64]
+        variant["title_variants"] = [
+            f"Part 2: The Wilder Numbers Behind {base_bp['primary_keyword'].title()}"[:95],
+            f"Part 2: Going Even Deeper Into {ref_short}"[:95],
+            f"The Hidden Part 2 Twist Everyone Missed: {base_bp['shock_hook_stat']}"[:95],
+        ]
+        variant["hook_subtext"] = "PART 2 // DEEPER SCALE"
+        return variant
+
+    def _pop_part2_queue_entry(self) -> Optional[Dict[str, Any]]:
+        """Pop and persist the oldest queued breakout Part-2 sequel entry from state.db."""
+        raw = self.db.get_meta("part2_queue_json")
+        if not raw:
+            return None
+        try:
+            queue = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(queue, list) or not queue:
+            return None
+        entry = queue.pop(0)
+        self.db.set_meta("part2_queue_json", json.dumps(queue, ensure_ascii=False))
+        return entry if isinstance(entry, dict) else None
 
     def score_idea(self, candidate: Dict[str, Any]) -> Dict[str, Any]:
         """Score a candidate idea against prompts/idea_scorer.md (85+ gate)."""
@@ -882,9 +1507,69 @@ class IdeaEngine:
         return result
 
     def select_next_topic(self, preferred_pillar: Optional[str] = None) -> Dict[str, Any]:
-        """Select the highest-scoring unused concept passing the 85+ viral gate."""
+        """Select the highest-scoring unused concept (prioritizing breakout Part-2 clones first)."""
         used_ids = set(self.db.get_used_topic_ids())
 
+        # 1. PRIORITY CHECK: Breakout Winner Part-2 Auto-Cloner queue
+        part2_entry = self._pop_part2_queue_entry()
+        if part2_entry is not None:
+            source_pillar = str(part2_entry.get("pillar") or preferred_pillar or "")
+            source_title = str(part2_entry.get("source_title") or "")
+            source_topic_id = str(part2_entry.get("source_topic_id") or "")
+            source_views = int(part2_entry.get("source_views", 0) or 0)
+
+            pillar_pool = sorted(
+                [
+                    bp for bp in CURATED_BLUEPRINTS
+                    if bp["topic_id"] not in used_ids
+                    and (not source_pillar or bp["pillar"] == source_pillar)
+                ],
+                key=lambda bp: sum(bp.get("scores", {}).values()),
+                reverse=True,
+            )
+
+            if not pillar_pool:
+                fresh_llm = self._generate_llm_fresh_blueprint(used_ids, source_pillar or None)
+                if fresh_llm:
+                    pillar_pool = [fresh_llm]
+                else:
+                    pillar_pool = [self._synthesize_part2_variant(part2_entry, used_ids)]
+
+            approved_part2: List[Dict[str, Any]] = []
+            for candidate in pillar_pool[:6]:
+                scored = self.score_idea(candidate)
+                if scored["approved"]:
+                    approved_part2.append(scored)
+                    break
+
+            if not approved_part2:
+                synth = self.score_idea(self._synthesize_part2_variant(part2_entry, used_ids))
+                approved_part2.append(synth)
+
+            winner = approved_part2[0]
+            winner["is_part2_followup"] = True
+            winner["part2_reference_title"] = source_title
+            winner["part2_source_topic_id"] = source_topic_id
+            winner["part2_source_views"] = source_views
+
+            wiki_entity = winner.get("wiki_entity", "")
+            if wiki_entity and not winner.get("wiki_summary"):
+                summary = self._enrich_with_wikipedia_fact(wiki_entity)
+                if summary:
+                    winner["wiki_summary"] = summary
+
+            self.db.save_topic(winner, format_signature=winner.get("format_signature", "scale_contrast"))
+            logger.info(
+                "BREAKOUT PART-2 CLONE ACTIVATED | source=%s (%d views) -> sequel=%s | pillar=%s | score=%d/100",
+                source_topic_id or "breakout",
+                source_views,
+                winner["topic_id"],
+                winner["pillar"],
+                winner["total_score"],
+            )
+            return winner
+
+        # 2. Standard high-viral selection with Growth Mutator pillar boost
         winning_meta = self.db.get_meta("winning_format_json")
         target_pillar = preferred_pillar
         if not target_pillar and winning_meta:
@@ -898,16 +1583,21 @@ class IdeaEngine:
         pool = [bp for bp in CURATED_BLUEPRINTS if bp["topic_id"] not in used_ids]
         if not pool:
             fresh_llm = self._generate_llm_fresh_blueprint(used_ids, target_pillar)
-            pool = [fresh_llm] if fresh_llm else [self._synthesize_live_wikipedia_blueprint(used_ids)]
+            pool = [fresh_llm] if fresh_llm else [self._synthesize_live_wikipedia_blueprint(used_ids, target_pillar)]
 
         if target_pillar:
-            matching = [bp for bp in pool if bp["pillar"] == target_pillar]
-            if matching:
-                pool = matching
+            # Give winning pillar a gentle +2 ranking boost instead of locking out higher-CTR viral hits
+            pool = sorted(
+                pool,
+                key=lambda bp: sum(bp.get("scores", {}).values()) + (2 if bp.get("pillar") == target_pillar else 0),
+                reverse=True,
+            )
+        else:
+            pool = sorted(pool, key=lambda bp: sum(bp.get("scores", {}).values()), reverse=True)
 
         approved_candidates: List[Dict[str, Any]] = []
-        # Evaluate top 6 candidates to avoid redundant LLM calls while keeping strict 85+ gate
-        for candidate in pool[:6]:
+        # Evaluate top 8 candidates to keep strict 85+ viral gate & maximize topic punch
+        for candidate in pool[:8]:
             scored = self.score_idea(candidate)
             self.db.save_topic(scored, format_signature=scored.get("format_signature", "scale_contrast"))
             if scored["approved"]:

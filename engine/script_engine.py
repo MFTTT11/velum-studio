@@ -1,11 +1,12 @@
 """VELUM Documentary Retention Script Architect (prompts/retention_script.md).
 
 Generates hyper-dense, story-driven scene-by-scene documentary scripts for:
-- Shorts (9:16, ~42-55s, seamless infinite loop)
+- Shorts (9:16, strictly ~85-108 words / ~28-35s at +16%, seamless infinite loop)
 - Long-form (16:9, ~180-240s, multi-chapter deep breakdown)
 
 Enforces:
 - 0-2s high-contrast shock hook (zero filler phrases)
+- Seamless Part-2 continuity hook when `topic.get("is_part2_followup")` is True
 - Primary keyword spoken within first 15s (VSEO)
 - Visual beat durations strictly <= 2.5s
 - Story-specific concrete analogies, physical scale twists, and seamless loops
@@ -14,6 +15,7 @@ Enforces:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from typing import Any, Dict, List, Optional
@@ -22,6 +24,23 @@ from core.config import get_logger, load_prompt
 from core.llm_client import ZeroCostLLMClient
 
 logger = get_logger("script_engine")
+
+SHORTS_MIN_WORDS = 85
+SHORTS_MAX_WORDS = 108
+SHORTS_TARGET_WORDS = 97
+
+PART2_CONTINUITY_HOOKS = (
+    ("Part two goes even deeper. ", False),
+    ("Since you loved our last breakdown, ", True),
+)
+
+PROPER_OPENING_WORDS = {
+    "NASA", "ASML", "GPS", "DNA", "DNS", "EUV", "AI", "US", "UK", "Wall", "Soviet",
+    "Abraham", "Einstein", "Albert", "Psychologist", "Japanese", "United", "Title",
+    "Congress", "Ariane", "Kola", "Point", "Mount", "Pacific", "Atlantic", "Las",
+    "Netflix", "Mars", "Venus", "Mercury", "Earth", "Saturn", "Jupiter", "Pluto",
+    "Psyche", "Titanic", "I",
+}
 
 BANNED_SLOP_PHRASES = (
     "in today's video",
@@ -328,13 +347,193 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "When the International Space Station retires, it will plunge into this exact same abyss.",
         "The loneliest place on Earth looks straight up at orbit, which makes you realize why—",
     ],
+    # ===================== V2 ULTRA-VIRAL 30-SECOND TENSION ARCS (16 NEW BANGERS) =====================
+    "asteroid-psyche-10-quintillion-gold": [
+        "NASA is flying straight toward a single space rock worth ten quintillion dollars.",
+        "This 16 Psyche asteroid 10 quintillion metal giant is two hundred and twenty six kilometers of solid iron, nickel, and gold.",
+        "To picture that number, the entire global economy of planet Earth is only one hundred and five trillion dollars.",
+        "Psyche is worth nearly one hundred thousand times more than every company, bank, and city on Earth combined.",
+        "Split evenly, that comes out to one point two billion dollars for every single human alive.",
+        "Here is the brutal twist nobody talks about: bringing it back would not make you rich.",
+        "Flooding Earth with cosmic metal would crash gold and iron prices straight to zero overnight.",
+        "Would mining it save humanity or wreck the global economy? Drop your call below before remembering why—",
+    ],
+    "titan-implosion-20-milliseconds": [
+        "At four thousand meters underwater, you would be gone before your brain even knew anything went wrong.",
+        "This deep ocean implosion milliseconds vs brain physics race is not even close.",
+        "At Titanic depth, the Atlantic crushes every square inch with three hundred and seventy five atmospheres of pressure.",
+        "That is like balancing the entire Empire State Building directly on top of a single small car.",
+        "If a carbon hull cracks down there, water slams inward faster than the speed of sound.",
+        "The entire cabin collapses completely in just twenty milliseconds.",
+        "Meanwhile, it takes a human brain one hundred and fifty milliseconds just to register a single signal of pain.",
+        "You literally cannot feel it happen. Would you ever dive down there? Comment below when you realize—",
+    ],
+    "airplane-window-tiny-hole-secret": [
+        "Look closely next time you fly, and you will spot a tiny pin-hole drilled into every airplane window.",
+        "That airplane window tiny hole bleed valve is literally the only thing stopping your window from shattering.",
+        "At eleven thousand meters up, outside air drops to minus fifty six degrees with almost zero breathable pressure.",
+        "Inside the cabin, pressurized air pushes outward with tons of force trying to burst out into the sky.",
+        "Every window actually uses three separate acrylic panes, not one.",
+        "That tiny one point five millimeter hole lets cabin pressure pass safely onto the thick outer structural pane.",
+        "The middle pane stays completely untouched as an emergency backup shield if the outside ever cracks.",
+        "Did you actually know what that hole was for? Comment below so you remember next flight why—",
+    ],
+    "how-fast-you-move-sitting-still": [
+        "You think you are sitting completely still right now, yet you are flying at two point one million kilometers an hour.",
+        "To see how fast are we moving through space, you have to stack four invisible speeds together.",
+        "First, Earth spins you around its equator at one thousand six hundred and seventy kilometers an hour.",
+        "At the same time, Earth rockets around the Sun at one hundred and seven thousand kilometers an hour.",
+        "Our entire solar system is dragging you around the Milky Way at eight hundred and twenty eight thousand kilometers an hour.",
+        "And our whole galaxy is hurtling across the universe at over two million kilometers an hour.",
+        "You feel zero wind only because the air and gravity move at the exact same speed.",
+        "In the thirty seconds you watched this, you flew seventeen thousand kilometers. Comment if you want what happens if Earth stops—",
+    ],
+    "one-grain-of-sand-space-bullet": [
+        "A single flake of paint in space hits harder than a bowling ball fired at one hundred miles an hour.",
+        "This space debris paint fleck orbital velocity turns microscopic trash into unstoppable armor-piercing bullets.",
+        "A high-powered rifle bullet travels around three thousand kilometers an hour.",
+        "Up in low Earth orbit, dead rocket chips whip around the planet at twenty eight thousand kilometers an hour.",
+        "At ten times bullet speed, kinetic energy multiplies by a factor of one hundred.",
+        "One speck of paint weighing zero point two grams once blasted a four millimeter crater straight into a space shuttle window.",
+        "Right now, over one hundred million tiny fragments are circling silently above our heads.",
+        "Do you think space junk will trap humanity on Earth? Comment your call when you realize—",
+    ],
+    "one-line-of-code-370m-rocket-crash": [
+        "One single math bug inside a computer turned a three hundred and seventy million dollar rocket into a fireball.",
+        "The Ariane 5 integer overflow 370 million crash remains the costliest software mistake in human history.",
+        "Engineers spent ten full years building Europe's newest heavy space launcher.",
+        "Just thirty seven seconds after liftoff, the guidance computer tried to squeeze a sixty four bit speed number into a sixteen bit memory box.",
+        "That box could only hold up to thirty two thousand seven hundred and sixty seven.",
+        "The number overflowed, crashed both the main and backup computers, and slammed the rocket sideways at full thrust.",
+        "Aerodynamic forces snapped the vehicle apart and triggered instant self-destruct.",
+        "Would you trust pure AI to write rocket code? Comment yes or never when you remember—",
+    ],
+    "traffic-jam-phantom-wave-1-brake": [
+        "Most highway traffic jams have zero accidents, zero construction, and zero lane closures.",
+        "A phantom traffic jam single brake wave can be triggered by literally one distracted driver.",
+        "Japanese physicists proved it by placing twenty two normal drivers on a completely empty circular track.",
+        "Every driver was told to cruise smoothly at the exact same steady speed.",
+        "Within just forty seconds, one tiny one-second brake tap caused a chain reaction behind it.",
+        "Because human reaction takes one point two seconds, every car behind braked slightly harder than the car ahead.",
+        "Soon cars came to a dead stop, sending a backward traffic wave rolling down the road at twenty kilometers an hour.",
+        "Who causes more traffic: tailgaters or slow left-lane drivers? Drop your vote below and remember—",
+    ],
+    "casino-no-clocks-psychological-trap": [
+        "Walk through a billion dollar Las Vegas casino and try to find a single wall clock or window.",
+        "Understanding why casinos have no clocks or windows exposes one of the smartest psychological traps ever built.",
+        "Without sunlight or time cues, your brain loses track of how many hours have slipped away.",
+        "Studies show removing time cues stretches average gambling sessions by over forty two percent.",
+        "Notice the carpets too: those wild neon patterns are ugly on purpose to keep your eyes looking up at glowing machines.",
+        "Even the exit signs are hidden behind curving maze aisles that force you past twenty extra tables just to reach the bathroom.",
+        "Every inch of the building is engineered to protect a two to fifteen percent house edge.",
+        "Ever walked indoors for an hour and walked out four hours later? Comment below and notice—",
+    ],
+    "you-never-actually-touch-anything": [
+        "Strictly according to physics, you have never actually touched another object or person in your entire life.",
+        "The science of atomic repulsion never physically touch anything proves you are hovering above your chair right now.",
+        "Every atom in your body is ninety nine point nine nine nine nine percent empty space.",
+        "Surrounding every atom is a cloud of negatively charged electrons.",
+        "When your finger presses your phone screen, the electrons on both surfaces repel each other with staggering electromagnetic force.",
+        "You stop hovering at roughly one ten-billionth of a meter away without ever making true contact.",
+        "What your brain feels as solid touch is just pure invisible force fields pushing back at light speed.",
+        "Does that blow your mind or sound impossible? Drop your reaction below before remembering—",
+    ],
+    "trillion-dollar-platinum-coin-loophole": [
+        "Buried inside United States federal law is a real loophole that lets one person mint a one trillion dollar coin overnight.",
+        "This one trillion dollar platinum coin loophole sits inside Title thirty one, Section fifty one twelve of the US Code.",
+        "Congress accidentally restricted gold, silver, and copper coin values — but forgot to put a dollar cap on platinum.",
+        "On paper, the Treasury Secretary can stamp a single one-ounce piece of metal worth one thousand dollars with a one trillion dollar face value.",
+        "Then they simply walk it across the street and deposit it into the Federal Reserve.",
+        "Instantly, the government gains a one billion times markup without borrowing a single extra dollar.",
+        "Economists still argue whether minting it would trigger chaos or change nothing at all.",
+        "Smart emergency backup or instant hyperinflation disaster? Comment your call below and remember—",
+    ],
+    "kola-superdeep-borehole-limit": [
+        "Soviet scientists drilled straight down into Earth for twenty years — and suddenly had to stop forever.",
+        "The Kola Superdeep Borehole deepest hole Earth reached twelve point two kilometers down before physics broke their drills.",
+        "That sounds insanely deep, yet it barely scratched zero point two percent of Earth's radius.",
+        "Think of planet Earth like an apple: humanity has never even pierced through the outer skin.",
+        "Down at twelve kilometers, temperatures surged to one hundred and eighty degrees Celsius, nearly double what scientists predicted.",
+        "Under that intense heat and pressure, solid granite stopped cracking and started flowing like melted plastic.",
+        "Every time engineers pulled the drill bit up, the hole simply oozed shut again.",
+        "Will humans walk on Mars before we ever reach Earth's mantle? Drop your bet below and remember—",
+    ],
+    "cargo-ship-250k-tons-float-physics": [
+        "Drop a tiny one-gram steel nail into the ocean and it sinks straight to the bottom.",
+        "Yet learning how 250000 ton steel cargo ships float reveals a surprisingly simple trick.",
+        "A mega container ship stretches four hundred meters long and carries twenty four thousand stacked steel boxes.",
+        "It weighs a quarter of a million tons — heavier than seven hundred fully loaded jumbo jets.",
+        "So why does solid steel sink while this steel skyscraper floats effortlessly?",
+        "Because roughly ninety percent of the ship's hollow hull is actually trapped empty air.",
+        "Spread across its massive footprint, the ship's average density drops lower than seawater itself, pushing back upward with equal force.",
+        "Would you ever take a job crossing the Pacific on one of these giants? Comment below and notice—",
+    ],
+    "slot-machine-near-miss-brain-hack": [
+        "When two jackpots line up and the third symbol misses by one millimeter, your brain does something bizarre.",
+        "This slot machine near miss dopamine psychology tricks your mind into celebrating a total loss.",
+        "Brain scans show that an almost-win lights up the exact same reward pathways as actually hitting the payout.",
+        "Even though you won literally zero dollars, your dopamine spikes and whispers that you are getting closer.",
+        "Game designers know this and mathematically weight reels to produce near misses up to twelve times more often than pure chance.",
+        "Experiments prove this single visual trick keeps players spinning thirty three percent longer.",
+        "And today, mobile loot boxes and swipe feeds use the exact same reward loop.",
+        "Should near-miss algorithms in games be banned by law? Comment yes or no when you see—",
+    ],
+    "gold-never-rusts-5000-years": [
+        "Pull an iron ship up from the ocean floor after a century and it crumbles into orange dust.",
+        "Yet discovering why gold never rusts Einstein relativity explains why five thousand year old treasure still shines brand new.",
+        "Gold has seventy nine heavy protons packed tightly inside its core.",
+        "That massive gravity-like pull whips gold's inner electrons around at fifty eight percent of the speed of light.",
+        "Because of Einstein's relativity, those speeding electrons grow heavier, pulling the outer shells tightly inward.",
+        "Oxygen atoms simply cannot steal an electron to create rust, leaving gold zero percent decayed after millennia.",
+        "Without relativity, gold would actually look dull silver — just like ordinary aluminum.",
+        "Next fifty years: would you rather hold gold or Bitcoin? Drop your pick below and remember—",
+    ],
+    "lithium-battery-thermal-runaway-chain": [
+        "Right inside your pocket, only a plastic film thinner than a human hair is stopping a one thousand degree fire.",
+        "This lithium battery thermal runaway chain reaction explains why phone fires cannot be put out with water.",
+        "A human hair measures seventy microns thick, while the safety separator inside a battery is just twenty microns.",
+        "If a drop, nail, or microscopic metal spike pierces that paper-thin barrier, energy shorts out instantly.",
+        "Within three seconds, internal heat spikes past two hundred degrees and cracks open the battery's chemical cathode.",
+        "Here is the terrifying twist: that breakdown releases pure oxygen gas right inside the sealed cell.",
+        "Because the battery literally manufactures its own oxygen, it keeps burning even completely underwater.",
+        "Be honest: do you sleep with your phone charging under your pillow? Comment below and remember—",
+    ],
+    "survive-on-every-planet-seconds": [
+        "Step outside on Mars without a spacesuit and you get roughly ninety seconds — step on Venus and you get less than one.",
+        "Checking how long can you survive on each planet reveals how violently fragile Earth's bubble really is.",
+        "On Mercury, facing the sun roasts you at four hundred and thirty degrees, while the shadow freezes you instantly.",
+        "On Mars, freezing air and near-zero pressure boil the moisture off your tongue before oxygen runs out in ninety seconds.",
+        "Now drop down to Venus, Earth's supposed twin planet.",
+        "Its thick carbon atmosphere blasts you with four hundred and sixty five degrees Celsius — hot enough to melt lead.",
+        "At the exact same instant, ninety two atmospheres of crushing pressure flatten everything in under a single second.",
+        "If offered a free one-way ticket to colonize Mars, would you go? Comment yes or no and remember—",
+    ],
 }
+
+
+def _trim_at_word_boundary(text: str, max_chars: int) -> str:
+    """Trim display strings cleanly at word boundaries, never cutting mid-word or mid-number."""
+    cleaned = re.sub(r"\s+", " ", str(text or "").strip())
+    if not cleaned or len(cleaned) <= max_chars:
+        return cleaned
+    words = cleaned.split(" ")
+    acc: List[str] = []
+    for w in words:
+        candidate = " ".join(acc + [w])
+        if len(candidate) <= max_chars:
+            acc.append(w)
+        else:
+            break
+    if not acc:
+        # Never slice a single long word or number token (e.g. "$10,000,000,000,000,000,000")
+        return words[0]
+    return " ".join(acc).rstrip(",;:-—/ ")
 
 
 def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any]]:
     """Build hyper-dense, zero-fluff documentary beats tailored to the topic's real numbers."""
     tid = topic["topic_id"]
-    base_tid = re.sub(r"-v\d+$", "", tid)
+    base_tid = re.sub(r"-(?:v\d+|part2(?:-\d+)?)$", "", tid)
     facts = topic["key_facts"]
     queries = topic.get("visual_queries", ["dark technology infrastructure", "data visualization grid"])
 
@@ -573,40 +772,85 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                 "camera_motion": "zoom_in",
             },
         ]
+        if fmt == "shorts":
+            # Tight 9-beat (~98 words) viral pacing for Shorts; keep full 16 beats for Long-form
+            shorts_beats = [shorts_beats[i] for i in (0, 1, 2, 6, 7, 8, 12, 13, 15)]
     elif base_tid in TOPIC_STORY_ARCS:
-        # Build rich bespoke story-driven visual beats from our topic-specific narrative script!
-        lines = TOPIC_STORY_ARCS[base_tid]
+        # Build V2 viral retention beats: 8 ultra-tight beats (~29-34s) for Shorts, full arc for Long-form
+        full_lines = TOPIC_STORY_ARCS[base_tid]
+        if fmt == "shorts" and len(full_lines) > 8:
+            mid = full_lines[2:-2]
+            pick_indices = [
+                0,
+                max(1, len(mid) // 3),
+                max(2, (2 * len(mid)) // 3),
+                len(mid) - 1,
+            ]
+            # Deduplicate while preserving narrative order
+            chosen_mid: List[str] = []
+            for pi in pick_indices:
+                if 0 <= pi < len(mid) and mid[pi] not in chosen_mid:
+                    chosen_mid.append(mid[pi])
+            lines = full_lines[:2] + chosen_mid[:4] + [full_lines[-2], full_lines[-1]]
+        else:
+            lines = list(full_lines)
+
         f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
+        debate = topic.get("debate_hook") or {}
+        debate_q = debate.get(
+            "question",
+            f"DID YOU EXPECT {f1['value']} vs {f0['value']}?",
+        )
+        debate_a = debate.get("option_a", "HIGHER")
+        debate_b = debate.get("option_b", "LOWER")
+
         plate_sequence = [
             (
-                "metric_hero",
+                "split_vs_clash",
                 {
-                    "title": f0["label"],
-                    "hero_value": f0["value"],
-                    "subtitle": topic.get("hook_subtext", "VELUM TELEMETRY"),
-                    "accent": "amber",
+                    "title": _trim_at_word_boundary(topic.get("hook_subtext", "SCALE CLASH"), 34),
+                    "left_label": _trim_at_word_boundary(f0["label"], 26),
+                    "left_value": float(abs(f0["numeric"])) or 1.0,
+                    "left_display": f0["value"],
+                    "right_label": _trim_at_word_boundary(f1["label"], 26),
+                    "right_value": float(abs(f1["numeric"])) or 100.0,
+                    "right_display": f1["value"],
+                    "ratio_badge": _trim_at_word_boundary(topic["shock_hook_stat"], 32),
+                },
+            ),
+            (
+                "visual_scale_blocks",
+                {
+                    "title": _trim_at_word_boundary(f"{f0['label']} vs {f1['label']}", 36),
+                    "left_label": _trim_at_word_boundary(f0["label"], 24),
+                    "left_value": float(abs(f0["numeric"])) or 1.0,
+                    "left_display": f0["value"],
+                    "right_label": _trim_at_word_boundary(f1["label"], 24),
+                    "right_value": float(abs(f1["numeric"])) or 100.0,
+                    "right_display": f1["value"],
+                    "ratio_badge": _trim_at_word_boundary(topic["shock_hook_stat"], 32),
                 },
             ),
             (
                 "comparison_bars",
                 {
-                    "title": topic["primary_keyword"].upper()[:28],
-                    "left_label": f0["label"][:14],
-                    "left_value": float(abs(f0["numeric"])) or 1.0,
-                    "left_display": f0["value"],
-                    "right_label": f1["label"][:14],
-                    "right_value": float(abs(f1["numeric"])) or 100.0,
-                    "right_display": f1["value"],
-                    "ratio_badge": topic["shock_hook_stat"][:18],
+                    "title": _trim_at_word_boundary(topic["primary_keyword"].upper(), 34),
+                    "left_label": _trim_at_word_boundary(f2["label"], 24),
+                    "left_value": float(abs(f2["numeric"])) or 10.0,
+                    "left_display": f2["value"],
+                    "right_label": _trim_at_word_boundary(f3["label"], 24),
+                    "right_value": float(abs(f3["numeric"])) or 100.0,
+                    "right_display": f3["value"],
+                    "ratio_badge": _trim_at_word_boundary(topic.get("hook_subtext", "VERIFIED SCALE"), 32),
                 },
             ),
             (
                 "radar_alert",
                 {
-                    "title": f2["label"],
+                    "title": _trim_at_word_boundary(f2["label"], 26),
                     "metric": f2["value"],
-                    "subtitle": lines[min(4, len(lines) - 1)][:48].upper(),
-                    "severity": "EXTREME",
+                    "subtitle": _trim_at_word_boundary(lines[min(5, len(lines) - 1)].upper(), 52),
+                    "severity": "CRITICAL",
                 },
             ),
             (
@@ -614,18 +858,10 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                 {
                     "title": "VERIFIED SCALE THRESHOLDS",
                     "markers": [
-                        {"label": f0["label"][:11], "value": f0["value"], "pct": 0.20, "color": "cyan"},
-                        {"label": f1["label"][:11], "value": f1["value"], "pct": 0.54, "color": "amber"},
-                        {"label": f3["label"][:11], "value": f3["value"], "pct": 0.90, "color": "crimson"},
+                        {"label": _trim_at_word_boundary(f0["label"], 22), "value": f0["value"], "pct": 0.20, "color": "cyan"},
+                        {"label": _trim_at_word_boundary(f1["label"], 22), "value": f1["value"], "pct": 0.54, "color": "amber"},
+                        {"label": _trim_at_word_boundary(f3["label"], 22), "value": f3["value"], "pct": 0.90, "color": "crimson"},
                     ],
-                },
-            ),
-            (
-                "system_nodes",
-                {
-                    "title": "SYSTEM ARCHITECTURE",
-                    "nodes": [f0["value"], f2["value"], f3["value"]],
-                    "caption": topic["hook_subtext"][:36],
                 },
             ),
         ]
@@ -633,25 +869,46 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
         motions = ["zoom_in", "pan_right", "zoom_out", "pan_left", "drift_up"]
         shorts_beats = []
         for idx, line in enumerate(lines):
-            use_plate = idx % 2 == 0 and idx != len(lines) - 1
-            p_mode, p_data = plate_sequence[(idx // 2) % len(plate_sequence)]
+            is_last = idx == len(lines) - 1
             fact_ref = facts[idx % len(facts)]
-            shorts_beats.append(
-                {
-                    "narration": line,
-                    "visual_type": "data_plate" if use_plate else "photo_grade",
-                    "plate_mode": p_mode,
-                    "plate_data": p_data if use_plate else {},
-                    "visual_query": q(idx),
-                    "hud_tag": f"VELUM // {idx + 1:02d}",
-                    "hud_metric": fact_ref["value"],
-                    "hud_delta": fact_ref["label"][:11],
-                    "sfx": "sub_boom" if idx == 0 else sfx_cycle[idx % len(sfx_cycle)],
-                    "camera_motion": motions[idx % len(motions)],
-                }
-            )
+            if is_last:
+                shorts_beats.append(
+                    {
+                        "narration": line,
+                        "visual_type": "data_plate",
+                        "plate_mode": "debate_cta_plate",
+                        "plate_data": {
+                            "question": debate_q,
+                            "option_a": debate_a,
+                            "option_b": debate_b,
+                        },
+                        "visual_query": q(idx),
+                        "hud_tag": "DEBATE // LIVE",
+                        "hud_metric": "YOUR CALL",
+                        "hud_delta": "COMMENT",
+                        "sfx": "sonar",
+                        "camera_motion": "zoom_in",
+                    }
+                )
+            else:
+                use_plate = idx % 2 == 0
+                p_mode, p_data = plate_sequence[(idx // 2) % len(plate_sequence)]
+                shorts_beats.append(
+                    {
+                        "narration": line,
+                        "visual_type": "data_plate" if use_plate else "photo_grade",
+                        "plate_mode": p_mode,
+                        "plate_data": p_data if use_plate else {},
+                        "visual_query": q(idx),
+                        "hud_tag": f"VELUM · {idx + 1:02d}",
+                        "hud_metric": fact_ref["value"],
+                        "hud_delta": _trim_at_word_boundary(fact_ref["label"], 22),
+                        "sfx": "sub_boom" if idx == 0 else ("riser" if idx == len(lines) - 2 else sfx_cycle[idx % len(sfx_cycle)]),
+                        "camera_motion": motions[idx % len(motions)],
+                    }
+                )
     else:
-        # Dynamic Wikipedia anomaly synthesizer fallback (uses real Wikipedia sentences + hard metrics)
+        # Dynamic Wikipedia anomaly synthesizer fallback (tight 8-beat V2 viral structure)
         f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
         wiki_sentences = [
             s.strip()
@@ -661,96 +918,130 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
         s0 = wiki_sentences[0] if len(wiki_sentences) > 0 else f"The verified benchmark hits {f1['value']}."
         s1 = wiki_sentences[1] if len(wiki_sentences) > 1 else f"At full scale, {f2['label'].lower()} reaches {f2['value']}."
         dyn_lines = [
-            f"One number changes everything you know about {topic['primary_keyword']}: {f0['value']}.",
+            f"One verified number breaks everything you assumed about {topic['primary_keyword']}: {f0['value']}.",
             s0,
-            f"When you measure {f1['label'].lower()}, the real figure jumps to {f1['value']}.",
+            f"Zoom out to {f1['label'].lower()} and the figure explodes to {f1['value']}.",
             s1,
-            f"Compare that directly against {f2['label'].lower()} at {f2['value']}.",
-            f"And at the outer limit, {f3['label'].lower()} reaches {f3['value']}.",
-            "Our linear intuition compresses these huge jumps into a flat line.",
-            "Only when you place the raw telemetry side by side does the hidden architecture appear.",
-            "Which is why the scale shock hits twice as hard the moment you remember that—",
+            f"Put that directly beside {f2['label'].lower()} at {f2['value']}.",
+            f"At the extreme edge, {f3['label'].lower()} reaches {f3['value']}.",
+            "Human intuition flattens massive leaps until you stack the raw scale side by side.",
+            "Did you expect that number to be higher or lower? Drop your call below before realizing—",
         ]
         shorts_beats = []
         for idx, line in enumerate(dyn_lines):
+            is_last = idx == len(dyn_lines) - 1
             fact_ref = facts[idx % len(facts)]
+            if is_last:
+                p_mode = "debate_cta_plate"
+                p_data = {
+                    "question": f"HIGHER OR LOWER THAN YOU EXPECTED?",
+                    "option_a": "HIGHER",
+                    "option_b": "LOWER",
+                }
+                vtype = "data_plate"
+            else:
+                vtype = "data_plate" if idx % 2 == 0 else "photo_grade"
+                p_mode = "split_vs_clash" if idx == 0 else ("visual_scale_blocks" if idx == 2 else "comparison_bars")
+                p_data = {
+                    "title": _trim_at_word_boundary(fact_ref["label"], 26),
+                    "hero_value": fact_ref["value"],
+                    "left_label": _trim_at_word_boundary(f0["label"], 24),
+                    "left_value": 10.0,
+                    "left_display": f0["value"],
+                    "right_label": _trim_at_word_boundary(f1["label"], 24),
+                    "right_value": 100.0,
+                    "right_display": f1["value"],
+                    "ratio_badge": _trim_at_word_boundary(topic["shock_hook_stat"], 32),
+                    "accent": "amber" if idx % 2 == 0 else "cyan",
+                }
             shorts_beats.append(
                 {
                     "narration": line,
-                    "visual_type": "data_plate" if idx % 2 == 0 else "photo_grade",
-                    "plate_mode": "comparison_bars" if idx == 2 else "metric_hero",
-                    "plate_data": {
-                        "title": fact_ref["label"],
-                        "hero_value": fact_ref["value"],
-                        "left_label": f0["label"][:12],
-                        "left_value": 10.0,
-                        "left_display": f0["value"],
-                        "right_label": f1["label"][:12],
-                        "right_value": 100.0,
-                        "right_display": f1["value"],
-                        "subtitle": topic["primary_keyword"].upper()[:36],
-                        "accent": "amber" if idx % 2 == 0 else "cyan",
-                    },
+                    "visual_type": vtype,
+                    "plate_mode": p_mode,
+                    "plate_data": p_data if vtype == "data_plate" else {},
                     "visual_query": q(idx),
-                    "hud_tag": f"VELUM // {idx + 1:02d}",
+                    "hud_tag": f"VELUM · {idx + 1:02d}",
                     "hud_metric": fact_ref["value"],
-                    "hud_delta": fact_ref["label"][:11],
-                    "sfx": "sub_boom" if idx == 0 else ("whoosh" if idx % 2 == 0 else "tick"),
+                    "hud_delta": _trim_at_word_boundary(fact_ref["label"], 22),
+                    "sfx": "sub_boom" if idx == 0 else ("sonar" if is_last else ("whoosh" if idx % 2 == 0 else "tick")),
                     "camera_motion": ["zoom_in", "pan_right", "zoom_out", "pan_left"][idx % 4],
                 }
             )
 
     if fmt == "longform":
-        expanded: List[Dict[str, Any]] = []
-        chapters = [
-            ("CH.01 // THE SCALE ILLUSION", shorts_beats),
+        # Genuine 3-chapter documentary expansion (zero verbatim repetition of Shorts sentences!)
+        f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
+        kw = topic["primary_keyword"]
+        expanded: List[Dict[str, Any]] = list(shorts_beats[:-1])
+        deep_mechanics = [
             (
-                "CH.02 // WHY HUMAN INTUITION FAILS",
-                [
-                    {
-                        **b,
-                        "hud_tag": f"DEEP // {i + 1:02d}",
-                        "narration": (
-                            f"Zooming deeper into the mechanics: {b['narration'][0].lower()}{b['narration'][1:]}"
-                            if i % 3 == 0
-                            else b["narration"]
-                        ),
-                    }
-                    for i, b in enumerate(shorts_beats[:-1])
-                ],
+                f"To understand why {kw} breaks everyday intuition, we have to examine the underlying ratio.",
+                "system_nodes",
+                {
+                    "title": "CORE MECHANISM",
+                    "nodes": [f0["value"], f1["value"], f2["value"]],
+                    "caption": _trim_at_word_boundary(topic["hook_subtext"], 38),
+                },
             ),
             (
-                "CH.03 // REAL-WORLD CONSEQUENCES",
-                [
-                    {
-                        **b,
-                        "hud_tag": f"IMPACT // {i + 1:02d}",
-                    }
-                    for i, b in enumerate(shorts_beats[:-1])
-                ],
+                f"Human perception evolved for linear local steps, not jumps from {f0['value']} straight to {f1['value']}.",
+                "visual_scale_blocks",
+                {
+                    "title": "NON-LINEAR SCALING GAP",
+                    "left_label": _trim_at_word_boundary(f0["label"], 24),
+                    "left_value": float(abs(f0["numeric"])) or 1.0,
+                    "left_display": f0["value"],
+                    "right_label": _trim_at_word_boundary(f1["label"], 24),
+                    "right_value": float(abs(f1["numeric"])) or 100.0,
+                    "right_display": f1["value"],
+                    "ratio_badge": "PERCEPTION FAILURE",
+                },
             ),
-        ]
-        for _, ch_beats in chapters:
-            expanded.extend(ch_beats)
-        expanded.append(
-            {
-                "narration": "Drop your call in the comments: which invisible threshold shocks you most?",
-                "visual_type": "data_plate",
-                "plate_mode": "metric_hero",
-                "plate_data": {
-                    "title": "JOIN THE DEBATE",
-                    "hero_value": "YOUR CALL",
-                    "subtitle": "WHICH HIDDEN SYSTEM SHOULD WE DECODE NEXT?",
+            (
+                f"Once you isolate {f2['label'].lower()} at {f2['value']}, the hidden engineering margin becomes unmistakable.",
+                "radar_alert",
+                {"title": _trim_at_word_boundary(f2["label"], 26), "metric": f2["value"], "subtitle": "STRUCTURAL BOTTLENECK", "severity": "HIGH"},
+            ),
+            (
+                f"At the extreme boundary of {f3['label'].lower()}, the system hits {f3['value']}.",
+                "timeline_scale",
+                {
+                    "title": "BOUNDARY TELEMETRY",
+                    "markers": [
+                        {"label": _trim_at_word_boundary(f0["label"], 22), "value": f0["value"], "pct": 0.18, "color": "cyan"},
+                        {"label": _trim_at_word_boundary(f2["label"], 22), "value": f2["value"], "pct": 0.55, "color": "amber"},
+                        {"label": _trim_at_word_boundary(f3["label"], 22), "value": f3["value"], "pct": 0.90, "color": "crimson"},
+                    ],
+                },
+            ),
+            (
+                "That is why headlines routinely mislead smart people when numbers cross an order-of-magnitude threshold.",
+                "metric_hero",
+                {
+                    "title": "COGNITIVE TAKEAWAY",
+                    "hero_value": _trim_at_word_boundary(topic["shock_hook_stat"], 32),
+                    "subtitle": "VISUALIZE THE RATIO FIRST",
                     "accent": "cyan",
                 },
-                "visual_query": q(0),
-                "hud_tag": "DEBATE // OPEN",
-                "hud_metric": "YOUR CALL",
-                "hud_delta": "COMMENTS",
-                "sfx": "sonar",
-                "camera_motion": "zoom_in",
-            }
-        )
+            ),
+        ]
+        for idx, (narr, pmode, pdata) in enumerate(deep_mechanics):
+            expanded.append(
+                {
+                    "narration": narr,
+                    "visual_type": "data_plate" if idx % 2 == 0 else "photo_grade",
+                    "plate_mode": pmode,
+                    "plate_data": pdata,
+                    "visual_query": q(idx + 1),
+                    "hud_tag": f"CH.02 · {idx + 1:02d}",
+                    "hud_metric": facts[idx % len(facts)]["value"],
+                    "hud_delta": "DEEP DIVE",
+                    "sfx": "whoosh" if idx % 2 == 0 else "tick",
+                    "camera_motion": ["pan_right", "zoom_in", "pan_left", "zoom_out"][idx % 4],
+                }
+            )
+        expanded.append(shorts_beats[-1])
         return expanded
 
     return shorts_beats
@@ -780,20 +1071,216 @@ class ScriptEngine:
         matched = sum(1 for tok in kw_tokens if tok in opening_text)
         return matched >= max(1, len(kw_tokens) - 1)
 
+    def _apply_part2_continuity_hook(
+        self, beats: List[Dict[str, Any]], topic: Dict[str, Any]
+    ) -> None:
+        """Seamlessly prefix Beat 0 with a punchy continuity hook on breakout Part-2 sequels."""
+        if not topic.get("is_part2_followup") or not beats:
+            return
+        first_narr = str(beats[0].get("narration", "")).strip()
+        if not first_narr:
+            return
+        low = first_narr.lower()
+        if low.startswith("part two") or low.startswith("since you loved"):
+            return
+
+        seed = int(hashlib.md5(topic["topic_id"].encode("utf-8")).hexdigest()[:4], 16)
+        prefix, lowercase_next = PART2_CONTINUITY_HOOKS[seed % len(PART2_CONTINUITY_HOOKS)]
+        if lowercase_next:
+            first_word = re.match(r"^[A-Za-z]+", first_narr)
+            if first_word and first_word.group(0) not in PROPER_OPENING_WORDS:
+                first_narr = first_narr[0].lower() + first_narr[1:]
+        beats[0]["narration"] = f"{prefix}{first_narr}"
+
+    @staticmethod
+    def _count_words(beats: List[Dict[str, Any]]) -> int:
+        return sum(len(str(b.get("narration", "")).split()) for b in beats)
+
+    @staticmethod
+    def _trim_verbose_clauses(text: str, max_trim: int) -> str:
+        """Trim concise redundant modifiers without breaking sentence grammar."""
+        updated = text
+        redundant_swaps = (
+            (r"\bevery single\b", "every"),
+            (r"\bin human history\b", "ever"),
+            (r"\bin your entire life\b", "in your life"),
+            (r"\bright now while sitting still\b", "sitting still"),
+            (r"\bcompletely untouched\b", "untouched"),
+            (r"\bcompletely stopped\b", "stopped"),
+            (r"\bcompletely broke\b", "broke"),
+            (r"\bcompletely empty\b", "empty"),
+            (r"\bcompletely underwater\b", "underwater"),
+            (r"\bdirectly on top of\b", "on top of"),
+            (r"\bstraight down into\b", "down into"),
+            (r"\bthe exact same\b", "the same"),
+            (r"\bactually\s+", ""),
+            (r"\bliterally\s+", ""),
+            (r"\bsimply\s+", ""),
+            (r"\bjust\s+", ""),
+            (r"\s+—\s+", ", "),
+        )
+        words_before = len(updated.split())
+        for pattern, repl in redundant_swaps:
+            if words_before - len(updated.split()) >= max_trim:
+                break
+            candidate = re.sub(pattern, repl, updated, count=1, flags=re.IGNORECASE)
+            candidate = re.sub(r"\s{2,}", " ", candidate).strip()
+            if candidate and candidate != updated:
+                # Preserve capitalization of first character
+                if updated[0].isupper() and candidate[0].islower():
+                    candidate = candidate[0].upper() + candidate[1:]
+                updated = candidate
+        return updated
+
+    def _enforce_shorts_word_budget(
+        self,
+        beats: List[Dict[str, Any]],
+        topic: Dict[str, Any],
+        min_words: int = SHORTS_MIN_WORDS,
+        max_words: int = SHORTS_MAX_WORDS,
+    ) -> List[Dict[str, Any]]:
+        """Keep every Shorts script tightly within 85-108 words (~28-35s at +16%) cleanly."""
+        trimmed = [dict(b) for b in beats]
+
+        # 1. Remove lowest-priority interior beats (protecting Beat 0 Hook, Beat 1 VSEO,
+        #    Beat -2 Climax/Twist, and Beat -1 Debate CTA / Loop) until <= max_words.
+        while self._count_words(trimmed) > max_words and len(trimmed) > 5:
+            cur_words = self._count_words(trimmed)
+            removable_indices = list(range(2, len(trimmed) - 2))
+            if not removable_indices:
+                break
+            best_idx = min(
+                removable_indices,
+                key=lambda i: (
+                    0 if (cur_words - len(trimmed[i]["narration"].split())) >= min_words else 1,
+                    abs((cur_words - len(trimmed[i]["narration"].split())) - SHORTS_TARGET_WORDS),
+                ),
+            )
+            trimmed.pop(best_idx)
+
+        # 2. If still slightly above max_words, tighten redundant filler phrases on beats >= 2
+        if self._count_words(trimmed) > max_words:
+            for idx in range(len(trimmed) - 1, 1, -1):
+                excess = self._count_words(trimmed) - max_words
+                if excess <= 0:
+                    break
+                trimmed[idx]["narration"] = self._trim_verbose_clauses(
+                    trimmed[idx]["narration"], excess
+                )
+
+        # 3. If still above max_words with >4 beats, drop one more interior beat (keep >=4 beats)
+        if self._count_words(trimmed) > max_words and len(trimmed) > 4:
+            cur_words = self._count_words(trimmed)
+            candidates = list(range(2, len(trimmed) - 1))
+            if candidates:
+                drop_idx = min(
+                    candidates,
+                    key=lambda i: abs((cur_words - len(trimmed[i]["narration"].split())) - SHORTS_TARGET_WORDS),
+                )
+                trimmed.pop(drop_idx)
+
+        # 4. Final precision guard if an exceptionally verbose beat still pushes > max_words
+        if self._count_words(trimmed) > max_words:
+            for idx in range(len(trimmed) - 2, 1, -1):
+                excess = self._count_words(trimmed) - max_words
+                if excess <= 0:
+                    break
+                narr = trimmed[idx]["narration"]
+                # Split on secondary clause if clean and still meaningful
+                for sep in ("; ", ": ", ", "):
+                    if sep in narr:
+                        head = narr.split(sep, 1)[0].strip()
+                        if len(head.split()) >= 7 and (len(narr.split()) - len(head.split())) >= 2:
+                            if head[-1] not in ".!?":
+                                head += "."
+                            trimmed[idx]["narration"] = head
+                            break
+
+        # 5. Pad cleanly with verified numeric fact beat if trimming dropped below min_words
+        facts = topic.get("key_facts", [])
+        fact_cursor = 0
+        while self._count_words(trimmed) < min_words and fact_cursor < max(len(facts), 2):
+            if fact_cursor < len(facts):
+                f = facts[fact_cursor]
+                extra_line = (
+                    f"Look at {str(f.get('label', 'the baseline')).lower()}: "
+                    f"verified measurements put it right at {f.get('value', 'extreme scale')}."
+                )
+                hud_metric = str(f.get("value", topic["shock_hook_stat"])).upper()
+                hud_delta = _trim_at_word_boundary(str(f.get("label", "VERIFIED")).upper(), 22)
+            else:
+                extra_line = "Once you put these real numbers side by side, your intuition completely resets."
+                hud_metric = str(topic["shock_hook_stat"]).upper()
+                hud_delta = "SCALE CHECK"
+
+            insert_at = max(2, len(trimmed) - 1)
+            ref_beat = trimmed[min(insert_at - 1, len(trimmed) - 1)]
+            # Only insert if it won't overshoot max_words
+            if self._count_words(trimmed) + len(extra_line.split()) <= max_words:
+                trimmed.insert(
+                    insert_at,
+                    {
+                        "index": insert_at + 1,
+                        "target_duration": 2.1,
+                        "narration": extra_line,
+                        "visual_type": "photo_grade" if ref_beat.get("visual_type") == "data_plate" else "data_plate",
+                        "plate_mode": "metric_hero",
+                        "plate_data": {
+                            "title": hud_delta,
+                            "hero_value": hud_metric,
+                            "subtitle": _trim_at_word_boundary(topic.get("hook_subtext", "VERIFIED TELEMETRY"), 42),
+                            "accent": "amber",
+                        },
+                        "visual_query": ref_beat.get("visual_query", topic["primary_keyword"]),
+                        "hud_tag": f"VELUM · {insert_at + 1:02d}",
+                        "hud_metric": hud_metric,
+                        "hud_delta": hud_delta,
+                        "hud_progress": 0.75,
+                        "sfx": "tick",
+                        "camera_motion": "zoom_in",
+                    },
+                )
+            else:
+                # Short 6-word boost if a full beat would overshoot max_words
+                short_boost = "Verified numbers change the whole picture."
+                if self._count_words(trimmed) + len(short_boost.split()) <= max_words:
+                    trimmed[insert_at - 1]["narration"] = (
+                        f"{trimmed[insert_at - 1]['narration'].rstrip('.!?')}. {short_boost}"
+                    )
+                break
+            fact_cursor += 1
+
+        # Re-index and recompute monotonic HUD progress
+        total = max(len(trimmed), 1)
+        for i, b in enumerate(trimmed):
+            b["index"] = i + 1
+            words = max(1, len(b["narration"].split()))
+            b["target_duration"] = max(1.6, min(2.5, round(words / 3.1, 2)))
+            b["hud_progress"] = round((i + 1) / total, 3)
+
+        return trimmed
+
     def generate_script(self, topic: Dict[str, Any], fmt: str = "shorts") -> Dict[str, Any]:
         """Generate a validated scene-by-scene script for 'shorts' (9:16) or 'longform' (16:9)."""
         beats: Optional[List[Dict[str, Any]]] = None
 
         if self.llm.is_available:
             system_prompt = load_prompt("retention_script.md")
+            part2_note = (
+                f"This is a Part-2 sequel following breakout hit '{topic.get('part2_reference_title', '')}'. "
+                "Open Beat 0 with a punchy 4-6 word Part-2 continuity hook.\n"
+                if topic.get("is_part2_followup")
+                else ""
+            )
             user_prompt = (
                 f"Format: {fmt}\n"
-                f"Target beats: {'14 to 18 tight beats (~42-52s total)' if fmt == 'shorts' else '40 to 55 beats (~3 min)'}.\n"
+                f"Target beats: {'6 to 8 ultra-tight beats (STRICTLY 85-105 words total, ~28-35s)' if fmt == 'shorts' else '40 to 55 beats (~3 min)'}.\n"
+                f"{part2_note}"
                 f"Primary keyword (MUST be spoken within first 15 seconds): {topic['primary_keyword']}\n"
                 f"Topic Blueprint:\n{json.dumps(topic, ensure_ascii=False)}"
             )
             llm_script = self.llm.complete_json(system_prompt, user_prompt, temperature=0.6)
-            if llm_script and isinstance(llm_script.get("beats"), list) and len(llm_script["beats"]) >= 8:
+            if llm_script and isinstance(llm_script.get("beats"), list) and len(llm_script["beats"]) >= 6:
                 beats = llm_script["beats"]
 
         if not beats:
@@ -828,12 +1315,20 @@ class ScriptEngine:
                 }
             )
 
+        # Seamlessly add Part-2 continuity hook before enforcing word budget so count never bloats
+        self._apply_part2_continuity_hook(normalized_beats, topic)
+
+        if fmt == "shorts":
+            normalized_beats = self._enforce_shorts_word_budget(normalized_beats, topic)
+
         vseo_ok = self._verify_vseo_first_15s(normalized_beats, topic["primary_keyword"])
-        if not vseo_ok and len(normalized_beats) >= 3:
-            normalized_beats[2]["narration"] = (
-                f"This exact {topic['primary_keyword']} proves how distorted our intuition really is."
+        if not vseo_ok and len(normalized_beats) >= 2:
+            normalized_beats[1]["narration"] = (
+                f"This {topic['primary_keyword']} proves how distorted human intuition really is."
             )
-            vseo_ok = True
+            if fmt == "shorts":
+                normalized_beats = self._enforce_shorts_word_budget(normalized_beats, topic)
+            vseo_ok = self._verify_vseo_first_15s(normalized_beats, topic["primary_keyword"])
 
         full_narration = " ".join(b["narration"] for b in normalized_beats)
         script_payload = {
@@ -843,17 +1338,20 @@ class ScriptEngine:
             "primary_keyword": topic["primary_keyword"],
             "hook_stat_text": topic["shock_hook_stat"],
             "hook_subtext": topic.get("hook_subtext", "VELUM ARCHIVE TELEMETRY"),
+            "is_part2_followup": bool(topic.get("is_part2_followup", False)),
+            "part2_reference_title": str(topic.get("part2_reference_title", "")),
             "vseo_verified_under_15s": vseo_ok,
             "full_narration": full_narration,
             "word_count": len(full_narration.split()),
             "beats": normalized_beats,
         }
         logger.info(
-            "Script generated: %s | format=%s | beats=%d | words=%d | VSEO<15s=%s",
+            "Script generated: %s | format=%s | beats=%d | words=%d | part2=%s | VSEO<15s=%s",
             topic["topic_id"],
             fmt,
             len(normalized_beats),
             script_payload["word_count"],
+            script_payload["is_part2_followup"],
             vseo_ok,
         )
         return script_payload

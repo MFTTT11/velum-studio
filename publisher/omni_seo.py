@@ -306,7 +306,8 @@ def _build_native_omni_seo(
         + " ".join(hashtags)
     )
 
-    pinned_comment = (
+    debate = topic.get("debate_hook") or {}
+    pinned_comment = debate.get("pinned") or (
         f"Honest question: before seeing {f0['value']} next to {f1['value']}, "
         f"did your brain assume the gap was way smaller? Drop your country & which hidden system "
         f"we should decode next — top voted topic gets built tomorrow."

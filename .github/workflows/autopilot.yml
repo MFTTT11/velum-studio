@@ -2,8 +2,10 @@ name: VELUM — Autonomous Broadcast Autopilot
 
 on:
   schedule:
-    # Runs 3 times daily (06:00, 14:00, 22:00 UTC)
-    - cron: "0 6,14,22 * * *"
+    # VELUM V3 7-day hyper-growth cadence: every 2 hours (12 runs/day ->
+    # 4 full 4K Shorts production runs spaced >=3h apart across global peak windows
+    # + 8 ultra-fast ~25s engagement, real-time velocity & title-rescue cycles)
+    - cron: "0 */2 * * *"
   workflow_dispatch:
     inputs:
       format:
@@ -12,6 +14,10 @@ on:
         default: "auto"
       dry_run:
         description: "Dry run without live YouTube upload or state.db commit (true | false)"
+        required: false
+        default: "false"
+      force_produce:
+        description: "Bypass daily cap & 3h spacing guard to produce immediately (true | false)"
         required: false
         default: "false"
 
@@ -72,11 +78,15 @@ jobs:
         run: |
           FMT="${{ github.event.inputs.format || 'auto' }}"
           DRY="${{ github.event.inputs.dry_run || 'false' }}"
+          FORCE="${{ github.event.inputs.force_produce || 'false' }}"
+          EXTRA_ARGS=""
           if [ "$DRY" = "true" ]; then
-            python autopilot.py --run-once --format "$FMT" --dry-run
-          else
-            python autopilot.py --run-once --format "$FMT"
+            EXTRA_ARGS="$EXTRA_ARGS --dry-run"
           fi
+          if [ "$FORCE" = "true" ]; then
+            EXTRA_ARGS="$EXTRA_ARGS --force-produce"
+          fi
+          python autopilot.py --run-once --format "$FMT" $EXTRA_ARGS
 
       - name: Security Wipe — Purge All Ephemeral Credentials & Media (ALWAYS)
         if: always()

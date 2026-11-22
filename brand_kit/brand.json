@@ -33,9 +33,9 @@
       }
     ],
     "pacing_rules": {
-      "hook_window_seconds": 2.0,
-      "max_static_shot_seconds": 2.5,
-      "shorts_target_seconds": [36, 54],
+      "hook_window_seconds": 2.1,
+      "max_static_shot_seconds": 2.1,
+      "shorts_target_seconds": [28, 36],
       "longform_target_seconds": [180, 300],
       "target_fps": 60,
       "target_lufs": -14.0,
@@ -95,8 +95,8 @@
     ]
   },
   "voices": {
-    "en": "en-US-AndrewMultilingualNeural",
-    "en_alt": "en-US-BrianNeural",
+    "en": "en-US-BrianMultilingualNeural",
+    "en_alt": "en-US-AndrewMultilingualNeural",
     "tr": "tr-TR-AhmetNeural",
     "es": "es-MX-JorgeNeural",
     "de": "de-DE-ConradNeural"

@@ -1,13 +1,16 @@
-"""Context-Aware Human-Like Multilingual Comment Responder (prompts/multilang_reply.md).
+"""Topic-Aware Human-Like Multilingual Comment Responder (prompts/multilang_reply.md).
 
 Features:
 - Fetches new viewer comments across published channel videos via YouTube Data API v3
 - Filters spam, links, crypto/Telegram scams, sub4sub, and bot noise
 - Auto-approves legitimate viewer comments via `comments().setModerationStatus` so YouTube
   never hides real engagement in 'Held for review'
-- Detects viewer language (TR, EN, ES, DE, FR, PT, etc.) and analyzes the exact topic/intent
-  mentioned in the comment (money/spending, time/years, physical stack, shock, question, praise)
-- Crafts authentic, human-sounding replies (zero robotic em-dashes or repetitive templates)
+- Resolves every video's actual topic record from `state.db` (`topics.payload_json` +
+  `videos.titles_json`) including title, primary_keyword, key_facts, and debate_hook
+- Detects viewer language (EN, TR, ES, DE, FR, etc.) and classifies intent (picked
+  option_a vs option_b, question, disbelief, short reaction, or general comment)
+- Crafts authentic, varied, topic-grounded human replies with zero em-dashes and zero
+  hardcoded cross-video leakage
 """
 
 from __future__ import annotations
@@ -17,7 +20,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from langdetect import DetectorFactory, detect
 
@@ -29,6 +32,7 @@ from core.config import (
 )
 from core.llm_client import ZeroCostLLMClient
 from core.state_db import StateDB, utc_now_iso
+from engine.idea_engine import CURATED_BLUEPRINTS
 from publisher.youtube_uploader import build_youtube_service
 
 DetectorFactory.seed = 42
@@ -36,18 +40,72 @@ logger = get_logger("comment_responder")
 
 SPAM_PATTERNS = [
     re.compile(r"https?://|www\.|t\.me/|wa\.me/|bit\.ly/|tinyurl", re.IGNORECASE),
-    re.compile(r"\b(whatsapp|telegram|crypto\s*signal|forex|airdrop|free\s*robux|sub4sub|check\s*my\s*channel)\b", re.IGNORECASE),
+    re.compile(
+        r"\b(whatsapp|telegram|crypto\s*signal|forex|airdrop|free\s*robux|sub4sub|check\s*my\s*channel)\b",
+        re.IGNORECASE,
+    ),
     re.compile(r"\+\d{1,3}[\s\-]?\d{3,4}[\s\-]?\d{4,}"),
     re.compile(r"(.)\1{7,}"),
 ]
 
 TURKISH_HINTS = (
-    "çok", "gerçek", "harika", "müthiş", "inanılmaz", "şok", "milyar", "milyon",
-    "güzel", "bence", "nasıl", "değil", "abi", "süper", "beyin", "oha", "yuh", "efsane", "kanka", "iyi"
+    "çok", "gerçek", "harika", "müthiş", "inanılmaz", "şok", "güzel", "bence",
+    "nasıl", "değil", "abi", "süper", "beyin", "oha", "yuh", "efsane", "kanka",
+    "iyi", "asla", "kesinlikle", "bilmiyordum", "biliyordum", "ciddi", "yalan",
+    "uçak", "altın", "ekonomi", "çöker", "hayır", "evet", "acaba", "neden",
 )
-SPANISH_HINTS = ("increíble", "gracias", "millones", "mil millones", "impresionante", "nunca", "pensé", "qué", "locura", "buen")
-GERMAN_HINTS = ("krass", "unglaublich", "wahnsinn", "milliarde", "danke", "genial", "nicht", "wie", "echt")
-FRENCH_HINTS = ("incroyable", "merci", "milliard", "jamais", "dingue", "génial", "vraiment", "fou")
+SPANISH_HINTS = (
+    "increíble", "gracias", "impresionante", "nunca", "pensé", "qué", "locura",
+    "buen", "imposible", "sabía", "cómo", "por qué", "mentira", "jamás", "avión",
+)
+GERMAN_HINTS = (
+    "krass", "unglaublich", "wahnsinn", "danke", "genial", "nicht", "wie", "echt",
+    "niemals", "warum", "wirklich", "flugzeug", "wusste", "irre", "verrückt",
+)
+FRENCH_HINTS = (
+    "incroyable", "merci", "jamais", "dingue", "génial", "vraiment", "fou",
+    "pourquoi", "comment", "impossible", "avion", "savais", "carrément", "truc",
+)
+
+UPPERCASE_ACRONYMS = {"NASA", "ISS", "GPS", "DNA", "US", "UK", "AI", "DNS", "EUV", "ASML", "ATM", "ETF", "USD", "TEU"}
+
+MULTILANG_STANCE_SYNONYMS: Dict[str, Tuple[str, ...]] = {
+    "crash": ("crash", "collapse", "wreck", "ruin", "worthless", "çöker", "çökert", "batar", "colaps", "stürz", "effondr"),
+    "save": ("save", "rich", "help", "fix", "kurtar", "zengin", "salv", "rett", "sauv"),
+    "no": ("no chance", "never", "nope", "not a chance", "asla", "hayır", "imkansız", "nunca", "jamás", "nie", "niemals", "jamais"),
+    "yes": ("yes", "definitely", "sign me up", "once", "evet", "kesinlikle", "giderim", "sí", "claro", "ja", "oui", "carrément"),
+    "idea": ("no idea", "didn't know", "didnt know", "never knew", "bilmiyordum", "fikrim yok", "haberim yok", "ni idea", "no sabía", "keine ahnung", "wusste nicht", "aucune idée", "savais pas"),
+    "knew": ("knew it", "already knew", "i knew", "biliyordum", "bildiğim", "ya lo sabía", "wusste ich", "je savais"),
+    "gold": ("gold", "altın", "oro", "or "),
+    "bitcoin": ("bitcoin", "btc", "kripto", "crypto"),
+    "mars": ("mars", "marte"),
+    "mantle": ("mantle", "manto", "manto", "mantel", "manteau", "yerin altı"),
+    "earth": ("earth", "stay", "dünya", "tierra", "erde", "terre"),
+    "ban": ("ban", "illegal", "yasak", "prohib", "verbiet", "interdir"),
+    "legal": ("keep legal", "legal", "serbest", "yasal", "erlaubt"),
+    "tailgaters": ("tailgat", "yakın takip", "dibine", "pegado", "drängler", "colle"),
+    "slow": ("slow", "left lane", "yavaş", "sol şerit", "lento", "langsam", "lent"),
+    "myth": ("myth", "fake", "efsane", "yalan", "mito", "mythos", "mythe"),
+    "real": ("real", "true", "gerçek", "verdad", "echt", "vrai"),
+    "guilty": ("guilty", "under my pillow", "every night", "suçluyum", "ben de", "culpable", "schuldig", "coupable"),
+}
+
+QUESTION_WORDS = (
+    "how", "why", "what if", "what about", "wait how", "is it true", "does it", "can you",
+    "nasıl", "neden", "niye", "peki", "acaba", "hangi", "kaç",
+    "cómo", "por qué", "qué pasa", "cuánto",
+    "wie", "warum", "was wäre", "stimmt es",
+    "pourquoi", "comment", "est-ce que", "combien",
+)
+
+DISBELIEF_WORDS = (
+    "no way", "fake", "cap", "impossible", "unreal", "insane", "crazy", "wild", "mind blown",
+    "melted", "bs", "lie", "can't believe", "cant believe", "ain't no way", "aint no way",
+    "inanılmaz", "imkansız", "yalan", "oha", "yuh", "şaka", "ciddi mi", "gerçek mi", "aklım almıyor",
+    "increíble", "imposible", "mentira", "locura", "no puede ser",
+    "unglaublich", "krass", "wahnsinn", "unmöglich", "echt jetzt", "lüge",
+    "incroyable", "dingue", "fou", "impossible", "n'importe quoi", "vraiment",
+)
 
 
 def is_spam_comment(text: str) -> bool:
@@ -68,9 +126,9 @@ def detect_comment_language(text: str) -> str:
     low = text.lower()
     if any(ch in low for ch in ("ğ", "ş", "ı")) or any(w in low for w in TURKISH_HINTS):
         return "tr"
-    if any(w in low for w in SPANISH_HINTS):
+    if any(ch in low for ch in ("¿", "¡", "ñ")) or any(w in low for w in SPANISH_HINTS):
         return "es"
-    if any(w in low for w in GERMAN_HINTS):
+    if any(ch in low for ch in ("ß", "ä")) or any(w in low for w in GERMAN_HINTS):
         return "de"
     if any(w in low for w in FRENCH_HINTS):
         return "fr"
@@ -81,126 +139,525 @@ def detect_comment_language(text: str) -> str:
         return "en"
 
 
-def _classify_comment_angle(comment_text: str) -> str:
-    """Detect what specific aspect of the video the viewer is reacting to."""
-    low = comment_text.lower()
-    if any(k in low for k in ("273", "10,000", "10k", "10.000", "spend", "harca", "broke", "100 day", "100 gün")):
-        return "spending"
-    if any(k in low for k in ("31", "11", "second", "saniye", "year", "yıl", "day", "gün", "time", "zaman", "ice age")):
-        return "time_scale"
-    if any(k in low for k in ("stack", "meter", "km", "kilometer", "burj", "height", "tall", "boy", "kule")):
-        return "height_stack"
-    if "?" in comment_text or any(k in low for k in ("how", "why", "what if", "nasıl", "neden", "peki")):
+def _sanitize_human_reply(text: str) -> str:
+    """Strip em-dashes and extra whitespace so replies read like natural human comments."""
+    cleaned = text.replace(" — ", ", ").replace("—", ", ").replace(" – ", ", ")
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    return cleaned[:240]
+
+
+def _humanize_phrase(raw: str) -> str:
+    """Convert shouty ALL-CAPS labels/values into clean conversational casing."""
+    text = re.sub(r"\s+", " ", (raw or "").strip())
+    if not text:
+        return ""
+    tokens = text.split(" ")
+    out: List[str] = []
+    for tok in tokens:
+        bare = re.sub(r"[^A-Za-z0-9]", "", tok)
+        if bare.upper() in UPPERCASE_ACRONYMS:
+            out.append(tok.upper())
+        elif tok.upper() == "MILLISEC":
+            out.append("ms")
+        elif tok.upper() == "CELSIUS":
+            out.append("°C")
+        elif tok.upper() == "KM/H":
+            out.append("km/h")
+        elif tok.upper() == "KM/S":
+            out.append("km/s")
+        elif tok.upper() == "G/CM3":
+            out.append("g/cm³")
+        elif tok.isupper() and sum(ch.isalpha() for ch in bare) > 1:
+            out.append(tok.lower())
+        else:
+            out.append(tok)
+    joined = " ".join(out)
+    joined = re.sub(r"\s+°C", "°C", joined)
+    return joined
+
+
+def _clean_topic_subject(topic_title: str, primary_keyword: str = "") -> str:
+    """Extract a crisp, readable topic subject without slug hyphens or clickbait brackets."""
+    src = (primary_keyword or "").strip() or (topic_title or "").strip()
+    if not src:
+        return "this one"
+    # If src looks like a slug (e.g. 'asteroid-psyche'), turn hyphens into spaces
+    if "-" in src and " " not in src:
+        src = src.replace("-", " ")
+    src = re.sub(r"\([^)]*\)", "", src).strip()
+    if ":" in src and len(src) > 42:
+        src = src.split(":", 1)[0].strip()
+    src = re.sub(r"\s+", " ", src).strip(" -.,!?")
+    if len(src) > 48:
+        words = src.split()
+        trimmed: List[str] = []
+        for w in words:
+            if len(" ".join(trimmed + [w])) <= 46:
+                trimmed.append(w)
+            else:
+                break
+        src = " ".join(trimmed)
+    return src or "this breakdown"
+
+
+def _match_blueprint_for_title(topic_title: str) -> Optional[Dict[str, Any]]:
+    """Best-effort lookup of a curated blueprint when topic_context wasn't passed explicitly."""
+    needle = (topic_title or "").strip().lower()
+    if not needle:
+        return None
+
+    needle_slug = re.sub(r"[^a-z0-9]+", "-", needle).strip("-")
+    needle_tokens = {tok for tok in re.findall(r"[a-z0-9]+", needle) if len(tok) >= 3}
+
+    best_bp: Optional[Dict[str, Any]] = None
+    best_score = 0
+
+    for bp in CURATED_BLUEPRINTS:
+        tid = bp["topic_id"].lower()
+        if needle == tid or needle_slug == tid:
+            return bp
+        for tv in bp.get("title_variants", []):
+            if needle == tv.lower():
+                return bp
+
+        bp_tokens = set(re.findall(r"[a-z0-9]+", tid)) | set(
+            re.findall(r"[a-z0-9]+", bp.get("primary_keyword", "").lower())
+        )
+        bp_tokens = {tok for tok in bp_tokens if len(tok) >= 3}
+        if not needle_tokens:
+            continue
+        overlap = needle_tokens & bp_tokens
+        # Require strong match: all tokens of a short query (e.g. 'gold-cube', 'asteroid-psyche')
+        # or at least 3 meaningful overlapping tokens for full titles
+        if (len(needle_tokens) >= 2 and overlap == needle_tokens) or len(overlap) >= 3:
+            score = len(overlap) * 10 + (5 if needle_slug and needle_slug in tid else 0)
+            if score > best_score:
+                best_score = score
+                best_bp = bp
+
+    return best_bp
+
+
+def _resolve_topic_context(
+    topic_title: str,
+    topic_context: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Build an idempotent, normalized topic context with title, keyword, facts, and debate."""
+    ctx: Dict[str, Any] = dict(topic_context) if isinstance(topic_context, dict) else {}
+    is_already_normalized = "facts" in ctx and "debate" in ctx and "subject" in ctx
+
+    existing_facts = (
+        ctx.get("key_facts")
+        if isinstance(ctx.get("key_facts"), list) and ctx.get("key_facts")
+        else (ctx.get("facts") if isinstance(ctx.get("facts"), list) else [])
+    )
+    existing_debate = (
+        ctx.get("debate_hook")
+        if isinstance(ctx.get("debate_hook"), dict) and any(str(v).strip() for v in ctx["debate_hook"].values())
+        else (ctx.get("debate") if isinstance(ctx.get("debate"), dict) else {})
+    )
+    has_debate = any(str(existing_debate.get(k, "")).strip() for k in ("question", "option_a", "option_b"))
+
+    if not is_already_normalized and not existing_facts and not has_debate:
+        matched = _match_blueprint_for_title(topic_title)
+        if matched:
+            for k in ("topic_id", "primary_keyword", "key_facts", "debate_hook", "shock_hook_stat", "pillar"):
+                ctx.setdefault(k, matched.get(k))
+            if not ctx.get("title") and matched.get("title_variants"):
+                ctx["title"] = matched["title_variants"][0]
+            existing_facts = ctx.get("key_facts") if isinstance(ctx.get("key_facts"), list) else []
+            existing_debate = ctx.get("debate_hook") if isinstance(ctx.get("debate_hook"), dict) else {}
+
+    title = str(ctx.get("title") or topic_title or "").strip()
+    primary_kw = str(ctx.get("primary_keyword") or "").strip()
+    facts: List[Dict[str, str]] = []
+    for f in existing_facts[:4]:
+        if isinstance(f, dict) and f.get("value"):
+            facts.append(
+                {
+                    "label": _humanize_phrase(str(f.get("label", ""))),
+                    "value": _humanize_phrase(str(f.get("value", ""))),
+                }
+            )
+
+    debate = {
+        "question": str(existing_debate.get("question", "")).strip(),
+        "option_a": _humanize_phrase(str(existing_debate.get("option_a", ""))),
+        "option_b": _humanize_phrase(str(existing_debate.get("option_b", ""))),
+    }
+
+    subject = str(ctx.get("subject") or "").strip() or _clean_topic_subject(title, primary_kw)
+    return {
+        "topic_id": str(ctx.get("topic_id", "")),
+        "title": title,
+        "subject": subject,
+        "primary_keyword": primary_kw,
+        "facts": facts,
+        "debate": debate,
+    }
+
+
+def _load_topic_context(state_db: StateDB, video_row: Dict[str, Any]) -> Dict[str, Any]:
+    """Load the video's actual topic record from state_db (topics.payload_json + videos.titles_json)."""
+    titles: List[str] = []
+    try:
+        parsed_titles = json.loads(video_row.get("titles_json", "[]"))
+        if isinstance(parsed_titles, list):
+            titles = [str(t) for t in parsed_titles if t]
+    except json.JSONDecodeError:
+        titles = []
+
+    active_idx = int(video_row.get("active_variant", 0))
+    live_title = (
+        titles[active_idx]
+        if 0 <= active_idx < len(titles)
+        else (titles[0] if titles else str(video_row.get("topic_id", "")))
+    )
+
+    topic_payload: Dict[str, Any] = {}
+    topic_id = str(video_row.get("topic_id", ""))
+    if topic_id:
+        with state_db._connect() as conn:
+            row = conn.execute(
+                "SELECT payload_json FROM topics WHERE topic_id = ?",
+                (topic_id,),
+            ).fetchone()
+        if row:
+            try:
+                topic_payload = json.loads(row["payload_json"])
+            except json.JSONDecodeError:
+                topic_payload = {}
+
+    topic_payload["title"] = live_title
+    return _resolve_topic_context(live_title, topic_payload)
+
+
+def _match_option_score(comment_low: str, option_text: str) -> int:
+    """Score how strongly a viewer comment aligns with one of the video's debate options."""
+    opt_low = option_text.strip().lower()
+    if not opt_low:
+        return 0
+    score = 0
+    if opt_low in comment_low:
+        score += 5
+
+    opt_tokens: Set[str] = {tok for tok in re.findall(r"[a-z0-9]+", opt_low) if len(tok) >= 2}
+    comment_tokens: Set[str] = set(re.findall(r"[a-z0-9ğüşöçı]+", comment_low))
+    for tok in opt_tokens:
+        if len(tok) >= 3 and tok in comment_tokens:
+            score += 3
+        elif tok in ("no", "yes") and tok in comment_tokens:
+            score += 2
+
+    # Check multilingual synonym cues linked to this option's concepts
+    for key, synonyms in MULTILANG_STANCE_SYNONYMS.items():
+        if key in opt_low:
+            if any(syn in comment_low for syn in synonyms):
+                score += 4
+    return score
+
+
+def _classify_comment_intent(comment_text: str, ctx: Dict[str, Any]) -> str:
+    """Classify viewer comment against the actual video's debate options and tone."""
+    low = comment_text.lower().strip()
+    opt_a = ctx["debate"].get("option_a", "")
+    opt_b = ctx["debate"].get("option_b", "")
+
+    score_a = _match_option_score(low, opt_a)
+    score_b = _match_option_score(low, opt_b)
+    if score_a > score_b and score_a >= 3:
+        return "picked_a"
+    if score_b > score_a and score_b >= 3:
+        return "picked_b"
+
+    if "?" in comment_text or any(w in low for w in QUESTION_WORDS):
         return "question"
-    if len(comment_text.strip()) <= 22:
+    if any(w in low for w in DISBELIEF_WORDS):
+        return "disbelief"
+    if len(comment_text.strip()) <= 24:
         return "short_reaction"
     return "general"
 
 
-def _native_multilang_reply(comment_text: str, lang: str, topic_title: str) -> str:
-    """Craft a natural, varied, human-sounding reply tailored to what the viewer actually said."""
-    angle = _classify_comment_angle(comment_text)
-    # Deterministic pick based on comment text hash so different viewers get different phrasing
-    seed = int(hashlib.md5(comment_text.encode("utf-8")).hexdigest()[:6], 16)
+def _native_multilang_reply(
+    comment_text: str,
+    lang: str,
+    topic_title: str,
+    topic_context: Optional[Dict[str, Any]] = None,
+) -> str:
+    """Craft a natural, varied, topic-aware human reply grounded in the video's actual facts."""
+    ctx = _resolve_topic_context(topic_title, topic_context)
+    intent = _classify_comment_intent(comment_text, ctx)
+    seed_input = f"{ctx.get('topic_id') or topic_title}|{comment_text}"
+    seed = int(hashlib.md5(seed_input.encode("utf-8")).hexdigest()[:6], 16)
 
-    en_Pool: Dict[str, List[str]] = {
-        "spending": [
-            "The $10k a day part broke my head too when I first ran the numbers. 273 years without earning a single cent of interest is wild.",
-            "Right? And that's assuming zero investment return. With even 4% interest a billionaire could spend $100k a day and still get richer.",
-            "100 days vs 273 years is the one comparison that finally made a billion click for me.",
-        ],
-        "time_scale": [
-            "11 days vs 31.7 years really shows how badly our brains flatten big numbers just because the words sound alike.",
-            "Crazy part is jumping one more step to a trillion seconds takes you back 31,700 years to the last Ice Age.",
-            "Wild how 'million' and 'billion' only differ by one letter, yet in time it's a two-week vacation vs half a lifetime.",
-        ],
-        "height_stack": [
-            "Visualizing the $100 bills stacked past the Burj Khalifa is still the wildest part to me.",
-            "One meter waist-high vs over a kilometer into the clouds really puts that extra three zeros in perspective.",
-        ],
-        "question": [
-            "Good question: our brains evolved to judge linear everyday counts, so exponential 1,000x jumps all blur together in our heads.",
-            "It comes down to logarithmic perception. Once a number passes a few thousand, we stop picturing it and just hear 'a lot'.",
-            "Basically every extra zero multiplies the whole stack by 10, so three extra zeros is a 1,000x leap.",
-        ],
-        "short_reaction": [
-            "Honestly had the exact same reaction when I first calculated the 31.7 years part.",
-            "Our brains really weren't built for three extra zeros.",
-            "Wait until you see tomorrow's breakdown, the scale gap gets even crazier.",
-            "It really messes with your sense of scale once you see it side by side.",
-        ],
-        "general": [
-            "Glad this one clicked! Putting the numbers side by side is the only way my brain can actually picture the gap.",
-            "Appreciate you watching! Always crazy how different huge numbers look once you turn them into time or height.",
-            "That gap between a million and a billion hides in plain sight until you map it to real time. What topic should we break down next?",
-            "Thanks for dropping a comment! We're building a whole series on hidden scales like this, let me know what you want to see next.",
-        ],
-    }
+    subject = ctx["subject"]
+    facts = ctx["facts"]
+    f0_val = facts[0]["value"] if len(facts) > 0 else ""
+    f0_lbl = facts[0]["label"] if len(facts) > 0 else ""
+    f1_val = facts[1]["value"] if len(facts) > 1 else ""
+    f1_lbl = facts[1]["label"] if len(facts) > 1 else ""
+    f2_val = facts[2]["value"] if len(facts) > 2 else ""
 
-    tr_Pool: Dict[str, List[str]] = {
-        "spending": [
-            "Günde 10 bin dolar harcayıp 273 yıl bitmemesi hesabını ilk yaptığımda ben de inanamadım, üstelik sıfır faizle.",
-            "100 gün nerede 273 yıl nerede... Milyon ile milyarın aslında bambaşka gezegenler olduğunu en iyi bu örnek anlatıyor.",
-        ],
-        "time_scale": [
-            "11 gün ile 31.7 yıl farkını görünce insan kelimelerin birbirine bu kadar benzemesine şaşırıyor gerçekten.",
-            "İşin daha çılgın kısmı 1 trilyon saniyeye çıkınca tam 31.700 yıl geriye, Buzul Çağı'na gidiyoruz.",
-        ],
-        "height_stack": [
-            "1 milyon doların bel hizasında kalıp 1 milyarın Burj Khalifa'yı geçmesi aradaki 1000 katı en net gösteren detay.",
-        ],
-        "question": [
-            "Çok iyi soru: insan beyni günlük hayatta doğrusal sayılara evrimleştiği için üç sıfır eklendiğinde aradaki 1000 katlık uçurumu sezgiyle hissedemiyor.",
-            "Sebebi tamamen beynin büyük sayıları tek bir 'çok büyük' kutusunda sıkıştırması, ta ki zamana veya boyuta çevirene kadar.",
-        ],
-        "short_reaction": [
-            "Vallahi sayıları ilk hesapladığımda benim de tepkim birebir aynıydı :)",
-            "İki harf fark var gibi duruyor ama arada koca bir ömür var.",
-            "Yarınki bölümde bu ölçek farkının daha da uçuk bir örneği geliyor, takipte kal!",
-        ],
-        "general": [
-            "Çok teşekkürler! Sayıları zamana ve fiziksel boyuta dökünce tablo bir anda bambaşka görünüyor. Sıradaki videoda neyi kıyaslayalım?",
-            "Beğenmene çok sevindim, bu tarz görünmeyen sistemleri ve ölçek farklarını her gün seriye devam ettireceğiz.",
-            "Kesinlikle, soyut rakamları yan yana koymadan beynimiz aradaki uçurumu tam canlandıramıyor. Yorumun için teşekkürler!",
-        ],
-    }
-
-    es_Pool = [
-        "La diferencia entre 11 días y 31 años es de esas cosas que te cambian la perspectiva por completo.",
-        "Tal cual, como las palabras suenan parecido nuestro cerebro no dimensiona que hay un abismo de 1.000x entre ambas.",
-        "Gracias por pasarte! Mañana sale otro análisis visual todavía más extremo.",
-    ]
-    de_Pool = [
-        "11 Tage gegen fast 32 Jahre zeigt einfach perfekt, wie sehr unser Gehirn große Zahlen unterschätzt.",
-        "Absolut, erst wenn man das in echte Lebenszeit umrechnet, merkt man wie gewaltig drei Nullen mehr sind.",
-        "Danke dir! Morgen kommt direkt der nächste visuelle Vergleich.",
-    ]
-    fr_Pool = [
-        "11 jours contre 31 ans, c'est vraiment le comparatif qui fait réaliser l'écart colossal entre les deux.",
-        "Carrément, notre cerveau entend deux mots proches alors qu'il y a un facteur 1000 entre les deux.",
-        "Merci pour ton commentaire ! La suite arrive dès demain.",
-    ]
+    opt_a = ctx["debate"].get("option_a", "")
+    opt_b = ctx["debate"].get("option_b", "")
+    has_facts = bool(f0_val and f1_val)
+    has_debate = bool(opt_a and opt_b)
 
     if lang == "tr":
-        choices = tr_Pool.get(angle, tr_Pool["general"])
+        if intent == "picked_a" and has_debate:
+            choices = [
+                f"Açıkçası ben de '{opt_a}' tarafındayım, {f0_val} ile {f1_val} yan yana gelince '{opt_b}' pek gerçekçi durmuyor."
+                if has_facts
+                else f"Ben de '{opt_a}' seçeneğine daha yakınım açıkçası. Çoğu kişi tersini bekliyor ama mantıklı olan bu.",
+                f"'{opt_a}' diyenler genelde haklı çıkıyor burada. {f0_val} detayı tüm hesabı değiştiriyor."
+                if f0_val
+                else f"'{opt_a}' seçimi bence de en mantıklısı, {subject} konusunda tablo çok net.",
+            ]
+        elif intent == "picked_b" and has_debate:
+            choices = [
+                f"'{opt_b}' tarafını seçen çok kişi var, özellikle {f1_val} kısmını düşününce kulağa mantıklı geliyor."
+                if f1_val
+                else f"'{opt_b}' bayağı güçlü bir görüş, yorumlarda iki taraf da bayağı bölündü.",
+                f"Güzel bakış açısı, '{opt_a}' ile '{opt_b}' arasında herkes ikiye ayrılmış durumda. Sence en belirleyici detay hangisi?",
+            ]
+        elif intent == "question":
+            choices = [
+                f"Güzel soru, olayın özü {f0_val} ile {f1_val} arasındaki farkta gizli. İkisini yan yana koyunca bütün sistem netleşiyor."
+                if has_facts
+                else f"Güzel soru, {subject} konusunda bütün olay aslında gözle görülmeyen bu oran farkından kaynaklanıyor.",
+                f"Kısaca şöyle: burada kritik sınır {f0_val} noktası, onu aştığında her şey bambaşka çalışıyor. Aklına takılan başka bir konu var mı?"
+                if f0_val
+                else f"Kısaca işin sırrı {subject} içindeki fiziksel sınırlar. Bunu ayrı bir videoda daha derin açalım mı?",
+            ]
+        elif intent == "disbelief":
+            choices = [
+                f"İlk araştırırken ben de gerçek olamaz dedim, {f0_val} ile {f1_val} farkını iki kez kontrol ettim."
+                if has_facts
+                else f"İlk gördüğümde benim de tepkim aynıydı, {subject} gerçekten insanın aklını zorluyor.",
+                f"Kulağa şaka gibi geliyor ama {f0_val} rakamı tamamen gerçek. {f2_val} detayı işin tuzu biberi."
+                if f0_val and f2_val
+                else f"Gerçekten kulağa imkansız gibi geliyor değil mi, rakamları yan yana görmeden inanmak zor.",
+            ]
+        elif intent == "short_reaction":
+            choices = [
+                f"Vallahi {f0_val} detayını ilk hesapladığımda benim de tepkim birebir aynıydı."
+                if f0_val
+                else f"Vallahi {subject} konusunu hazırlarken ben de aynı şaşkınlığı yaşadım.",
+                f"{f0_val} ve {f1_val} yan yana gelince insanın algısı şaşıyor gerçekten. Sırada neyi inceleyelim?"
+                if has_facts
+                else f"Gerçekten çok acayip bir detay değil mi? Sıradaki videoda ne görmek istersin?",
+                f"Bunu duyunca insanın tekrar bakası geliyor. Sence {opt_a} mı yoksa {opt_b} mı?"
+                if has_debate
+                else f"Rakamları yan yana koyunca bambaşka bir tablo çıkıyor ortaya.",
+            ]
+        else:
+            choices = [
+                f"Aynen öyle, {f0_val} ile {f1_val} arasındaki farkı görünce bakış açısı tamamen değişiyor."
+                if has_facts
+                else f"Aynen öyle, {subject} konusundaki gerçek rakamlar insanı hep şaşırtıyor.",
+                f"Yorumun için sağ ol! {f0_val} kısmını araştırırken ben de bayağı şaşırmıştım. Sırada hangi konuyu açalım?"
+                if f0_val
+                else f"Yorumun için sağ ol! Bir sonraki bölümde hangi gizli sistemi inceleyelim?",
+                f"Kesinlikle katılıyorum, {subject} konusunda çoğu kişi bu detayı hiç fark etmiyor.",
+            ]
     elif lang == "es":
-        choices = es_Pool
+        if intent == "picked_a" and has_debate:
+            choices = [
+                f"Yo también me inclino por '{opt_a}', viendo {f0_val} frente a {f1_val} cuesta defender la otra opción."
+                if has_facts
+                else f"También votaría por '{opt_a}', los comentarios están súper divididos con esto.",
+            ]
+        elif intent == "picked_b" and has_debate:
+            choices = [
+                f"Tiene bastante sentido elegir '{opt_b}', sobre todo por ese dato de {f1_val}."
+                if f1_val
+                else f"Buen punto con '{opt_b}', aquí nadie se pone de acuerdo.",
+            ]
+        elif intent == "question":
+            choices = [
+                f"Buena pregunta, todo se explica al comparar {f0_val} con {f1_val} en {subject}."
+                if has_facts
+                else f"Buena pregunta, en {subject} todo cambia por la escala real que casi nunca vemos.",
+            ]
+        elif intent == "disbelief":
+            choices = [
+                f"Parece mentira, ¿verdad? Tuve que verificar ese dato de {f0_val} dos veces antes de subirlo."
+                if f0_val
+                else f"Suena irreal al principio, {subject} siempre deja a todos dudando.",
+            ]
+        elif intent == "short_reaction":
+            choices = [
+                f"Literalmente tuve la misma reacción cuando vi lo de {f0_val}."
+                if f0_val
+                else f"Tuve exactamente la misma reacción preparando este video sobre {subject}.",
+                f"Cuesta asimilar {f0_val} contra {f1_val} hasta que lo ves así. ¿Qué tema analizamos luego?"
+                if has_facts
+                else "Cuando ves los datos lado a lado cambia todo. ¿Qué deberíamos analizar después?",
+            ]
+        else:
+            choices = [
+                f"Totalmente, ver {f0_val} junto a {f1_val} hace que todo encaje al instante."
+                if has_facts
+                else f"Totalmente, {subject} tiene cifras que nadie imagina hasta verlas comparadas.",
+                f"Me alegra que te haya gustado! ¿Qué otro tema de este estilo te gustaría ver?",
+            ]
     elif lang == "de":
-        choices = de_Pool
+        if intent == "picked_a" and has_debate:
+            choices = [
+                f"Ich tendiere auch klar zu '{opt_a}', bei {f0_val} gegen {f1_val} ist der Unterschied einfach riesig."
+                if has_facts
+                else f"Bin da auch eher bei '{opt_a}', die Kommentare sind komplett gespalten.",
+            ]
+        elif intent == "picked_b" and has_debate:
+            choices = [
+                f"Kann man gut vertreten mit '{opt_b}', gerade wegen der {f1_val}."
+                if f1_val
+                else f"Guter Punkt für '{opt_b}', die Meinungen gehen hier echt weit auseinander.",
+            ]
+        elif intent == "question":
+            choices = [
+                f"Gute Frage, entscheidend ist hier das Verhältnis zwischen {f0_val} und {f1_val}."
+                if has_facts
+                else f"Gute Frage, bei {subject} liegt der Kern genau in dieser extremen Größenordnung.",
+            ]
+        elif intent == "disbelief":
+            choices = [
+                f"Klingt echt verrückt, oder? Ich musste die {f0_val} selbst zweimal nachrechnen."
+                if f0_val
+                else f"Klingt erstmal komplett unrealistisch, bei {subject} staunt man echt.",
+            ]
+        elif intent == "short_reaction":
+            choices = [
+                f"Genau so habe ich auch geschaut, als ich das mit {f0_val} gesehen habe."
+                if f0_val
+                else f"Ging mir beim Recherchieren zu {subject} genauso.",
+                f"{f0_val} neben {f1_val} lässt einen echt kurz stutzen. Welches Thema soll als Nächstes kommen?"
+                if has_facts
+                else "Im direkten Vergleich wirken solche Zahlen einfach komplett anders.",
+            ]
+        else:
+            choices = [
+                f"Absolut, erst wenn man {f0_val} und {f1_val} direkt nebeneinander sieht, macht es klick."
+                if has_facts
+                else f"Absolut, bei {subject} unterschätzt man die echten Zahlen fast immer.",
+                "Freut mich, dass der Vergleich hängen geblieben ist! Welches Thema sollen wir als Nächstes knacken?",
+            ]
     elif lang == "fr":
-        choices = fr_Pool
+        if intent == "picked_a" and has_debate:
+            choices = [
+                f"Je penche aussi pour '{opt_a}', quand on met {f0_val} face à {f1_val} ça change tout."
+                if has_facts
+                else f"Je suis plutôt du côté '{opt_a}' aussi, les avis sont très partagés ici.",
+            ]
+        elif intent == "picked_b" and has_debate:
+            choices = [
+                f"C'est un vrai argument pour '{opt_b}', surtout avec ce chiffre de {f1_val}."
+                if f1_val
+                else f"Bien vu pour '{opt_b}', le débat dans les commentaires est serré.",
+            ]
+        elif intent == "question":
+            choices = [
+                f"Bonne question, tout repose sur l'écart entre {f0_val} et {f1_val} dans ce cas précis."
+                if has_facts
+                else f"Bonne question, sur {subject} tout vient de cet ordre de grandeur qu'on imagine mal.",
+            ]
+        elif intent == "disbelief":
+            choices = [
+                f"Ça paraît fou hein ? J'ai vérifié ce chiffre de {f0_val} deux fois avant de monter la vidéo."
+                if f0_val
+                else f"Ça a l'air totalement irréel au premier abord, {subject} surprend tout le monde.",
+            ]
+        elif intent == "short_reaction":
+            choices = [
+                f"J'ai eu exactement la même réaction en tombant sur le chiffre de {f0_val}."
+                if f0_val
+                else f"Même réaction ici en préparant cet épisode sur {subject}.",
+                f"Voir {f0_val} à côté de {f1_val} remet vite les idées en place. Quel sujet tu veux ensuite ?"
+                if has_facts
+                else "En comparant les vrais chiffres côte à côte, ça saute tout de suite aux yeux.",
+            ]
+        else:
+            choices = [
+                f"Carrément, poser {f0_val} face à {f1_val} rend le phénomène beaucoup plus concret."
+                if has_facts
+                else f"Carrément, sur {subject} on réalise rarement l'échelle réelle sans comparaison visuelle.",
+                "Merci pour ton retour ! Quel système caché tu aimerais qu'on décortique demain ?",
+            ]
     else:
-        choices = en_Pool.get(angle, en_Pool["general"])
+        # English (primary global language)
+        if intent == "picked_a" and has_debate:
+            choices = [
+                f"Honestly leaning toward '{opt_a}' too. Looking at {f0_val} next to {f1_val}, '{opt_b}' feels like a tough sell."
+                if has_facts
+                else f"Honestly leaning toward '{opt_a}' too. Comments are split right down the middle on this one.",
+                f"Hard to argue with '{opt_a}' once you see {f0_lbl} sitting at {f0_val}. What made you pick that side?"
+                if f0_lbl and f0_val
+                else f"Hard to argue with '{opt_a}' on {subject}. Most people guess the opposite at first.",
+            ]
+        elif intent == "picked_b" and has_debate:
+            choices = [
+                f"You might be onto something with '{opt_b}', especially once {f1_lbl} hits {f1_val}."
+                if f1_lbl and f1_val
+                else f"Fair take on '{opt_b}', this one has people debating hard in the comments.",
+                f"Respect for backing '{opt_b}' over '{opt_a}'. Once you factor in {f1_val}, it's closer than people think."
+                if f1_val
+                else f"Interesting call picking '{opt_b}' over '{opt_a}'. Think most people would agree with you?",
+            ]
+        elif intent == "question":
+            choices = [
+                f"Good question, the short version comes down to {f0_lbl} ({f0_val}) versus {f1_lbl} ({f1_val}). Put those side by side and the whole thing clicks."
+                if has_facts and f0_lbl and f1_lbl
+                else f"Good question, on {subject} it all comes down to the physical margin nobody notices until you zoom in.",
+                f"That's the wild part: once {f0_lbl} reaches {f0_val}, normal everyday intuition stops applying. Want a deeper follow-up on this?"
+                if f0_lbl and f0_val
+                else f"Basically our everyday intuition flattens the real numbers behind {subject}. Want us to go deeper on a part two?",
+            ]
+        elif intent == "disbelief":
+            choices = [
+                f"Felt fake to me too when I first looked it up. Double checked {f0_val} against {f1_val} twice before rendering this."
+                if has_facts
+                else f"Felt completely unreal when I first researched {subject} too. The real physics gets weird fast.",
+                f"Sounds made up, right? That {f0_val} number is 100% real, and {f2_val} makes it even crazier."
+                if f0_val and f2_val
+                else f"I had the exact same reaction verifying {subject}. Real-world scale gets absurd fast.",
+            ]
+        elif intent == "short_reaction":
+            choices = [
+                f"Had the exact same reaction when I first saw the {f0_val} number."
+                if f0_val
+                else f"Had the exact same reaction putting {subject} together.",
+                f"Seeing {f0_val} right next to {f1_val} really breaks your brain for a second."
+                if has_facts
+                else f"{subject.capitalize()} hits way differently once you see it side by side.",
+                f"Right? Curious where you land on it: '{opt_a}' or '{opt_b}'?"
+                if has_debate
+                else "Wait till you see the next one we're rendering, the scale gap gets even wilder.",
+            ]
+        else:
+            choices = [
+                f"Glad this one clicked! Putting {f0_val} beside {f1_val} is the only way {subject} actually makes sense visually."
+                if has_facts
+                else f"Glad this one clicked! {subject.capitalize()} looks totally different once you map out the real numbers.",
+                f"Appreciate you dropping a comment! That {f0_val} detail was the part that blew me away while researching. What should we break down next?"
+                if f0_val
+                else "Appreciate you dropping a comment! What hidden system or crazy scale should we break down next?",
+                f"Exactly, most people never realize {f1_lbl} hits {f1_val} until they see the numbers stacked together."
+                if f1_lbl and f1_val
+                else f"Exactly, the real numbers behind {subject} hide in plain sight until you visualize them.",
+            ]
 
-    return choices[seed % len(choices)]
+    picked = choices[seed % len(choices)]
+    return _sanitize_human_reply(picked)
 
 
 def craft_reply(
     comment_text: str,
     topic_title: str,
     llm: Optional[ZeroCostLLMClient] = None,
+    topic_context: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    """Classify spam, detect exact language, and draft an authentic human creator reply."""
+    """Classify spam, detect exact language, and draft an authentic topic-aware human reply."""
     if is_spam_comment(comment_text):
         return {
             "is_spam": True,
@@ -208,30 +665,42 @@ def craft_reply(
             "reply_text": "",
         }
 
+    ctx = _resolve_topic_context(topic_title, topic_context)
     lang = detect_comment_language(comment_text)
     if llm and llm.is_available:
         system_prompt = load_prompt("multilang_reply.md")
+        facts_str = ", ".join(f"{f['label']}: {f['value']}" for f in ctx["facts"])
+        debate = ctx["debate"]
+        debate_str = (
+            f"Debate options: {debate['option_a']} vs {debate['option_b']}"
+            if debate.get("option_a") and debate.get("option_b")
+            else ""
+        )
         user_prompt = (
-            f"Video title: {topic_title}\n"
+            f"Video title: {ctx['title'] or topic_title}\n"
+            f"Topic keyword: {ctx['primary_keyword'] or ctx['subject']}\n"
+            f"Verified facts from this video ONLY: {facts_str or 'Use title context only'}\n"
+            f"{debate_str}\n"
             f"Detected language hint: {lang}\n"
-            f"Viewer comment: {comment_text}"
+            f"Viewer comment: {comment_text}\n"
+            "CRITICAL: Only reference facts from THIS video. Never use em-dashes."
         )
         res = llm.complete_json(system_prompt, user_prompt, temperature=0.75)
         if res and isinstance(res.get("is_spam"), bool):
             if res["is_spam"]:
                 return {"is_spam": True, "detected_lang": "spam", "reply_text": ""}
-            reply = str(res.get("reply_text", "")).strip().replace(" — ", ", ").replace("—", ", ")
+            reply = _sanitize_human_reply(str(res.get("reply_text", "")))
             if reply:
                 return {
                     "is_spam": False,
                     "detected_lang": str(res.get("detected_language", lang))[:5],
-                    "reply_text": reply[:240],
+                    "reply_text": reply,
                 }
 
     return {
         "is_spam": False,
         "detected_lang": lang,
-        "reply_text": _native_multilang_reply(comment_text, lang, topic_title),
+        "reply_text": _native_multilang_reply(comment_text, lang, topic_title, topic_context=ctx),
     }
 
 
@@ -240,7 +709,7 @@ def run_comment_cycle(
     out_dir: Optional[Path] = None,
     llm: Optional[ZeroCostLLMClient] = None,
 ) -> Dict[str, Any]:
-    """Fetch new comments, approve visibility, and reply naturally in the viewer's language."""
+    """Fetch new comments, approve visibility, and reply naturally with each video's real topic."""
     llm = llm or ZeroCostLLMClient()
     summary: Dict[str, Any] = {
         "mode": "live" if has_youtube_credentials() else "verification_preview",
@@ -252,16 +721,25 @@ def run_comment_cycle(
     }
 
     if not has_youtube_credentials():
+        # Preview across actual recent video in state.db or diverse multi-topic blueprints
+        all_vids = state_db.get_all_videos()
+        if all_vids:
+            preview_ctx = _load_topic_context(state_db, all_vids[0])
+            preview_title = preview_ctx["title"]
+        else:
+            preview_ctx = _resolve_topic_context("asteroid-psyche")
+            preview_title = preview_ctx["title"]
+
         sample_comments = [
-            ("demo_tr_01", "İnanılmaz bir görsel karşılaştırma olmuş, 1 milyar saniyenin 31 yıl ettiğini hiç böyle düşünmemiştim!"),
-            ("demo_en_02", "Wait spending $10,000 a day takes 273 YEARS for a billion?? My brain just melted."),
-            ("demo_es_03", "Increíble explicación visual, nunca había entendido la diferencia real entre millón y mil millones."),
-            ("demo_de_04", "Krass, diese visuelle Darstellung macht den Unterschied sofort klar!"),
+            ("demo_tr_01", "İnanılmaz bir detay olmuş, bunu ilk kez duyuyorum, gerçek mi bu?"),
+            ("demo_en_02", "No way this is real, it would definitely crash the whole market overnight!"),
+            ("demo_es_03", "Increíble explicación visual, nunca lo había visto así de claro."),
+            ("demo_de_04", "Krass, diese visuelle Darstellung macht es sofort verständlich!"),
             ("demo_spam_05", "FREE CRYPTO SIGNALS join https://t.me/scamchannel123 check my channel sub4sub!!!"),
         ]
         now = datetime.now(timezone.utc)
         for cid, text in sample_comments:
-            decision = craft_reply(text, "VELUM Visual Breakdown", llm=llm)
+            decision = craft_reply(text, preview_title, llm=llm, topic_context=preview_ctx)
             sched_iso = now.replace(microsecond=0).isoformat()
             summary["fetched"] += 1
             if decision["is_spam"]:
@@ -308,33 +786,43 @@ def run_comment_cycle(
         except Exception as exc:
             logger.debug("Could not resolve own channel ID (%s)", type(exc).__name__)
 
-        now = datetime.now(timezone.utc)
-        for vid in videos[:10]:
-            yt_id = vid["youtube_id"]
-            titles = json.loads(vid.get("titles_json", '["VELUM"]'))
-            title = titles[0] if titles else "VELUM"
-
+        # Batch statistics lookup (1 quota unit for up to 10 active videos)
+        active_videos = videos[:10]
+        batch_ids = [str(v["youtube_id"]) for v in active_videos if v.get("youtube_id")]
+        stats_map: Dict[str, Dict[str, Any]] = {}
+        if batch_ids:
             try:
-                st_resp = youtube.videos().list(part="statistics", id=yt_id).execute()
-                st_items = st_resp.get("items", [])
-                if st_items:
-                    stats = st_items[0].get("statistics", {})
-                    v_cnt = int(stats.get("viewCount", 0))
-                    l_cnt = int(stats.get("likeCount", 0))
-                    c_cnt = int(stats.get("commentCount", 0))
-                    logger.info(
-                        "LIVE STATS [%s] -> views=%d | likes=%d | comments=%d",
-                        yt_id,
-                        v_cnt,
-                        l_cnt,
-                        c_cnt,
-                    )
-                    if v_cnt > 0:
-                        state_db.update_video_metrics(
-                            vid["video_uid"], v_cnt, float(vid.get("avg_view_pct", 0.0)), float(vid.get("ctr", 0.0))
-                        )
+                st_resp = youtube.videos().list(part="statistics", id=",".join(batch_ids)).execute()
+                for st_item in st_resp.get("items", []):
+                    stats_map[st_item["id"]] = st_item.get("statistics", {})
             except Exception as exc:
-                logger.debug("Stats check skipped for %s (%s)", yt_id, type(exc).__name__)
+                logger.debug("Batch stats check skipped (%s)", type(exc).__name__)
+
+        now = datetime.now(timezone.utc)
+        for vid in active_videos:
+            yt_id = vid["youtube_id"]
+            topic_ctx = _load_topic_context(state_db, vid)
+            title = topic_ctx["title"] or "VELUM"
+
+            if yt_id in stats_map:
+                stats = stats_map[yt_id]
+                v_cnt = int(stats.get("viewCount", 0) or 0)
+                l_cnt = int(stats.get("likeCount", 0) or 0)
+                c_cnt = int(stats.get("commentCount", 0) or 0)
+                logger.info(
+                    "LIVE STATS [%s] -> views=%d | likes=%d | comments=%d",
+                    yt_id,
+                    v_cnt,
+                    l_cnt,
+                    c_cnt,
+                )
+                if v_cnt > 0:
+                    state_db.update_video_metrics(
+                        vid["video_uid"],
+                        v_cnt,
+                        float(vid.get("avg_view_pct", 0.0)),
+                        float(vid.get("ctr", 0.0)),
+                    )
 
             try:
                 resp = youtube.commentThreads().list(
@@ -358,7 +846,7 @@ def run_comment_cycle(
                     continue
                 summary["fetched"] += 1
                 text = top["snippet"].get("textDisplay", "")
-                decision = craft_reply(text, title, llm=llm)
+                decision = craft_reply(text, title, llm=llm, topic_context=topic_ctx)
                 sched_iso = now.replace(microsecond=0).isoformat()
                 if decision["is_spam"]:
                     summary["spam_filtered"] += 1
@@ -386,9 +874,10 @@ def run_comment_cycle(
                         sent_ok = True
                         summary["sent_now"] += 1
                         logger.info(
-                            "Replied to viewer comment (%s) on %s -> %s",
+                            "Replied to viewer comment (%s) on %s [%s] -> %s",
                             decision["detected_lang"],
                             yt_id,
+                            topic_ctx.get("topic_id") or title[:24],
                             decision["reply_text"],
                         )
                     except Exception as exc:

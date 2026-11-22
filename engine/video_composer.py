@@ -1,11 +1,12 @@
-"""Broadcast-Grade 1080p 60fps Cinematic Video Compositor (FFmpeg + OpenCV + LibASS).
+"""Broadcast-Grade 4K Shorts / 1080p Long-Form 60fps Cinematic Video Compositor (FFmpeg + OpenCV + LibASS).
 
 Features:
-- True 60fps subpixel Ken Burns zoom/pan (zero zoompan integer jitter)
-- Alternating graded real photography & animated Netflix/Vox data plates (<=2.5s cuts)
-- 0-2.0s high-contrast Shock Hook explosion + sub-bass/whoosh audio punch
-- Live Telemetry HUD overlay (smooth progress rail, live metrics, timecode, watermark)
-- Dark Netflix/Vox cinematic color grading (teal-obsidian shadow LUT + vignette + grain)
+- Fast internal 60fps subpixel Ken Burns zoom/pan at 1080x1920 / 1920x1080 (zero zoompan integer jitter)
+- True 4K Vertical (2160x3840 @ 60fps) Lanczos + Unsharp final master for Shorts to force YouTube VP9/AV1
+- Parallel beat media prefetching with alternating graded footage & animated Netflix/Vox data plates (<=2.5s cuts)
+- 0-2.1s high-contrast Shock Hook explosion + sub-bass/whoosh audio punch
+- Live Telemetry HUD overlay (progress rail, live metrics, open-loop retention badge, watermark)
+- Dark Netflix/Vox cinematic color grading (teal-obsidian shadow LUT + vignette)
 - Word-by-word kinetic scaling ASS captions synchronized to Whisper timestamps
 - 3-stem cinema audio: cleaned narration + auto-ducked tension bed (`sidechaincompress`)
   + sample-accurate beat-synced SFX track, mastered via FFmpeg `loudnorm` (-14 LUFS)
@@ -13,10 +14,12 @@ Features:
 
 from __future__ import annotations
 
+import gc
 import math
 import re
 import subprocess
 import wave
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -32,35 +35,99 @@ from engine.sfx_music_engine import SAMPLE_RATE, generate_audio_pack
 logger = get_logger("video_composer")
 
 
-def _apply_cinematic_grade(bgr: np.ndarray) -> np.ndarray:
-    """Apply dark Netflix/Vox teal-obsidian color grade, S-curve contrast, and vignette."""
-    img = bgr.astype(np.float32) / 255.0
+def _build_grade_luts() -> Tuple[np.ndarray, np.ndarray]:
+    """Precompute 256-entry S-curve and split-tone LUTs for fast cinematic color grading."""
+    x = np.arange(256, dtype=np.float32) / 255.0
+    exp_x = np.clip(x * 0.78, 0.0, 1.0)
+    scurve = np.clip(exp_x * exp_x * (3.0 - 2.0 * exp_x) * 0.65 + exp_x * 0.35, 0.0, 1.0)
+    curve_lut = np.clip(np.rint(scurve * 255.0), 0, 255).astype(np.uint8)
 
-    # Deepen exposure slightly for moody documentary contrast & HUD legibility
-    img = np.clip(img * 0.78, 0.0, 1.0)
-    # Gentle S-curve contrast boost
-    img = np.clip(img * img * (3.0 - 2.0 * img) * 0.65 + img * 0.35, 0.0, 1.0)
-
-    # Split-tone: cool deep teal-blue shadows, crisp warm amber highlights
-    luma = 0.114 * img[:, :, 0] + 0.587 * img[:, :, 1] + 0.299 * img[:, :, 2]
+    luma = np.arange(256, dtype=np.float32) / 255.0
     shadow_w = np.clip(1.0 - luma * 1.8, 0.0, 1.0)
     high_w = np.clip((luma - 0.45) * 1.8, 0.0, 1.0)
+    split_lut = np.stack(
+        [
+            np.rint((shadow_w * 0.055 - high_w * 0.025) * 255.0),  # B
+            np.rint((shadow_w * 0.020 + high_w * 0.010) * 255.0),  # G
+            np.rint((-shadow_w * 0.022 + high_w * 0.045) * 255.0),  # R
+        ],
+        axis=1,
+    ).astype(np.int16)
+    return curve_lut, split_lut
 
-    # BGR channel adjustments
-    img[:, :, 0] = np.clip(img[:, :, 0] + shadow_w * 0.055 - high_w * 0.025, 0.0, 1.0)  # B
-    img[:, :, 1] = np.clip(img[:, :, 1] + shadow_w * 0.020 + high_w * 0.010, 0.0, 1.0)  # G
-    img[:, :, 2] = np.clip(img[:, :, 2] - shadow_w * 0.022 + high_w * 0.045, 0.0, 1.0)  # R
 
-    # Subtle radial vignette (never crushes edges to pure black to keep cropdetect clean)
-    h, w = img.shape[:2]
+_GRADE_CURVE_LUT, _SPLIT_TONE_LUT = _build_grade_luts()
+
+
+@lru_cache(maxsize=8)
+def _get_vignette_mask_u16(h: int, w: int) -> np.ndarray:
+    """Precompute and cache fixed-point (Q8) radial vignette mask once per frame resolution."""
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     nx = (xx / max(w - 1, 1) - 0.5) * 2.0
     ny = (yy / max(h - 1, 1) - 0.5) * 2.0
     dist2 = nx * nx + ny * ny
-    vignette = np.clip(1.0 - 0.28 * (dist2**1.2), 0.58, 1.0)[:, :, None]
-    img = img * vignette
+    vig = np.clip(1.0 - 0.28 * (dist2**1.2), 0.58, 1.0)[:, :, None]
+    return np.rint(vig * 256.0).astype(np.uint16)
 
-    return np.clip(img * 255.0, 0, 255).astype(np.uint8)
+
+def _apply_cinematic_grade(bgr: np.ndarray) -> np.ndarray:
+    """Apply dark Netflix/Vox teal-obsidian color grade, S-curve contrast, and cached vignette."""
+    # Exposure + S-curve via SIMD OpenCV LUT, split-tone via luma LUT, cached Q8 vignette
+    base = cv2.LUT(bgr, _GRADE_CURVE_LUT)
+    gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
+    toned = np.clip(base.astype(np.int16) + _SPLIT_TONE_LUT[gray], 0, 255).astype(np.uint16)
+    h, w = bgr.shape[:2]
+    return ((toned * _get_vignette_mask_u16(h, w)) >> 8).astype(np.uint8)
+
+
+def _load_beat_visual(
+    spec: Dict[str, Any],
+    fetcher: MediaFetcher,
+    size: Tuple[int, int],
+) -> Dict[str, Any]:
+    """Materialize a single beat's graded frames on demand so peak RAM stays under ~450 MB."""
+    w, h = size
+    if spec["kind"] == "photo_grade":
+        clip_path = spec.get("clip_path")
+        max_frames = int(spec.get("max_frames", 72))
+        clip_frames: List[np.ndarray] = []
+        if clip_path is not None:
+            cap = cv2.VideoCapture(str(clip_path))
+            try:
+                while len(clip_frames) < max_frames:
+                    ok, f_bgr = cap.read()
+                    if not ok or f_bgr is None:
+                        break
+                    if f_bgr.shape[1] != w or f_bgr.shape[0] != h:
+                        f_bgr = cv2.resize(f_bgr, (w, h), interpolation=cv2.INTER_LINEAR)
+                    clip_frames.append(_apply_cinematic_grade(f_bgr))
+            finally:
+                cap.release()
+        if len(clip_frames) >= 12:
+            return {"kind": "video", "frames": clip_frames}
+        photo_path = spec.get("photo_path") or fetcher.fetch_photo_plate(
+            spec["query"], size, variant_index=int(spec["idx"])
+        )
+        pil_photo = Image.open(photo_path).convert("RGB")
+        raw_bgr = cv2.cvtColor(np.asarray(pil_photo), cv2.COLOR_RGB2BGR)
+        return {"kind": "photo", "image": _apply_cinematic_grade(raw_bgr)}
+
+    anim_frames: List[np.ndarray] = []
+    steps = 28
+    plate_mode = spec.get("plate_mode", "metric_hero")
+    plate_data = spec.get("plate_data", {})
+    for s in range(steps):
+        phase_t = s / max(steps - 1, 1)
+        anim_t = min(1.0, phase_t * 1.42)
+        pil_plate = render_data_plate(
+            plate_mode,
+            plate_data,
+            size,
+            anim_t=anim_t,
+            phase_t=phase_t,
+        )
+        anim_frames.append(cv2.cvtColor(np.asarray(pil_plate), cv2.COLOR_RGB2BGR))
+    return {"kind": "plate", "frames": anim_frames}
 
 
 def _ken_burns_frame(
@@ -79,23 +146,23 @@ def _ken_burns_frame(
     # Base scale guarantees full cover without black borders
     min_scale = max(out_w / sw, out_h / sh)
     if motion == "zoom_in":
-        scale = min_scale * (1.03 + 0.09 * smooth_t)
+        scale = min_scale * (1.03 + 0.13 * smooth_t)
         dx_frac, dy_frac = 0.0, 0.0
     elif motion == "zoom_out":
-        scale = min_scale * (1.12 - 0.09 * smooth_t)
+        scale = min_scale * (1.16 - 0.12 * smooth_t)
         dx_frac, dy_frac = 0.0, 0.0
     elif motion == "pan_right":
-        scale = min_scale * 1.10
-        dx_frac = -0.04 + 0.08 * smooth_t
+        scale = min_scale * 1.14
+        dx_frac = -0.05 + 0.10 * smooth_t
         dy_frac = 0.0
     elif motion == "pan_left":
-        scale = min_scale * 1.10
-        dx_frac = 0.04 - 0.08 * smooth_t
+        scale = min_scale * 1.14
+        dx_frac = 0.05 - 0.10 * smooth_t
         dy_frac = 0.0
     else:  # drift_up
-        scale = min_scale * (1.06 + 0.05 * smooth_t)
+        scale = min_scale * (1.06 + 0.08 * smooth_t)
         dx_frac = 0.0
-        dy_frac = 0.035 - 0.07 * smooth_t
+        dy_frac = 0.045 - 0.09 * smooth_t
 
     cx = sw * 0.5 + sw * dx_frac
     cy = sh * 0.5 + sh * dy_frac
@@ -181,9 +248,9 @@ def build_kinetic_ass_subtitles(
         font_name = "Arial"
     else:
         font_name = "DejaVu Sans"
-    font_size = 76 if is_vertical else 66
-    margin_v = 360 if is_vertical else 76
-    margin_lr = 64 if is_vertical else 120
+    font_size = 84 if is_vertical else 68
+    margin_v = 485 if is_vertical else 78
+    margin_lr = 58 if is_vertical else 120
 
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -194,12 +261,14 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Kinetic,{font_name},{font_size},&H00FAF7F4,&H0000B8FF,&H000F0907,&H9007090F,-1,0,0,0,100,100,1.5,0,1,6,3,2,{margin_lr},{margin_lr},{margin_v},1
+Style: Kinetic,{font_name},{font_size},&H00FAF7F4,&H0000B8FF,&H0007090F,&HA507090F,-1,0,0,0,100,100,1.2,0,1,7,4,2,{margin_lr},{margin_lr},{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
-    # Group words into punchy 3-word phrases (2 words if any word is long)
+    # Group words into ultra-punchy 2-word viral Shorts phrases (3 words on wide 16:9)
+    max_words_grp = 2 if is_vertical else 3
+    max_chars_grp = 15 if is_vertical else 22
     groups: List[List[Dict[str, Any]]] = []
     cur: List[Dict[str, Any]] = []
     for word_item in words:
@@ -209,7 +278,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         cur.append(word_item)
         cur_chars = sum(len(x["word"]) for x in cur)
         ends_sentence = token.endswith((".", "!", "?", "—", ":"))
-        if len(cur) >= 3 or cur_chars >= 18 or ends_sentence:
+        if len(cur) >= max_words_grp or cur_chars >= max_chars_grp or ends_sentence:
             groups.append(cur)
             cur = []
     if cur:
@@ -219,25 +288,24 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     for grp in groups:
         for active_idx, active_w in enumerate(grp):
             start = float(active_w["start"])
-            # Extend seamlessly to next word start to avoid caption flicker
             if active_idx + 1 < len(grp):
-                end = max(start + 0.08, float(grp[active_idx + 1]["start"]))
+                end = max(start + 0.07, float(grp[active_idx + 1]["start"]))
             else:
-                end = max(start + 0.12, float(active_w["end"]))
+                end = max(start + 0.11, float(active_w["end"]))
 
             parts: List[str] = []
             for j, w_obj in enumerate(grp):
                 raw_txt = _escape_ass_text(w_obj["word"].upper())
                 is_numeric = bool(re.search(r"\d|\$|%", raw_txt))
                 if j == active_idx:
-                    # Active spoken word: pop scale 118% -> 100% + Amber (or Cyan for numbers)
+                    # Active spoken word: energetic 122% -> 100% kinetic pop + Cyan (numbers) / Amber
                     hi_col = "&H00FFE500&" if is_numeric else "&H0000B8FF&"
                     parts.append(
-                        f"{{\\rKinetic\\fs{font_size}\\c{hi_col}\\fscx118\\fscy118\\t(0,95,\\fscx100\\fscy100)}}{raw_txt}{{\\rKinetic}}"
+                        f"{{\\rKinetic\\fs{font_size}\\c{hi_col}\\fscx122\\fscy122\\t(0,85,\\fscx100\\fscy100)}}{raw_txt}{{\\rKinetic}}"
                     )
                 else:
                     parts.append(
-                        f"{{\\rKinetic\\fs{font_size}\\c&H00FAF7F4&\\alpha&H20&}}{raw_txt}{{\\rKinetic}}"
+                        f"{{\\rKinetic\\fs{font_size}\\c&H00FAF7F4&\\alpha&H18&}}{raw_txt}{{\\rKinetic}}"
                     )
 
             dialogue = (
@@ -366,20 +434,23 @@ def compose_cinematic_video(
     work_dir: Path,
     target_lufs: float = -14.0,
 ) -> Dict[str, Any]:
-    """Compose the full 1080p 60fps Broadcast-Grade cinematic MP4 with HUD, captions, SFX & auto-ducking."""
+    """Compose the 4K Shorts (2160x3840) / 1080p Long-form 60fps cinematic MP4 with HUD, captions & audio."""
     fmt = script["format"]
     size = (1080, 1920) if fmt == "shorts" else (1920, 1080)
     w, h = size
+    out_w, out_h = (2160, 3840) if fmt == "shorts" else (w, h)
     fps = 60
     total_dur = float(voice_data["duration"])
     timed_beats = voice_data["timed_beats"]
     words = voice_data["words"]
 
     logger.info(
-        "Composing %s cinematic video (%dx%d @ %dfps, %.2fs, %d beats)...",
+        "Composing %s cinematic video (render %dx%d -> master %dx%d @ %dfps, %.2fs, %d beats)...",
         fmt,
         w,
         h,
+        out_w,
+        out_h,
         fps,
         total_dur,
         len(timed_beats),
@@ -402,32 +473,44 @@ def compose_cinematic_video(
     # 2. Generate Whisper-synced kinetic ASS subtitle file
     ass_path = build_kinetic_ass_subtitles(words, work_dir / "kinetic_captions.ass", size)
 
-    # 3. Prepare visual assets per beat (real graded photos + animated Vox data plates)
+    # 3. Prefetch & resolve lightweight beat asset descriptors (frames load 1 beat at a time to prevent OOM)
     fetcher = MediaFetcher(work_dir / "media_cache")
-    beat_visuals: List[Dict[str, Any]] = []
+    if hasattr(fetcher, "prefetch_beats"):
+        prefetch_summary = fetcher.prefetch_beats(timed_beats, size)
+        logger.info("Parallel media prefetch complete: %s", prefetch_summary)
+    beat_specs: List[Dict[str, Any]] = []
     for idx, beat in enumerate(timed_beats):
+        beat_dur = max(0.1, float(beat.get("end", 0.0)) - float(beat.get("start", 0.0)))
+        if beat_dur <= 0.11:
+            beat_dur = float(beat.get("duration", 2.2))
         if beat["visual_type"] == "photo_grade":
-            photo_path = fetcher.fetch_photo_plate(beat["visual_query"], size, variant_index=idx)
-            # Load via Pillow for full cross-platform Unicode path safety
-            pil_photo = Image.open(photo_path).convert("RGB")
-            raw_bgr = cv2.cvtColor(np.asarray(pil_photo), cv2.COLOR_RGB2BGR)
-            graded = _apply_cinematic_grade(raw_bgr)
-            beat_visuals.append({"kind": "photo", "image": graded})
+            clip_path = fetcher.fetch_motion_clip(
+                beat["visual_query"],
+                size,
+                duration_sec=beat_dur,
+                variant_index=idx,
+            )
+            photo_path = None
+            if clip_path is None:
+                photo_path = fetcher.fetch_photo_plate(beat["visual_query"], size, variant_index=idx)
+            beat_specs.append(
+                {
+                    "kind": "photo_grade",
+                    "idx": idx,
+                    "query": beat["visual_query"],
+                    "clip_path": clip_path,
+                    "photo_path": photo_path,
+                    "max_frames": max(18, min(110, int(math.ceil(beat_dur * 30.0)) + 6)),
+                }
+            )
         else:
-            # Pre-render 14 smooth entrance animation frames for buttery Vox motion graphics
-            anim_frames: List[np.ndarray] = []
-            steps = 14
-            for s in range(steps):
-                anim_t = s / max(steps - 1, 1)
-                pil_plate = render_data_plate(
-                    beat.get("plate_mode", "metric_hero"),
-                    beat.get("plate_data", {}),
-                    size,
-                    anim_t=anim_t,
-                )
-                bgr_plate = cv2.cvtColor(np.asarray(pil_plate), cv2.COLOR_RGB2BGR)
-                anim_frames.append(bgr_plate)
-            beat_visuals.append({"kind": "plate", "frames": anim_frames})
+            beat_specs.append(
+                {
+                    "kind": "plate",
+                    "plate_mode": beat.get("plate_mode", "metric_hero"),
+                    "plate_data": beat.get("plate_data", {}),
+                }
+            )
 
     # 4. Stream 60fps frames directly into FFmpeg (zero temp uncompressed disk bloat!)
     raw_video_mp4 = work_dir / "visual_track_60fps.mp4"
@@ -452,7 +535,7 @@ def compose_cinematic_video(
         "-preset",
         "ultrafast",
         "-crf",
-        "15",
+        "14",
         "-pix_fmt",
         "yuv420p",
         str(raw_video_mp4),
@@ -468,13 +551,14 @@ def compose_cinematic_video(
     total_frames = max(1, int(round(total_dur * fps)))
     hook_text = script["hook_stat_text"]
     hook_sub = script.get("hook_subtext", "VELUM ARCHIVE TELEMETRY")
-    hook_window = 2.0
+    hook_window = 2.1
 
-    # Pre-assign frame ranges to beats
     beat_cursor = 0
+    active_beat_idx = -1
+    active_vis: Optional[Dict[str, Any]] = None
     cached_hud_blend: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None
     prev_beat_last_frame: Optional[np.ndarray] = None
-    transition_frames = 5  # Crisp 83ms dark cinema cut crossfade
+    transition_frames = 4  # Snappy 66ms whip-zoom impact cut
 
     assert proc.stdin is not None
     try:
@@ -482,7 +566,6 @@ def compose_cinematic_video(
             t_sec = frame_idx / fps
             global_prog = t_sec / max(total_dur, 0.001)
 
-            # Advance beat cursor
             while (
                 beat_cursor + 1 < len(timed_beats)
                 and t_sec >= float(timed_beats[beat_cursor]["end"])
@@ -495,19 +578,42 @@ def compose_cinematic_video(
             local_t = max(0.0, min(1.0, (t_sec - b_start) / b_dur))
             local_frame = int(round((t_sec - b_start) * fps))
 
-            vis = beat_visuals[beat_cursor]
-            if vis["kind"] == "photo":
+            if beat_cursor != active_beat_idx or active_vis is None:
+                active_vis = None
+                active_vis = _load_beat_visual(beat_specs[beat_cursor], fetcher, size)
+                active_beat_idx = beat_cursor
+
+            vis = active_vis
+            if vis["kind"] == "video":
+                v_frames = vis["frames"]
+                vf_pos = local_t * (len(v_frames) - 1)
+                vf_idx = min(len(v_frames) - 1, int(vf_pos))
+                base_v = v_frames[vf_idx]
+                # Subtle dynamic cinema push-in on top of real moving footage
+                v_scale = 1.01 + 0.045 * local_t
+                v_tx = (w * (1.0 - v_scale)) * 0.5
+                v_ty = (h * (1.0 - v_scale)) * 0.5
+                v_mat = np.array([[v_scale, 0.0, v_tx], [0.0, v_scale, v_ty]], dtype=np.float32)
+                frame_bgr = cv2.warpAffine(
+                    base_v, v_mat, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101
+                )
+            elif vis["kind"] == "photo":
                 frame_bgr = _ken_burns_frame(
                     vis["image"], w, h, local_t, beat.get("camera_motion", "zoom_in")
                 )
             else:
                 plates = vis["frames"]
-                # Animate entrance over first 0.72s, then subtle Ken Burns breathing drift
-                enter_t = min(1.0, (t_sec - b_start) / 0.72)
-                p_idx = min(len(plates) - 1, int(round(enter_t * (len(plates) - 1))))
-                base_plate = plates[p_idx]
-                # Subtle 1.00 -> 1.035 continuous camera breathing so plate NEVER freezes
-                scale = 1.0 + 0.035 * local_t
+                # Smooth continuous interpolation across all 28 living keyframes over 100% of beat
+                f_pos = local_t * (len(plates) - 1)
+                i0 = min(len(plates) - 1, int(math.floor(f_pos)))
+                i1 = min(len(plates) - 1, i0 + 1)
+                frac = f_pos - i0
+                if i0 == i1 or frac < 0.02:
+                    base_plate = plates[i0]
+                else:
+                    base_plate = cv2.addWeighted(plates[i0], 1.0 - frac, plates[i1], frac, 0.0)
+                # Smooth 1.00 -> 1.04 continuous camera push so every pixel breathes at 60fps
+                scale = 1.0 + 0.04 * local_t
                 tx = (w * (1.0 - scale)) * 0.5
                 ty = (h * (1.0 - scale)) * 0.5
                 mat = np.array([[scale, 0.0, tx], [0.0, scale, ty]], dtype=np.float32)
@@ -515,14 +621,22 @@ def compose_cinematic_video(
                     base_plate, mat, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101
                 )
 
-            # Crisp cinema beat-transition crossfade
-            if beat_cursor > 0 and local_frame < transition_frames and prev_beat_last_frame is not None:
-                blend_a = (local_frame + 1) / (transition_frames + 1)
-                frame_bgr = cv2.addWeighted(
-                    frame_bgr, blend_a, prev_beat_last_frame, 1.0 - blend_a, 0.0
+            # Snappy whip-zoom impact cut + subtle cinema flash pop on beat transitions
+            if beat_cursor > 0 and local_frame < transition_frames:
+                punch_decay = 1.0 - (local_frame / float(transition_frames))
+                p_scale = 1.0 + 0.055 * punch_decay
+                p_tx = (w * (1.0 - p_scale)) * 0.5
+                p_ty = (h * (1.0 - p_scale)) * 0.5
+                p_mat = np.array([[p_scale, 0.0, p_tx], [0.0, p_scale, p_ty]], dtype=np.float32)
+                frame_bgr = cv2.warpAffine(
+                    frame_bgr, p_mat, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101
                 )
+                if prev_beat_last_frame is not None and local_frame < 2:
+                    blend_a = 0.62 + 0.25 * local_frame
+                    frame_bgr = cv2.addWeighted(
+                        frame_bgr, blend_a, prev_beat_last_frame, 1.0 - blend_a, 14.0 * punch_decay
+                    )
 
-            # Capture last frame before beat switch for smooth next transition
             if beat_cursor + 1 < len(timed_beats):
                 next_start = float(timed_beats[beat_cursor + 1]["start"])
                 if abs((t_sec + 1.0 / fps) - next_start) < (1.2 / fps):
@@ -541,6 +655,7 @@ def compose_cinematic_video(
                     shock_hook_text=hook_text if in_hook else None,
                     shock_hook_sub=hook_sub if in_hook else None,
                     shock_progress=(t_sec / hook_window) if in_hook else -1.0,
+                    total_duration=total_dur,
                 )
                 cached_hud_blend = _prepare_hud_blend_cache(np.asarray(hud_pil, dtype=np.uint8))
 
@@ -554,8 +669,24 @@ def compose_cinematic_video(
     if ret != 0:
         raise RuntimeError(f"FFmpeg rawvideo encode failed (code={ret}): {stderr_out[-600:]}")
 
-    # 5. Burn kinetic ASS subtitles + mux mastered 3-stem cinema audio into final deliverable MP4
+    # Release all decoded beat frames, HUD masks & transition buffers before spawning 4K libx264
+    active_vis = None
+    vis = None
+    prev_beat_last_frame = None
+    cached_hud_blend = None
+    beat_specs.clear()
+    gc.collect()
+
+    # 5. Burn kinetic ASS subtitles (+ true 4K Lanczos upscale for Shorts to force YouTube VP9/AV1)
+    #    and mux mastered 3-stem cinema audio into high-bitrate MP4
     output_mp4.parent.mkdir(parents=True, exist_ok=True)
+    if fmt == "shorts":
+        vf_filter = f"ass={ass_path.name},scale=2160:3840:flags=lanczos,unsharp=3:3:0.45:3:3:0.0"
+        crf_val = "17"
+    else:
+        vf_filter = f"ass={ass_path.name}"
+        crf_val = "16"
+
     final_cmd = [
         ffmpeg,
         "-y",
@@ -564,13 +695,13 @@ def compose_cinematic_video(
         "-i",
         str(master_wav.resolve()),
         "-vf",
-        f"ass={ass_path.name}",
+        vf_filter,
         "-c:v",
         "libx264",
         "-preset",
         "fast",
         "-crf",
-        "18",
+        crf_val,
         "-profile:v",
         "high",
         "-pix_fmt",
@@ -600,11 +731,18 @@ def compose_cinematic_video(
     if res.returncode != 0:
         raise RuntimeError(f"FFmpeg final mux/ASS burn failed: {res.stderr[-700:]}")
 
-    logger.info("Final cinematic MP4 rendered: %s (%.2f MB)", output_mp4.name, output_mp4.stat().st_size / 1e6)
+    logger.info(
+        "Final cinematic MP4 rendered (%dx%d @ %dfps): %s (%.2f MB)",
+        out_w,
+        out_h,
+        fps,
+        output_mp4.name,
+        output_mp4.stat().st_size / 1e6,
+    )
     return {
         "video_path": str(output_mp4),
-        "width": w,
-        "height": h,
+        "width": out_w,
+        "height": out_h,
         "fps": fps,
         "duration": total_dur,
         "beat_count": len(timed_beats),

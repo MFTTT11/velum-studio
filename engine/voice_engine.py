@@ -45,17 +45,17 @@ def _probe_duration(media_path: Path) -> float:
 
 
 async def _synthesize_edge_tts_async(
-    text: str, voice: str, out_mp3: Path, rate: str = "+12%", pitch: str = "-1Hz"
+    text: str, voice: str, out_mp3: Path, rate: str = "+16%", pitch: str = "+0Hz"
 ) -> List[Dict[str, Any]]:
     """Synthesize speech with Edge-TTS with automatic multi-voice fallback and backoff retry."""
     out_mp3.parent.mkdir(parents=True, exist_ok=True)
     candidate_voices = [
         voice,
-        "en-US-AndrewMultilingualNeural",
         "en-US-BrianMultilingualNeural",
+        "en-US-AndrewMultilingualNeural",
         "en-US-ChristopherNeural",
         "en-US-GuyNeural",
-        "en-US-EricNeural",
+        "en-US-SteffanNeural",
     ]
     # Deduplicate while preserving order
     unique_voices: List[str] = []
@@ -118,14 +118,16 @@ async def _synthesize_edge_tts_async(
 
 
 def _clean_voice_with_silenceremove(raw_mp3: Path, clean_wav: Path) -> float:
-    """Apply FFmpeg silenceremove + documentary vocal presence EQ to 48kHz stereo WAV."""
+    """Apply tight FFmpeg silenceremove (zero-gap loop end) + studio vocal clarity EQ to 48kHz stereo WAV."""
     ffmpeg = get_ffmpeg_bin()
     af_chain = (
-        "highpass=f=75,"
-        "silenceremove=start_periods=1:start_duration=0.05:start_threshold=-42dB:"
-        "stop_periods=-1:stop_duration=0.16:stop_threshold=-38dB,"
-        "acompressor=threshold=-18dB:ratio=3.2:attack=8:release=110:makeup=2.5,"
-        "equalizer=f=3200:t=q:w=1.2:g=2.2,"
+        "highpass=f=80,"
+        "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-40dB:"
+        "stop_periods=-1:stop_duration=0.11:stop_threshold=-36dB,"
+        "areverse,silenceremove=start_periods=1:start_duration=0.02:start_threshold=-40dB,areverse,"
+        "acompressor=threshold=-17dB:ratio=3.5:attack=6:release=95:makeup=2.8,"
+        "equalizer=f=180:t=q:w=1.0:g=1.6,"
+        "equalizer=f=3400:t=q:w=1.2:g=2.6,"
         "alimiter=limit=0.95,"
         "aresample=48000"
     )
@@ -220,9 +222,11 @@ def _scale_fallback_words(
 
 
 def _align_beats_to_audio(
-    beats: List[Dict[str, Any]], words: List[Dict[str, Any]], total_dur: float
+    beats: List[Dict[str, Any]], words: List[Dict[str, Any]], total_dur: float, fmt: str = "shorts"
 ) -> List[Dict[str, Any]]:
-    """Map script beats onto real spoken audio times and enforce the <=2.5s visual rhythm rule."""
+    """Map script beats onto real spoken audio times and enforce tight viral visual rhythm."""
+    max_beat_sec = 2.08 if fmt == "shorts" else 2.48
+    split_divisor = 1.92 if fmt == "shorts" else 2.25
     # Compute cumulative word counts per beat to anchor exact time spans
     beat_word_counts = [max(1, len(re.findall(r"\S+", b["narration"]))) for b in beats]
     total_script_words = sum(beat_word_counts)
@@ -254,20 +258,21 @@ def _align_beats_to_audio(
     if raw_timed:
         raw_timed[-1]["end"] = round(total_dur, 3)
 
-    # Enforce strict <= 2.5s visual beat rule by subdividing any beat longer than 2.45s
+    # Enforce strict visual cut rhythm (<= 2.08s on Shorts, <= 2.48s on Long-form)
     rhythm_beats: List[Dict[str, Any]] = []
     motions = ["zoom_in", "pan_right", "zoom_out", "pan_left", "drift_up"]
     sub_idx = 0
-    for b in raw_timed:
+    for b_idx, b in enumerate(raw_timed):
         dur = b["end"] - b["start"]
-        if dur <= 2.48:
+        is_final_beat = b_idx == len(raw_timed) - 1
+        if dur <= max_beat_sec:
             sub_idx += 1
             item = dict(b)
             item["index"] = sub_idx
             item["duration"] = round(dur, 3)
             rhythm_beats.append(item)
         else:
-            pieces = max(2, int(dur / 2.25) + 1)
+            pieces = max(2, int(dur / split_divisor) + 1)
             step = dur / pieces
             for p in range(pieces):
                 sub_idx += 1
@@ -282,15 +287,17 @@ def _align_beats_to_audio(
                 if p > 0:
                     clone["camera_motion"] = motions[(sub_idx + p) % len(motions)]
                     clone["sfx"] = "tick" if p % 2 == 1 else "whoosh"
-                    if clone["visual_type"] == "data_plate":
+                    # Preserve closing debate CTA card on the very last sub-piece
+                    if is_final_beat and p == pieces - 1 and b.get("plate_mode") == "debate_cta_plate":
+                        clone["visual_type"] = "data_plate"
+                    elif clone["visual_type"] == "data_plate":
                         clone["visual_type"] = "photo_grade"
                     else:
-                        # Only flip photo -> data_plate with rich beat-specific telemetry (never empty!)
                         if not clone.get("plate_data"):
                             raw_narr = clone.get("narration", "").strip()
                             sub_words: List[str] = []
                             for w_tok in raw_narr.split():
-                                if len(" ".join(sub_words + [w_tok])) <= 48:
+                                if len(" ".join(sub_words + [w_tok])) <= 44:
                                     sub_words.append(w_tok)
                                 else:
                                     break
@@ -308,8 +315,7 @@ def _align_beats_to_audio(
                         clone["visual_type"] = "data_plate"
                 rhythm_beats.append(clone)
 
-    # Keep Beat 1 as a high-contrast animated data plate at 0.0s (positioned below the 0-2s Shock Hook)
-    # so viewers immediately see both the Shock Hook banner and the visual comparison chart on Frame 0!
+    # Keep Beat 1 as our high-contrast animated scroll-stopper data plate at 0.0s
     if rhythm_beats and rhythm_beats[0]["visual_type"] != "data_plate" and rhythm_beats[0].get("plate_data"):
         rhythm_beats[0]["visual_type"] = "data_plate"
 
@@ -325,11 +331,13 @@ def synthesize_voice_and_align(
     script: Dict[str, Any],
     work_dir: Path,
     lang: str = "en",
-    speech_rate: str = "+12%",
+    speech_rate: str | None = None,
 ) -> Dict[str, Any]:
     """Generate Edge-TTS voiceover, strip silence, extract Whisper word timings, and align beats."""
     brand = load_brand_config()
-    voice = brand.get("voices", {}).get(lang, "en-US-AndrewMultilingualNeural")
+    voice = brand.get("voices", {}).get(lang, "en-US-BrianMultilingualNeural")
+    fmt = script.get("format", "shorts")
+    effective_rate = speech_rate or ("+16%" if fmt == "shorts" else "+10%")
     narration_text = script["full_narration"]
 
     voice_dir = work_dir / "voice"
@@ -337,9 +345,9 @@ def synthesize_voice_and_align(
     raw_mp3 = voice_dir / "narration_raw.mp3"
     clean_wav = voice_dir / "narration_clean.wav"
 
-    logger.info("Synthesizing Edge-TTS voiceover (%s, rate=%s)...", voice, speech_rate)
+    logger.info("Synthesizing Edge-TTS voiceover (%s, rate=%s)...", voice, effective_rate)
     raw_boundaries = asyncio.run(
-        _synthesize_edge_tts_async(narration_text, voice, raw_mp3, rate=speech_rate)
+        _synthesize_edge_tts_async(narration_text, voice, raw_mp3, rate=effective_rate)
     )
     raw_dur = _probe_duration(raw_mp3)
 
@@ -364,10 +372,10 @@ def synthesize_voice_and_align(
             for i, tok in enumerate(tokens)
         ]
 
-    timed_beats = _align_beats_to_audio(script["beats"], words, clean_dur)
+    timed_beats = _align_beats_to_audio(script["beats"], words, clean_dur, fmt=fmt)
     max_beat = max((b["duration"] for b in timed_beats), default=0.0)
     logger.info(
-        "Aligned %d visual beats across %.2fs (max single shot: %.2fs <= 2.50s)",
+        "Aligned %d visual beats across %.2fs (max single shot: %.2fs)",
         len(timed_beats),
         clean_dur,
         max_beat,
