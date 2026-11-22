@@ -272,6 +272,7 @@ def render_data_plate(
     size: Tuple[int, int],
     anim_t: float = 1.0,
     phase_t: Optional[float] = None,
+    bg_image: Optional[Image.Image] = None,
 ) -> Image.Image:
     """Render a fluid, zero-freeze 60fps Netflix/Vox/Viral cinema visual plate."""
     brand = load_brand_config()
@@ -291,7 +292,15 @@ def render_data_plate(
         accent_name = "crimson"
     accent = _accent_rgb(accent_name, palette)
 
-    canvas = _create_plate_backdrop(w, h, palette, accent, phase_t=live_p)
+    if bg_image is not None:
+        bg_resized = bg_image.convert("RGB")
+        if bg_resized.size != (w, h):
+            bg_resized = bg_resized.resize((w, h), Image.Resampling.BILINEAR)
+        canvas = bg_resized.convert("RGBA")
+        scrim = Image.new("RGBA", (w, h), (6, 10, 18, 128))
+        canvas.alpha_composite(scrim)
+    else:
+        canvas = _create_plate_backdrop(w, h, palette, accent, phase_t=live_p)
     layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(layer)
     eased = ease_out_quart(anim_t)
@@ -311,7 +320,7 @@ def render_data_plate(
     cx = (box_l + box_r) // 2
     cy = (box_t + box_b) // 2
 
-    # --- MODE 1: HIGH-VOLTAGE SPLIT VS CLASH (Frame-0 Scroll-Stopper!) ---
+    # --- MODE 1: HIGH-VOLTAGE SPLIT VS CLASH (Frame-0 Scroll-Stopper & Auto-Thumbnail Hero!) ---
     if plate_mode == "split_vs_clash":
         left_lbl = str(plate_data.get("left_label", "BASELINE")).upper()
         right_lbl = str(plate_data.get("right_label", "EXTREME")).upper()
@@ -320,14 +329,15 @@ def render_data_plate(
         badge = str(plate_data.get("ratio_badge", "EXTREME GAP")).upper()
 
         mid_y = cy
+        card_alpha = 186 if bg_image is not None else 228
         # Top Cyan Clash Card
         top_h = int((mid_y - box_t - 34) * (0.94 + 0.06 * eased))
         t_y0 = mid_y - 34 - top_h
         draw.rounded_rectangle(
             [box_l, t_y0, box_r, mid_y - 34],
             radius=26,
-            fill=(8, 22, 38, 228),
-            outline=(*cyan, 230),
+            fill=(7, 20, 36, card_alpha),
+            outline=(*cyan, 240),
             width=4,
         )
         # Moving shimmer accent line inside top panel
@@ -340,8 +350,8 @@ def render_data_plate(
         draw.rounded_rectangle(
             [box_l, mid_y + 34, box_r, b_y1],
             radius=26,
-            fill=(30, 14, 18, 232),
-            outline=(*amber, 240),
+            fill=(28, 12, 16, card_alpha + 8),
+            outline=(*amber, 245),
             width=4,
         )
         shimmer_x2 = box_r - 150 - int((box_w - 180) * ((live_p * 1.3) % 1.0))
@@ -454,61 +464,141 @@ def render_data_plate(
         canvas.alpha_composite(layer)
         return canvas.convert("RGB")
 
-    # --- MODE 3: CLOSING DEBATE / COMMENT TRIGGER CARD ---
+    # --- MODE 2B: DUAL FACT SPOTLIGHT (Zero apples-vs-oranges bar height distortions!) ---
+    if plate_mode == "dual_fact_spotlight":
+        left_lbl = str(plate_data.get("left_label", "FACT 01")).upper()
+        right_lbl = str(plate_data.get("right_label", "FACT 02")).upper()
+        left_disp = _interpolate_metric_text(str(plate_data.get("left_display", "VERIFIED")).upper(), anim_t * 1.2)
+        right_disp = _interpolate_metric_text(str(plate_data.get("right_display", "EXTREME")).upper(), anim_t * 1.08)
+        badge = str(plate_data.get("ratio_badge", "VERIFIED TELEMETRY")).upper()
+
+        card_gap = 34
+        card_h = (box_h - 170 - card_gap) // 2
+        y_top0 = box_t + 76
+        y_top1 = y_top0 + card_h
+        y_bot0 = y_top1 + card_gap
+        y_bot1 = y_bot0 + card_h
+        glass_a = 192 if bg_image is not None else 224
+
+        title = str(plate_data.get("title", "KEY TELEMETRY")).upper()
+        t_str = f"// {title}"
+        t_font = fit_font(draw, t_str, "mono", 30 if is_vertical else 26, box_w - 60, 18)
+        _draw_centered_text(draw, t_str, cx, box_t + 20, t_font, (*cyan, 245))
+
+        # Top Spotlight Card (Electric Cyan)
+        draw.rounded_rectangle(
+            [box_l, y_top0, box_r, y_top1],
+            radius=24,
+            fill=(8, 22, 38, glass_a),
+            outline=(*cyan, 235),
+            width=4,
+        )
+        sh_x1 = box_l + 28 + int((box_w - 170) * ((live_p * 1.35) % 1.0))
+        draw.rectangle([sh_x1, y_top0 + 3, sh_x1 + 115, y_top0 + 9], fill=(*cyan, 255))
+
+        # Bottom Spotlight Card (Signal Amber)
+        draw.rounded_rectangle(
+            [box_l, y_bot0, box_r, y_bot1],
+            radius=24,
+            fill=(28, 16, 12, glass_a + 6),
+            outline=(*amber, 240),
+            width=4,
+        )
+        sh_x2 = box_r - 143 - int((box_w - 170) * ((live_p * 1.35) % 1.0))
+        draw.rectangle([sh_x2, y_bot0 + 3, sh_x2 + 115, y_bot0 + 9], fill=(*amber, 255))
+
+        lf1 = fit_font(draw, left_lbl, "mono", 32 if is_vertical else 26, box_w - 84, 18)
+        lf2 = fit_font(draw, right_lbl, "mono", 32 if is_vertical else 26, box_w - 84, 18)
+        vf1 = fit_font(draw, left_disp, "headline", 112 if is_vertical else 92, box_w - 76, 44)
+        vf2 = fit_font(draw, right_disp, "headline", 112 if is_vertical else 92, box_w - 76, 44)
+
+        _draw_centered_text(draw, left_lbl, cx, y_top0 + 44, lf1, (*white, 225))
+        _draw_centered_text(draw, left_disp, cx, y_top0 + 118, vf1, (*cyan, 255))
+        _draw_centered_text(draw, right_lbl, cx, y_bot0 + 44, lf2, (*white, 225))
+        _draw_centered_text(draw, right_disp, cx, y_bot0 + 118, vf2, (*amber, 255))
+
+        bf = fit_font(draw, badge, "headline", 34 if is_vertical else 30, box_w - 80, 18)
+        bb = draw.textbbox((0, 0), badge, font=bf)
+        bw = (bb[2] - bb[0]) + 50
+        by = box_b - 68
+        draw.rounded_rectangle([cx - bw // 2, by, cx + bw // 2, by + 58], radius=14, fill=(*crimson, 235))
+        _draw_centered_text(draw, badge, cx, by + 10, bf, (*white, 255))
+
+        canvas.alpha_composite(layer)
+        return canvas.convert("RGB")
+
+    # --- MODE 3: CLOSING DEBATE / COMMENT + SUBSCRIBE CONVERSION CARD ---
     if plate_mode == "debate_cta_plate":
+        card_a = 198 if bg_image is not None else 232
         draw.rounded_rectangle(
             [box_l, box_t, box_r, box_b],
             radius=28,
-            fill=(16, 10, 22, 230),
-            outline=(*crimson, 225),
+            fill=(14, 10, 22, card_a),
+            outline=(*crimson, 235),
             width=4,
         )
-        badge_f = get_font("mono", 30 if is_vertical else 26)
-        _draw_centered_text(draw, "LIVE DEBATE // DROP YOUR CALL", cx, box_t + 46, badge_f, (*amber, 250))
+        badge_f = get_font("mono", 29 if is_vertical else 25)
+        _draw_centered_text(draw, "LIVE DEBATE // DROP YOUR CALL", cx, box_t + 36, badge_f, (*amber, 255))
 
         q_text = str(plate_data.get("question", "WOULD YOU GUESS HIGHER OR LOWER?")).upper()
-        q_font = fit_font(draw, q_text[:28], "headline", 68 if is_vertical else 58, box_w - 84, 38)
-        _draw_centered_text(draw, q_text, cx, box_t + 140, q_font, (*white, 255), max_width=box_w - 90)
+        q_font = fit_font(draw, q_text[:28], "headline", 64 if is_vertical else 54, box_w - 84, 34)
+        _draw_centered_text(draw, q_text, cx, box_t + 108, q_font, (*white, 255), max_width=box_w - 90)
 
         opt_a = str(plate_data.get("option_a", "HIGHER")).upper()
         opt_b = str(plate_data.get("option_b", "LOWER")).upper()
         card_w = int((box_w - 130) // 2)
-        card_y0 = cy + 35
-        card_y1 = cy + 205
+        card_y0 = cy - 10
+        card_y1 = cy + 150
         pulse_a = int(6 * math.sin(live_p * math.pi * 3.0))
         pulse_b = int(6 * math.cos(live_p * math.pi * 3.0))
 
         draw.rounded_rectangle(
             [box_l + 44, card_y0 - pulse_a, box_l + 44 + card_w, card_y1 - pulse_a],
             radius=20,
-            fill=(0, 229, 255, 42),
-            outline=(*cyan, 245),
+            fill=(0, 229, 255, 52),
+            outline=(*cyan, 250),
             width=4,
         )
         draw.rounded_rectangle(
             [box_r - 44 - card_w, card_y0 - pulse_b, box_r - 44, card_y1 - pulse_b],
             radius=20,
-            fill=(255, 184, 0, 48),
-            outline=(*amber, 245),
+            fill=(255, 184, 0, 56),
+            outline=(*amber, 250),
             width=4,
         )
-        of_a = fit_font(draw, opt_a, "headline", 48, card_w - 30, 26)
-        of_b = fit_font(draw, opt_b, "headline", 48, card_w - 30, 26)
-        _draw_centered_text(draw, opt_a, box_l + 44 + card_w // 2, card_y0 + 54 - pulse_a, of_a, (*cyan, 255))
-        _draw_centered_text(draw, opt_b, box_r - 44 - card_w // 2, card_y0 + 54 - pulse_b, of_b, (*amber, 255))
+        of_a = fit_font(draw, opt_a, "headline", 46, card_w - 30, 24)
+        of_b = fit_font(draw, opt_b, "headline", 46, card_w - 30, 24)
+        _draw_centered_text(draw, opt_a, box_l + 44 + card_w // 2, card_y0 + 48 - pulse_a, of_a, (*cyan, 255))
+        _draw_centered_text(draw, opt_b, box_r - 44 - card_w // 2, card_y0 + 48 - pulse_b, of_b, (*amber, 255))
 
-        # Pulsing comment CTA pill + animated downward chevrons
-        cta_y = box_b - 150
+        # Pulsing comment CTA pill + animated downward chevron
+        cta_y = box_b - 235
         cta_txt = "COMMENT YOUR ANSWER BELOW"
-        cta_f = fit_font(draw, cta_txt, "headline", 36 if is_vertical else 32, box_w - 100, 22)
+        cta_f = fit_font(draw, cta_txt, "headline", 35 if is_vertical else 30, box_w - 100, 22)
         cb = draw.textbbox((0, 0), cta_txt, font=cta_f)
         cw = (cb[2] - cb[0]) + 56
-        draw.rounded_rectangle([cx - cw // 2, cta_y, cx + cw // 2, cta_y + 64], radius=16, fill=(*crimson, 240))
-        _draw_centered_text(draw, cta_txt, cx, cta_y + 13, cta_f, (*white, 255))
+        draw.rounded_rectangle([cx - cw // 2, cta_y, cx + cw // 2, cta_y + 62], radius=16, fill=(*crimson, 242))
+        _draw_centered_text(draw, cta_txt, cx, cta_y + 12, cta_f, (*white, 255))
 
-        bounce = int(14 * abs(math.sin(live_p * math.pi * 3.0)))
-        arr_y = cta_y + 82 + bounce
-        draw.line([(cx - 22, arr_y), (cx, arr_y + 18), (cx + 22, arr_y)], fill=(*amber, 255), width=6)
+        bounce = int(12 * abs(math.sin(live_p * math.pi * 3.0)))
+        arr_y = cta_y + 74 + bounce
+        draw.line([(cx - 20, arr_y), (cx, arr_y + 16), (cx + 20, arr_y)], fill=(*amber, 255), width=6)
+
+        # High-converting pulsing YouTube-red Subscribe pill (drives repeat viewers -> subscribers!)
+        sub_y = box_b - 104
+        sub_txt = "+ SUBSCRIBE FOR TOMORROW'S SCALE"
+        sub_f = fit_font(draw, sub_txt, "headline", 31 if is_vertical else 27, box_w - 90, 20)
+        sb = draw.textbbox((0, 0), sub_txt, font=sub_f)
+        sw = (sb[2] - sb[0]) + 56
+        sub_pulse = int(4 * abs(math.sin(live_p * math.pi * 4.0)))
+        draw.rounded_rectangle(
+            [cx - sw // 2 - sub_pulse, sub_y - sub_pulse // 2, cx + sw // 2 + sub_pulse, sub_y + 60 + sub_pulse // 2],
+            radius=30,
+            fill=(230, 25, 45, 248),
+            outline=(*white, 235),
+            width=3,
+        )
+        _draw_centered_text(draw, sub_txt, cx, sub_y + 12, sub_f, (*white, 255))
 
         canvas.alpha_composite(layer)
         return canvas.convert("RGB")

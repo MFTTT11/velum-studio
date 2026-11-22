@@ -35,49 +35,83 @@ from engine.sfx_music_engine import SAMPLE_RATE, generate_audio_pack
 logger = get_logger("video_composer")
 
 
-def _build_grade_luts() -> Tuple[np.ndarray, np.ndarray]:
-    """Precompute 256-entry S-curve and split-tone LUTs for fast cinematic color grading."""
+def _build_grade_luts() -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Precompute vibrant cinema S-curve, adaptive shadow-lift LUT, and split-tone LUTs."""
     x = np.arange(256, dtype=np.float32) / 255.0
-    exp_x = np.clip(x * 0.78, 0.0, 1.0)
-    scurve = np.clip(exp_x * exp_x * (3.0 - 2.0 * exp_x) * 0.65 + exp_x * 0.35, 0.0, 1.0)
+    exp_x = np.clip(x * 0.96 + 0.015, 0.0, 1.0)
+    scurve = np.clip(exp_x * exp_x * (3.0 - 2.0 * exp_x) * 0.45 + exp_x * 0.55, 0.0, 1.0)
     curve_lut = np.clip(np.rint(scurve * 255.0), 0, 255).astype(np.uint8)
 
+    lifted = np.clip((x**0.82) * 1.06 + 0.02, 0.0, 1.0)
+    lifted_scurve = np.clip(lifted * lifted * (3.0 - 2.0 * lifted) * 0.35 + lifted * 0.65, 0.0, 1.0)
+    dark_lift_lut = np.clip(np.rint(lifted_scurve * 255.0), 0, 255).astype(np.uint8)
+
     luma = np.arange(256, dtype=np.float32) / 255.0
-    shadow_w = np.clip(1.0 - luma * 1.8, 0.0, 1.0)
-    high_w = np.clip((luma - 0.45) * 1.8, 0.0, 1.0)
+    shadow_w = np.clip(1.0 - luma * 1.7, 0.0, 1.0)
+    high_w = np.clip((luma - 0.48) * 1.8, 0.0, 1.0)
     split_lut = np.stack(
         [
-            np.rint((shadow_w * 0.055 - high_w * 0.025) * 255.0),  # B
-            np.rint((shadow_w * 0.020 + high_w * 0.010) * 255.0),  # G
-            np.rint((-shadow_w * 0.022 + high_w * 0.045) * 255.0),  # R
+            np.rint((shadow_w * 0.042 - high_w * 0.018) * 255.0),  # B
+            np.rint((shadow_w * 0.016 + high_w * 0.012) * 255.0),  # G
+            np.rint((-shadow_w * 0.014 + high_w * 0.040) * 255.0),  # R
         ],
         axis=1,
     ).astype(np.int16)
-    return curve_lut, split_lut
+    return curve_lut, dark_lift_lut, split_lut
 
 
-_GRADE_CURVE_LUT, _SPLIT_TONE_LUT = _build_grade_luts()
+_GRADE_CURVE_LUT, _DARK_LIFT_LUT, _SPLIT_TONE_LUT = _build_grade_luts()
 
 
 @lru_cache(maxsize=8)
 def _get_vignette_mask_u16(h: int, w: int) -> np.ndarray:
-    """Precompute and cache fixed-point (Q8) radial vignette mask once per frame resolution."""
+    """Precompute and cache subtle Q8 radial vignette mask (keeps edges bright and crisp)."""
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     nx = (xx / max(w - 1, 1) - 0.5) * 2.0
     ny = (yy / max(h - 1, 1) - 0.5) * 2.0
     dist2 = nx * nx + ny * ny
-    vig = np.clip(1.0 - 0.28 * (dist2**1.2), 0.58, 1.0)[:, :, None]
+    vig = np.clip(1.0 - 0.16 * (dist2**1.25), 0.78, 1.0)[:, :, None]
     return np.rint(vig * 256.0).astype(np.uint16)
 
 
 def _apply_cinematic_grade(bgr: np.ndarray) -> np.ndarray:
-    """Apply dark Netflix/Vox teal-obsidian color grade, S-curve contrast, and cached vignette."""
-    # Exposure + S-curve via SIMD OpenCV LUT, split-tone via luma LUT, cached Q8 vignette
-    base = cv2.LUT(bgr, _GRADE_CURVE_LUT)
+    """Apply crisp, bright Netflix/Vox teal-amber cinema grade with adaptive dark-scene lift."""
+    sample_mean = float(bgr[::16, ::16].mean())
+    lut = _DARK_LIFT_LUT if sample_mean < 66.0 else _GRADE_CURVE_LUT
+    base = cv2.LUT(bgr, lut)
     gray = cv2.cvtColor(base, cv2.COLOR_BGR2GRAY)
     toned = np.clip(base.astype(np.int16) + _SPLIT_TONE_LUT[gray], 0, 255).astype(np.uint16)
     h, w = bgr.shape[:2]
     return ((toned * _get_vignette_mask_u16(h, w)) >> 8).astype(np.uint8)
+
+
+def _extract_hero_bg_pil(
+    spec: Dict[str, Any], fetcher: MediaFetcher, size: Tuple[int, int]
+) -> Optional[Image.Image]:
+    """Load a vibrant real HD background frame behind Frame-0 Thumbnail Cover / Closing Debate CTA."""
+    w, h = size
+    clip_path = spec.get("hero_clip_path")
+    if clip_path is not None and Path(clip_path).exists():
+        cap = cv2.VideoCapture(str(clip_path))
+        try:
+            ok, f_bgr = cap.read()
+            if ok and f_bgr is not None:
+                if f_bgr.shape[1] != w or f_bgr.shape[0] != h:
+                    f_bgr = cv2.resize(f_bgr, (w, h), interpolation=cv2.INTER_LINEAR)
+                graded = _apply_cinematic_grade(f_bgr)
+                return Image.fromarray(cv2.cvtColor(graded, cv2.COLOR_BGR2RGB))
+        finally:
+            cap.release()
+    photo_path = spec.get("hero_photo_path")
+    if photo_path is None and spec.get("query"):
+        photo_path = fetcher.fetch_photo_plate(spec["query"], size, variant_index=int(spec.get("idx", 0)))
+    if photo_path is not None and Path(photo_path).exists():
+        pil_img = Image.open(photo_path).convert("RGB")
+        if pil_img.size != (w, h):
+            pil_img = pil_img.resize((w, h), Image.Resampling.LANCZOS)
+        graded = _apply_cinematic_grade(cv2.cvtColor(np.asarray(pil_img), cv2.COLOR_RGB2BGR))
+        return Image.fromarray(cv2.cvtColor(graded, cv2.COLOR_BGR2RGB))
+    return None
 
 
 def _load_beat_visual(
@@ -116,6 +150,11 @@ def _load_beat_visual(
     steps = 28
     plate_mode = spec.get("plate_mode", "metric_hero")
     plate_data = spec.get("plate_data", {})
+    hero_bg = (
+        _extract_hero_bg_pil(spec, fetcher, size)
+        if plate_mode in ("split_vs_clash", "debate_cta_plate", "dual_fact_spotlight")
+        else None
+    )
     for s in range(steps):
         phase_t = s / max(steps - 1, 1)
         anim_t = min(1.0, phase_t * 1.42)
@@ -125,6 +164,7 @@ def _load_beat_visual(
             size,
             anim_t=anim_t,
             phase_t=phase_t,
+            bg_image=hero_bg,
         )
         anim_frames.append(cv2.cvtColor(np.asarray(pil_plate), cv2.COLOR_RGB2BGR))
     return {"kind": "plate", "frames": anim_frames}
@@ -266,12 +306,28 @@ Style: Kinetic,{font_name},{font_size},&H00FAF7F4,&H0000B8FF,&H0007090F,&HA50709
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
+    # Fuse split Whisper numeric/currency tokens ("$1" + ".2" -> "$1.2", "99" + "%" -> "99%")
+    merged_words: List[Dict[str, Any]] = []
+    for raw_w in words:
+        tok = str(raw_w.get("word", "")).strip()
+        if not tok:
+            continue
+        if merged_words and (
+            tok.startswith((".", ",", "%", "'", "’"))
+            or (re.match(r"^\d", tok) and merged_words[-1]["word"].endswith(("$", ".", ",")))
+            or tok.lower() in ("ms", "km", "°c", "°f")
+        ):
+            merged_words[-1]["word"] = merged_words[-1]["word"] + tok
+            merged_words[-1]["end"] = max(float(merged_words[-1]["end"]), float(raw_w["end"]))
+        else:
+            merged_words.append(dict(raw_w, word=tok))
+
     # Group words into ultra-punchy 2-word viral Shorts phrases (3 words on wide 16:9)
     max_words_grp = 2 if is_vertical else 3
     max_chars_grp = 15 if is_vertical else 22
     groups: List[List[Dict[str, Any]]] = []
     cur: List[Dict[str, Any]] = []
-    for word_item in words:
+    for word_item in merged_words:
         token = word_item["word"].strip()
         if not token:
             continue
@@ -504,11 +560,29 @@ def compose_cinematic_video(
                 }
             )
         else:
+            p_mode = beat.get("plate_mode", "metric_hero")
+            hero_clip_path = None
+            hero_photo_path = None
+            if p_mode in ("split_vs_clash", "debate_cta_plate", "dual_fact_spotlight"):
+                hero_clip_path = fetcher.fetch_motion_clip(
+                    beat["visual_query"],
+                    size,
+                    duration_sec=beat_dur,
+                    variant_index=idx,
+                )
+                if hero_clip_path is None:
+                    hero_photo_path = fetcher.fetch_photo_plate(
+                        beat["visual_query"], size, variant_index=idx
+                    )
             beat_specs.append(
                 {
                     "kind": "plate",
-                    "plate_mode": beat.get("plate_mode", "metric_hero"),
+                    "idx": idx,
+                    "query": beat["visual_query"],
+                    "plate_mode": p_mode,
                     "plate_data": beat.get("plate_data", {}),
+                    "hero_clip_path": hero_clip_path,
+                    "hero_photo_path": hero_photo_path,
                 }
             )
 
@@ -681,10 +755,15 @@ def compose_cinematic_video(
     #    and mux mastered 3-stem cinema audio into high-bitrate MP4
     output_mp4.parent.mkdir(parents=True, exist_ok=True)
     if fmt == "shorts":
-        vf_filter = f"ass={ass_path.name},scale=2160:3840:flags=lanczos,unsharp=3:3:0.45:3:3:0.0"
-        crf_val = "17"
+        vf_filter = (
+            f"ass={ass_path.name},"
+            "scale=2160:3840:flags=lanczos,"
+            "unsharp=5:5:0.70:5:5:0.0,"
+            "eq=contrast=1.05:saturation=1.12"
+        )
+        crf_val = "16"
     else:
-        vf_filter = f"ass={ass_path.name}"
+        vf_filter = f"ass={ass_path.name},unsharp=3:3:0.45:3:3:0.0,eq=contrast=1.04:saturation=1.08"
         crf_val = "16"
 
     final_cmd = [

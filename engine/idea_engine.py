@@ -1569,10 +1569,23 @@ class IdeaEngine:
             )
             return winner
 
-        # 2. Standard high-viral selection with Growth Mutator pillar boost
+        # 2. Standard high-viral selection with Self-Optimizing Pillar Velocity Boost
         winning_meta = self.db.get_meta("winning_format_json")
+        pillar_perf_raw = self.db.get_meta("pillar_performance_json")
+        pillar_perf: Dict[str, float] = {}
+        if pillar_perf_raw:
+            try:
+                parsed_perf = json.loads(pillar_perf_raw)
+                if isinstance(parsed_perf, dict):
+                    pillar_perf = {str(k): float(v) for k, v in parsed_perf.items()}
+            except (ValueError, TypeError):
+                pillar_perf = {}
+
         target_pillar = preferred_pillar
-        if not target_pillar and winning_meta:
+        if not target_pillar and pillar_perf:
+            target_pillar = max(pillar_perf.items(), key=lambda kv: kv[1])[0]
+            logger.info("Autonomous Pillar Leaderboard active -> fastest pillar: %s (%.1f v/hr)", target_pillar, pillar_perf[target_pillar])
+        elif not target_pillar and winning_meta:
             try:
                 parsed = json.loads(winning_meta)
                 target_pillar = parsed.get("pillar")
@@ -1585,15 +1598,12 @@ class IdeaEngine:
             fresh_llm = self._generate_llm_fresh_blueprint(used_ids, target_pillar)
             pool = [fresh_llm] if fresh_llm else [self._synthesize_live_wikipedia_blueprint(used_ids, target_pillar)]
 
-        if target_pillar:
-            # Give winning pillar a gentle +2 ranking boost instead of locking out higher-CTR viral hits
-            pool = sorted(
-                pool,
-                key=lambda bp: sum(bp.get("scores", {}).values()) + (2 if bp.get("pillar") == target_pillar else 0),
-                reverse=True,
-            )
-        else:
-            pool = sorted(pool, key=lambda bp: sum(bp.get("scores", {}).values()), reverse=True)
+        def _rank_key(bp: Dict[str, Any]) -> float:
+            base_s = float(sum(bp.get("scores", {}).values()))
+            boost = 3.0 if (target_pillar and bp.get("pillar") == target_pillar) else 0.0
+            return base_s + boost
+
+        pool = sorted(pool, key=_rank_key, reverse=True)
 
         approved_candidates: List[Dict[str, Any]] = []
         # Evaluate top 8 candidates to keep strict 85+ viral gate & maximize topic punch
@@ -1608,7 +1618,10 @@ class IdeaEngine:
         if not approved_candidates:
             raise RuntimeError("No candidate passed the 85+ viral score gate.")
 
-        approved_candidates.sort(key=lambda item: item["total_score"], reverse=True)
+        approved_candidates.sort(
+            key=lambda item: float(item["total_score"]) + (3.0 if (target_pillar and item.get("pillar") == target_pillar) else 0.0),
+            reverse=True,
+        )
         winner = approved_candidates[0]
 
         wiki_entity = winner.get("wiki_entity", "")

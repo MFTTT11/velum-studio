@@ -52,9 +52,9 @@ BREAKOUT_MIN_VIEWS = 1000
 BREAKOUT_FAST_VIEWS = 250
 BREAKOUT_FAST_VPH = 120.0
 
-TITLE_RESCUE_MIN_AGE_HOURS = 18.0
+TITLE_RESCUE_MIN_AGE_HOURS = 12.0
 TITLE_RESCUE_MAX_VIEWS = 600
-TITLE_RESCUE_COOLDOWN_HOURS = 18.0
+TITLE_RESCUE_COOLDOWN_HOURS = 12.0
 
 
 def _parse_utc_ts(raw_ts: Optional[str]) -> Optional[datetime]:
@@ -717,6 +717,29 @@ def run_growth_mutation_cycle(
                 trow["format_signature"],
                 int(top.get("views", 0)),
             )
+
+        # Self-optimizing Pillar Velocity Leaderboard (guides IdeaEngine toward fastest-growing niches)
+        pillar_buckets: Dict[str, List[float]] = {}
+        with state_db._connect() as conn:
+            for v in videos:
+                row = conn.execute(
+                    "SELECT pillar FROM topics WHERE topic_id = ?", (v["topic_id"],)
+                ).fetchone()
+                if not row:
+                    continue
+                vph = float(v.get("views_per_hour", 0.0))
+                if vph > 0:
+                    pillar_buckets.setdefault(row["pillar"], []).append(vph)
+        if pillar_buckets:
+            pillar_leaderboard = {
+                p: round(sum(vals) / len(vals), 2)
+                for p, vals in sorted(
+                    pillar_buckets.items(), key=lambda kv: sum(kv[1]) / len(kv[1]), reverse=True
+                )
+            }
+            state_db.set_meta("pillar_performance_json", json.dumps(pillar_leaderboard))
+            report["pillar_velocity_leaderboard"] = pillar_leaderboard
+            logger.info("Updated autonomous pillar velocity leaderboard: %s", pillar_leaderboard)
 
     if out_dir is not None:
         (out_dir / "growth_mutator_report.json").write_text(

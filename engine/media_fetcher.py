@@ -847,6 +847,7 @@ class MediaFetcher:
             (idx, beat)
             for idx, beat in enumerate(timed_beats)
             if beat.get("visual_type") == "photo_grade"
+            or beat.get("plate_mode") in ("split_vs_clash", "debate_cta_plate", "dual_fact_spotlight")
         ]
         if not targets:
             return {"video_clips": 0, "photo_plates": 0, "elapsed_sec": 0}

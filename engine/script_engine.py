@@ -26,8 +26,8 @@ from core.llm_client import ZeroCostLLMClient
 logger = get_logger("script_engine")
 
 SHORTS_MIN_WORDS = 85
-SHORTS_MAX_WORDS = 108
-SHORTS_TARGET_WORDS = 97
+SHORTS_MAX_WORDS = 116
+SHORTS_TARGET_WORDS = 104
 
 PART2_CONTINUITY_HOOKS = (
     ("Part two goes even deeper. ", False),
@@ -347,166 +347,166 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "When the International Space Station retires, it will plunge into this exact same abyss.",
         "The loneliest place on Earth looks straight up at orbit, which makes you realize why—",
     ],
-    # ===================== V2 ULTRA-VIRAL 30-SECOND TENSION ARCS (16 NEW BANGERS) =====================
+    # ===================== V4 NATIVE-ENGLISH VIRAL 30-SECOND TENSION ARCS =====================
     "asteroid-psyche-10-quintillion-gold": [
-        "NASA is flying straight toward a single space rock worth ten quintillion dollars.",
-        "This 16 Psyche asteroid 10 quintillion metal giant is two hundred and twenty six kilometers of solid iron, nickel, and gold.",
-        "To picture that number, the entire global economy of planet Earth is only one hundred and five trillion dollars.",
-        "Psyche is worth nearly one hundred thousand times more than every company, bank, and city on Earth combined.",
-        "Split evenly, that comes out to one point two billion dollars for every single human alive.",
-        "Here is the brutal twist nobody talks about: bringing it back would not make you rich.",
+        "NASA is racing straight toward a single asteroid worth ten quintillion dollars.",
+        "Named 16 Psyche, this metallic giant spans two hundred and twenty six kilometers of solid iron, nickel, and gold.",
+        "For perspective, the entire global economy of planet Earth is only one hundred and five trillion dollars.",
+        "Psyche is worth nearly one hundred thousand times more than every company and bank on Earth combined.",
+        "Split evenly, that comes out to one point two billion dollars for every human alive.",
+        "Here is the brutal twist nobody mentions: bringing it back would not make you rich.",
         "Flooding Earth with cosmic metal would crash gold and iron prices straight to zero overnight.",
-        "Would mining it save humanity or wreck the global economy? Drop your call below before remembering why—",
+        "Would mining it save humanity or wreck the economy? Drop your call below and subscribe for tomorrow's scale—",
     ],
     "titan-implosion-20-milliseconds": [
         "At four thousand meters underwater, you would be gone before your brain even knew anything went wrong.",
-        "This deep ocean implosion milliseconds vs brain physics race is not even close.",
-        "At Titanic depth, the Atlantic crushes every square inch with three hundred and seventy five atmospheres of pressure.",
-        "That is like balancing the entire Empire State Building directly on top of a single small car.",
-        "If a carbon hull cracks down there, water slams inward faster than the speed of sound.",
+        "During a deep ocean implosion, water moves faster than human nerves can warn your brain.",
+        "At Titanic depth, the Atlantic crushes every square inch with three hundred and seventy five atmospheres.",
+        "That is like balancing the entire Empire State Building directly on top of one small car.",
+        "The instant a carbon hull cracks down there, water slams inward faster than sound.",
         "The entire cabin collapses completely in just twenty milliseconds.",
-        "Meanwhile, it takes a human brain one hundred and fifty milliseconds just to register a single signal of pain.",
-        "You literally cannot feel it happen. Would you ever dive down there? Comment below when you realize—",
+        "Meanwhile, a human brain needs one hundred and fifty milliseconds just to register pain.",
+        "You literally cannot feel it happen. Would you ever dive down there? Comment below—",
     ],
     "airplane-window-tiny-hole-secret": [
-        "Look closely next time you fly, and you will spot a tiny pin-hole drilled into every airplane window.",
-        "That airplane window tiny hole bleed valve is literally the only thing stopping your window from shattering.",
-        "At eleven thousand meters up, outside air drops to minus fifty six degrees with almost zero breathable pressure.",
-        "Inside the cabin, pressurized air pushes outward with tons of force trying to burst out into the sky.",
+        "Look closely on your next flight, and you will spot a tiny pin-hole drilled into every airplane window.",
+        "That microscopic bleed valve is the only thing keeping your window from shattering mid-air.",
+        "At eleven thousand meters up, outside air drops to minus fifty six degrees with almost zero pressure.",
+        "Inside the cabin, pressurized air pushes outward with tons of force trying to burst into the sky.",
         "Every window actually uses three separate acrylic panes, not one.",
-        "That tiny one point five millimeter hole lets cabin pressure pass safely onto the thick outer structural pane.",
-        "The middle pane stays completely untouched as an emergency backup shield if the outside ever cracks.",
-        "Did you actually know what that hole was for? Comment below so you remember next flight why—",
+        "That tiny one point five millimeter hole routes cabin pressure safely onto the thick outer pane.",
+        "The middle pane stays completely untouched as an emergency shield if the outside ever cracks.",
+        "Did you actually know what that hole does? Comment below and subscribe for tomorrow's breakdown—",
     ],
     "how-fast-you-move-sitting-still": [
-        "You think you are sitting completely still right now, yet you are flying at two point one million kilometers an hour.",
-        "To see how fast are we moving through space, you have to stack four invisible speeds together.",
+        "You think you are sitting still right now, yet you are flying at two point one million kilometers an hour.",
+        "To see how fast you really move through space, stack four invisible speeds together.",
         "First, Earth spins you around its equator at one thousand six hundred and seventy kilometers an hour.",
         "At the same time, Earth rockets around the Sun at one hundred and seven thousand kilometers an hour.",
-        "Our entire solar system is dragging you around the Milky Way at eight hundred and twenty eight thousand kilometers an hour.",
-        "And our whole galaxy is hurtling across the universe at over two million kilometers an hour.",
-        "You feel zero wind only because the air and gravity move at the exact same speed.",
+        "Our solar system drags you around the Milky Way at eight hundred and twenty eight thousand kilometers an hour.",
+        "And our entire galaxy is hurtling across the universe at over two million kilometers an hour.",
+        "You feel zero wind only because the air and gravity travel at that exact speed with you.",
         "In the thirty seconds you watched this, you flew seventeen thousand kilometers. Comment if you want what happens if Earth stops—",
     ],
     "one-grain-of-sand-space-bullet": [
         "A single flake of paint in space hits harder than a bowling ball fired at one hundred miles an hour.",
-        "This space debris paint fleck orbital velocity turns microscopic trash into unstoppable armor-piercing bullets.",
+        "In low orbit, orbital velocity turns microscopic space debris into armor-piercing bullets.",
         "A high-powered rifle bullet travels around three thousand kilometers an hour.",
-        "Up in low Earth orbit, dead rocket chips whip around the planet at twenty eight thousand kilometers an hour.",
-        "At ten times bullet speed, kinetic energy multiplies by a factor of one hundred.",
-        "One speck of paint weighing zero point two grams once blasted a four millimeter crater straight into a space shuttle window.",
-        "Right now, over one hundred million tiny fragments are circling silently above our heads.",
-        "Do you think space junk will trap humanity on Earth? Comment your call when you realize—",
+        "Above your head, dead rocket chips whip around Earth at twenty eight thousand kilometers an hour.",
+        "At nearly ten times bullet speed, kinetic impact energy multiplies by one hundred.",
+        "One paint speck weighing zero point two grams once blasted a four millimeter crater into a space shuttle window.",
+        "Right now, over one hundred million tiny fragments are circling silently overhead.",
+        "Will space junk trap humanity on Earth one day? Drop your call below—",
     ],
     "one-line-of-code-370m-rocket-crash": [
         "One single math bug inside a computer turned a three hundred and seventy million dollar rocket into a fireball.",
-        "The Ariane 5 integer overflow 370 million crash remains the costliest software mistake in human history.",
+        "The Ariane 5 integer overflow remains the most expensive software crash in history.",
         "Engineers spent ten full years building Europe's newest heavy space launcher.",
-        "Just thirty seven seconds after liftoff, the guidance computer tried to squeeze a sixty four bit speed number into a sixteen bit memory box.",
+        "Thirty seven seconds after liftoff, the computer tried to squeeze a sixty four bit speed number into a sixteen bit box.",
         "That box could only hold up to thirty two thousand seven hundred and sixty seven.",
-        "The number overflowed, crashed both the main and backup computers, and slammed the rocket sideways at full thrust.",
+        "The number overflowed, crashed both computers, and slammed the rocket sideways at full thrust.",
         "Aerodynamic forces snapped the vehicle apart and triggered instant self-destruct.",
-        "Would you trust pure AI to write rocket code? Comment yes or never when you remember—",
+        "Would you trust pure AI to write rocket code? Comment yes or never below—",
     ],
     "traffic-jam-phantom-wave-1-brake": [
         "Most highway traffic jams have zero accidents, zero construction, and zero lane closures.",
-        "A phantom traffic jam single brake wave can be triggered by literally one distracted driver.",
-        "Japanese physicists proved it by placing twenty two normal drivers on a completely empty circular track.",
+        "A phantom traffic jam starts from literally one driver tapping the brakes for a single second.",
+        "Japanese physicists proved it by placing twenty two drivers on a completely empty circular track.",
         "Every driver was told to cruise smoothly at the exact same steady speed.",
-        "Within just forty seconds, one tiny one-second brake tap caused a chain reaction behind it.",
-        "Because human reaction takes one point two seconds, every car behind braked slightly harder than the car ahead.",
-        "Soon cars came to a dead stop, sending a backward traffic wave rolling down the road at twenty kilometers an hour.",
-        "Who causes more traffic: tailgaters or slow left-lane drivers? Drop your vote below and remember—",
+        "Within just forty seconds, one tiny hesitation triggered a chain reaction behind it.",
+        "Because human reaction takes one point two seconds, every car behind braked slightly harder.",
+        "Soon cars hit a dead stop, sending a backward traffic wave rolling down the road at twenty kilometers an hour.",
+        "Who causes more traffic: tailgaters or slow left-lane drivers? Drop your vote below—",
     ],
     "casino-no-clocks-psychological-trap": [
         "Walk through a billion dollar Las Vegas casino and try to find a single wall clock or window.",
-        "Understanding why casinos have no clocks or windows exposes one of the smartest psychological traps ever built.",
-        "Without sunlight or time cues, your brain loses track of how many hours have slipped away.",
+        "Hiding clocks and windows is one of the smartest psychological traps ever engineered.",
+        "Without sunlight or time cues, your brain loses track of how many hours have vanished.",
         "Studies show removing time cues stretches average gambling sessions by over forty two percent.",
-        "Notice the carpets too: those wild neon patterns are ugly on purpose to keep your eyes looking up at glowing machines.",
-        "Even the exit signs are hidden behind curving maze aisles that force you past twenty extra tables just to reach the bathroom.",
-        "Every inch of the building is engineered to protect a two to fifteen percent house edge.",
-        "Ever walked indoors for an hour and walked out four hours later? Comment below and notice—",
+        "Notice the carpets too: those wild neon patterns are ugly on purpose so your eyes stay locked up on glowing machines.",
+        "Even the exits hide behind curving maze aisles that route you past twenty extra tables just to find a restroom.",
+        "Every inch of the building protects a two to fifteen percent house edge.",
+        "Ever walked indoors for an hour and left four hours later? Comment below—",
     ],
     "you-never-actually-touch-anything": [
-        "Strictly according to physics, you have never actually touched another object or person in your entire life.",
-        "The science of atomic repulsion never physically touch anything proves you are hovering above your chair right now.",
+        "Strictly according to physics, you have never actually touched anything or anyone in your life.",
+        "Because of atomic repulsion, your body is hovering microscopically above your chair right now.",
         "Every atom in your body is ninety nine point nine nine nine nine percent empty space.",
         "Surrounding every atom is a cloud of negatively charged electrons.",
-        "When your finger presses your phone screen, the electrons on both surfaces repel each other with staggering electromagnetic force.",
-        "You stop hovering at roughly one ten-billionth of a meter away without ever making true contact.",
-        "What your brain feels as solid touch is just pure invisible force fields pushing back at light speed.",
-        "Does that blow your mind or sound impossible? Drop your reaction below before remembering—",
+        "When your finger presses your phone screen, the electrons on both surfaces repel with staggering electromagnetic force.",
+        "You stop hovering roughly one ten-billionth of a meter away without ever making true physical contact.",
+        "What your brain feels as solid touch is just invisible force fields pushing back at light speed.",
+        "Does that blow your mind or sound impossible? Drop your reaction below—",
     ],
     "trillion-dollar-platinum-coin-loophole": [
-        "Buried inside United States federal law is a real loophole that lets one person mint a one trillion dollar coin overnight.",
-        "This one trillion dollar platinum coin loophole sits inside Title thirty one, Section fifty one twelve of the US Code.",
-        "Congress accidentally restricted gold, silver, and copper coin values — but forgot to put a dollar cap on platinum.",
-        "On paper, the Treasury Secretary can stamp a single one-ounce piece of metal worth one thousand dollars with a one trillion dollar face value.",
+        "Buried inside US federal law is a real loophole that lets one person mint a one trillion dollar coin overnight.",
+        "This platinum coin loophole sits inside Title thirty one, Section fifty one twelve of the US Code.",
+        "Congress capped the face value of gold, silver, and copper coins, but forgot to cap platinum.",
+        "On paper, the Treasury can stamp a one-ounce coin worth one thousand dollars with a one trillion dollar face value.",
         "Then they simply walk it across the street and deposit it into the Federal Reserve.",
-        "Instantly, the government gains a one billion times markup without borrowing a single extra dollar.",
+        "Instantly, the government creates a one billion times markup without borrowing a single extra dollar.",
         "Economists still argue whether minting it would trigger chaos or change nothing at all.",
-        "Smart emergency backup or instant hyperinflation disaster? Comment your call below and remember—",
+        "Smart emergency backup or instant hyperinflation disaster? Comment your call below—",
     ],
     "kola-superdeep-borehole-limit": [
-        "Soviet scientists drilled straight down into Earth for twenty years — and suddenly had to stop forever.",
-        "The Kola Superdeep Borehole deepest hole Earth reached twelve point two kilometers down before physics broke their drills.",
-        "That sounds insanely deep, yet it barely scratched zero point two percent of Earth's radius.",
-        "Think of planet Earth like an apple: humanity has never even pierced through the outer skin.",
-        "Down at twelve kilometers, temperatures surged to one hundred and eighty degrees Celsius, nearly double what scientists predicted.",
-        "Under that intense heat and pressure, solid granite stopped cracking and started flowing like melted plastic.",
+        "Soviet scientists drilled straight down into Earth for twenty years, then suddenly had to stop forever.",
+        "Russia's Kola Superdeep Borehole reached twelve point two kilometers down before physics melted their drills.",
+        "That sounds impossibly deep, yet it barely scratched zero point two percent of Earth's radius.",
+        "Picture Earth like an apple: humanity has never even pierced through the outer skin.",
+        "Down at twelve kilometers, temperatures surged to one hundred and eighty degrees Celsius, double every prediction.",
+        "Under that intense heat and pressure, solid granite stopped cracking and flowed like melted plastic.",
         "Every time engineers pulled the drill bit up, the hole simply oozed shut again.",
-        "Will humans walk on Mars before we ever reach Earth's mantle? Drop your bet below and remember—",
+        "Will humans walk on Mars before we ever reach Earth's mantle? Drop your bet below—",
     ],
     "cargo-ship-250k-tons-float-physics": [
-        "Drop a tiny one-gram steel nail into the ocean and it sinks straight to the bottom.",
-        "Yet learning how 250000 ton steel cargo ships float reveals a surprisingly simple trick.",
+        "Drop a one-gram steel nail into the ocean and it sinks straight to the bottom.",
+        "Yet a two hundred and fifty thousand ton steel cargo ship floats effortlessly across the sea.",
         "A mega container ship stretches four hundred meters long and carries twenty four thousand stacked steel boxes.",
-        "It weighs a quarter of a million tons — heavier than seven hundred fully loaded jumbo jets.",
-        "So why does solid steel sink while this steel skyscraper floats effortlessly?",
-        "Because roughly ninety percent of the ship's hollow hull is actually trapped empty air.",
-        "Spread across its massive footprint, the ship's average density drops lower than seawater itself, pushing back upward with equal force.",
-        "Would you ever take a job crossing the Pacific on one of these giants? Comment below and notice—",
+        "It weighs a quarter of a million tons, heavier than seven hundred fully loaded jumbo jets.",
+        "So why does solid steel sink while this floating skyscraper stays on top?",
+        "Because roughly ninety percent of its massive hollow hull is trapped empty air.",
+        "Spread across that footprint, the ship's average density drops below seawater, pushing back upward with equal force.",
+        "Would you ever work crossing the Pacific on one of these giants? Comment below—",
     ],
     "slot-machine-near-miss-brain-hack": [
         "When two jackpots line up and the third symbol misses by one millimeter, your brain does something bizarre.",
-        "This slot machine near miss dopamine psychology tricks your mind into celebrating a total loss.",
-        "Brain scans show that an almost-win lights up the exact same reward pathways as actually hitting the payout.",
-        "Even though you won literally zero dollars, your dopamine spikes and whispers that you are getting closer.",
-        "Game designers know this and mathematically weight reels to produce near misses up to twelve times more often than pure chance.",
-        "Experiments prove this single visual trick keeps players spinning thirty three percent longer.",
-        "And today, mobile loot boxes and swipe feeds use the exact same reward loop.",
-        "Should near-miss algorithms in games be banned by law? Comment yes or no when you see—",
+        "It is called the slot machine near-miss effect, and it hacks your dopamine into celebrating a loss.",
+        "Brain scans show an almost-win fires the exact same reward circuit as actually hitting the payout.",
+        "Even though you won zero dollars, dopamine surges and whispers that you are getting closer.",
+        "Designers mathematically weight reels to produce near misses up to twelve times more often than pure chance.",
+        "Experiments prove that one visual illusion keeps players spinning thirty three percent longer.",
+        "And today, mobile loot boxes and swipe feeds use that exact same reward loop.",
+        "Should near-miss algorithms in games be banned by law? Comment yes or no below—",
     ],
     "gold-never-rusts-5000-years": [
-        "Pull an iron ship up from the ocean floor after a century and it crumbles into orange dust.",
-        "Yet discovering why gold never rusts Einstein relativity explains why five thousand year old treasure still shines brand new.",
-        "Gold has seventy nine heavy protons packed tightly inside its core.",
-        "That massive gravity-like pull whips gold's inner electrons around at fifty eight percent of the speed of light.",
-        "Because of Einstein's relativity, those speeding electrons grow heavier, pulling the outer shells tightly inward.",
-        "Oxygen atoms simply cannot steal an electron to create rust, leaving gold zero percent decayed after millennia.",
-        "Without relativity, gold would actually look dull silver — just like ordinary aluminum.",
-        "Next fifty years: would you rather hold gold or Bitcoin? Drop your pick below and remember—",
+        "Pull an iron ship up from the ocean after a century and it crumbles into orange dust.",
+        "Yet the secret to why gold never rusts comes straight from Einstein's theory of relativity.",
+        "Gold packs seventy nine heavy protons tightly inside its atomic core.",
+        "That massive pull whips gold's inner electrons around at fifty eight percent of the speed of light.",
+        "Because of relativity, those speeding electrons grow heavier and pull the outer shells tightly inward.",
+        "Oxygen atoms simply cannot steal an electron to create rust, leaving five thousand year old gold spotless.",
+        "Without relativity, gold would actually look dull silver, just like ordinary aluminum.",
+        "Next fifty years: would you rather hold gold or Bitcoin? Drop your pick below—",
     ],
     "lithium-battery-thermal-runaway-chain": [
-        "Right inside your pocket, only a plastic film thinner than a human hair is stopping a one thousand degree fire.",
-        "This lithium battery thermal runaway chain reaction explains why phone fires cannot be put out with water.",
+        "Right inside your pocket, only a plastic film thinner than a human hair stops a one thousand degree fire.",
+        "When a lithium battery enters thermal runaway, water cannot even put the chain reaction out.",
         "A human hair measures seventy microns thick, while the safety separator inside a battery is just twenty microns.",
-        "If a drop, nail, or microscopic metal spike pierces that paper-thin barrier, energy shorts out instantly.",
-        "Within three seconds, internal heat spikes past two hundred degrees and cracks open the battery's chemical cathode.",
-        "Here is the terrifying twist: that breakdown releases pure oxygen gas right inside the sealed cell.",
-        "Because the battery literally manufactures its own oxygen, it keeps burning even completely underwater.",
-        "Be honest: do you sleep with your phone charging under your pillow? Comment below and remember—",
+        "If a drop or microscopic metal spike pierces that paper-thin barrier, energy shorts out instantly.",
+        "Within three seconds, internal heat spikes past two hundred degrees and cracks open the chemical cathode.",
+        "Here is the terrifying twist: that breakdown releases pure oxygen right inside the sealed cell.",
+        "Because the battery manufactures its own oxygen, it keeps burning even underwater.",
+        "Be honest: do you sleep with your phone charging under your pillow? Comment below—",
     ],
     "survive-on-every-planet-seconds": [
-        "Step outside on Mars without a spacesuit and you get roughly ninety seconds — step on Venus and you get less than one.",
-        "Checking how long can you survive on each planet reveals how violently fragile Earth's bubble really is.",
-        "On Mercury, facing the sun roasts you at four hundred and thirty degrees, while the shadow freezes you instantly.",
-        "On Mars, freezing air and near-zero pressure boil the moisture off your tongue before oxygen runs out in ninety seconds.",
+        "Step outside on Mars without a spacesuit and you get ninety seconds, step on Venus and you get under one.",
+        "Seeing how long a human survives on each planet exposes how fragile Earth's bubble really is.",
+        "On Mercury, facing the sun roasts you at four hundred and thirty degrees while shadow freezes you instantly.",
+        "On Mars, near-zero pressure boils moisture off your tongue before oxygen runs out in ninety seconds.",
         "Now drop down to Venus, Earth's supposed twin planet.",
-        "Its thick carbon atmosphere blasts you with four hundred and sixty five degrees Celsius — hot enough to melt lead.",
-        "At the exact same instant, ninety two atmospheres of crushing pressure flatten everything in under a single second.",
-        "If offered a free one-way ticket to colonize Mars, would you go? Comment yes or no and remember—",
+        "Its thick carbon atmosphere blasts you with four hundred and sixty five degrees, hot enough to melt lead.",
+        "At that same instant, ninety two atmospheres of crushing pressure flatten everything in under one second.",
+        "If offered a free one-way ticket to colonize Mars, would you go? Comment yes or no below—",
     ],
 }
 
@@ -804,6 +804,24 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
         debate_a = debate.get("option_a", "HIGHER")
         debate_b = debate.get("option_b", "LOWER")
 
+        def _units_comparable(fa: Dict[str, Any], fb: Dict[str, Any]) -> bool:
+            ua = str(fa.get("unit", "")).strip().upper()
+            ub = str(fb.get("unit", "")).strip().upper()
+            if not ua or not ub:
+                return False
+            if ua == ub:
+                return True
+            dim_groups = (
+                {"SEC", "MS", "DAYS", "YRS", "YEARS", "HRS", "MOS"},
+                {"MM", "CM", "M", "KM", "UM"},
+                {"USD", "K", "M", "B", "T"},
+            )
+            return any(ua in g and ub in g for g in dim_groups)
+
+        # Only draw proportional 3D blocks / bar charts when units truly compare (ZERO apples-vs-oranges!)
+        pair_01_comparable = _units_comparable(f0, f1)
+        pair_23_comparable = _units_comparable(f2, f3)
+
         plate_sequence = [
             (
                 "split_vs_clash",
@@ -819,7 +837,7 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                 },
             ),
             (
-                "visual_scale_blocks",
+                "visual_scale_blocks" if pair_01_comparable else "dual_fact_spotlight",
                 {
                     "title": _trim_at_word_boundary(f"{f0['label']} vs {f1['label']}", 36),
                     "left_label": _trim_at_word_boundary(f0["label"], 24),
@@ -832,9 +850,9 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                 },
             ),
             (
-                "comparison_bars",
+                "comparison_bars" if pair_23_comparable else "dual_fact_spotlight",
                 {
-                    "title": _trim_at_word_boundary(topic["primary_keyword"].upper(), 34),
+                    "title": _trim_at_word_boundary(topic.get("hook_subtext", "KEY TELEMETRY"), 34),
                     "left_label": _trim_at_word_boundary(f2["label"], 24),
                     "left_value": float(abs(f2["numeric"])) or 10.0,
                     "left_display": f2["value"],
@@ -851,17 +869,6 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                     "metric": f2["value"],
                     "subtitle": _trim_at_word_boundary(lines[min(5, len(lines) - 1)].upper(), 52),
                     "severity": "CRITICAL",
-                },
-            ),
-            (
-                "timeline_scale",
-                {
-                    "title": "VERIFIED SCALE THRESHOLDS",
-                    "markers": [
-                        {"label": _trim_at_word_boundary(f0["label"], 22), "value": f0["value"], "pct": 0.20, "color": "cyan"},
-                        {"label": _trim_at_word_boundary(f1["label"], 22), "value": f1["value"], "pct": 0.54, "color": "amber"},
-                        {"label": _trim_at_word_boundary(f3["label"], 22), "value": f3["value"], "pct": 0.90, "color": "crimson"},
-                    ],
                 },
             ),
         ]
@@ -891,7 +898,8 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                     }
                 )
             else:
-                use_plate = idx % 2 == 0
+                # Cinema-first visual pacing (~65% real moving HD B-roll + high-impact visual plates at Beats 0, 2, 4)
+                use_plate = idx in (0, 2, 4)
                 p_mode, p_data = plate_sequence[(idx // 2) % len(plate_sequence)]
                 shorts_beats.append(
                     {
@@ -1060,16 +1068,22 @@ class ScriptEngine:
         return re.sub(r"\s{2,}", " ", cleaned).strip()
 
     def _verify_vseo_first_15s(self, beats: List[Dict[str, Any]], primary_keyword: str) -> bool:
-        """Ensure primary keyword appears in the opening ~38 spoken words (~15 seconds)."""
+        """Ensure core topic keywords appear naturally inside the opening ~15 seconds without robotic stuffing."""
         opening_words: List[str] = []
         for b in beats:
             opening_words.extend(b["narration"].split())
-            if len(opening_words) >= 42:
+            if len(opening_words) >= 48:
                 break
         opening_text = " ".join(opening_words).lower()
-        kw_tokens = [tok for tok in re.findall(r"[a-z0-9]+", primary_keyword.lower()) if len(tok) > 2]
-        matched = sum(1 for tok in kw_tokens if tok in opening_text)
-        return matched >= max(1, len(kw_tokens) - 1)
+        stop = {"how", "why", "the", "and", "for", "can", "you", "are", "with", "each", "long", "vs"}
+        kw_tokens = [
+            tok for tok in re.findall(r"[a-z0-9]+", primary_keyword.lower())
+            if len(tok) > 2 and tok not in stop
+        ]
+        if not kw_tokens:
+            return True
+        matched = sum(1 for tok in kw_tokens if tok in opening_text or (len(tok) > 4 and tok[:-1] in opening_text))
+        return matched >= max(1, (len(kw_tokens) + 1) // 2)
 
     def _apply_part2_continuity_hook(
         self, beats: List[Dict[str, Any]], topic: Dict[str, Any]
