@@ -2,10 +2,10 @@ name: VELUM — Autonomous Broadcast Autopilot
 
 on:
   schedule:
-    # VELUM V3 7-day hyper-growth cadence: every 2 hours (12 runs/day ->
-    # 4 full 4K Shorts production runs spaced >=3h apart across global peak windows
-    # + 8 ultra-fast ~25s engagement, real-time velocity & title-rescue cycles)
-    - cron: "0 */2 * * *"
+    # Off-peak minutes (:17 and :47) bypass GitHub Actions :00 congestion delays
+    # Guarantees 4/day 4K V4 Shorts spaced >=3h + continuous engagement, breakout Part-2 & 8h title rescue
+    - cron: "17 */2 * * *"
+    - cron: "47 1,5,9,13,17,21 * * *"
   workflow_dispatch:
     inputs:
       format:

@@ -1293,7 +1293,6 @@ CURATED_BLUEPRINTS: List[Dict[str, Any]] = [
 
 # Dynamic Wikipedia anomaly seed pool used after all 24 curated blueprints are exhausted (0-key infinite mode)
 DYNAMIC_WIKI_SEEDS: List[Dict[str, str]] = [
-    {"entity": "Kola_Superdeep_Borehole", "pillar": "science_anomalies", "kw": "Kola Superdeep Borehole depth comparison"},
     {"entity": "Large_Hadron_Collider", "pillar": "hidden_tech", "kw": "Large Hadron Collider energy scale"},
     {"entity": "Voyager_1", "pillar": "science_anomalies", "kw": "Voyager 1 distance signal delay"},
     {"entity": "SWIFT", "pillar": "money_scale", "kw": "SWIFT banking network daily volume"},
@@ -1301,6 +1300,26 @@ DYNAMIC_WIKI_SEEDS: List[Dict[str, str]] = [
     {"entity": "Bystander_effect", "pillar": "mind_glitches", "kw": "bystander effect psychology percentage"},
     {"entity": "Kessler_syndrome", "pillar": "hidden_tech", "kw": "space debris Kessler syndrome orbit"},
     {"entity": "Dunning–Kruger_effect", "pillar": "mind_glitches", "kw": "Dunning Kruger effect cognitive curve"},
+    {"entity": "Fort_Knox", "pillar": "money_scale", "kw": "Fort Knox gold reserve bullion weight"},
+    {"entity": "Chernobyl_disaster", "pillar": "science_anomalies", "kw": "Elephant Foot Chernobyl radiation seconds"},
+    {"entity": "James_Webb_Space_Telescope", "pillar": "hidden_tech", "kw": "James Webb Space Telescope mirror precision"},
+    {"entity": "Three_Gorges_Dam", "pillar": "science_anomalies", "kw": "Three Gorges Dam slows Earth rotation"},
+    {"entity": "Burj_Khalifa", "pillar": "hidden_tech", "kw": "Burj Khalifa wind engineering height"},
+    {"entity": "Sunk_cost", "pillar": "mind_glitches", "kw": "sunk cost fallacy brain decision trap"},
+    {"entity": "Hyperinflation_in_Zimbabwe", "pillar": "money_scale", "kw": "100 trillion dollar bill hyperinflation"},
+    {"entity": "Tardigrade", "pillar": "science_anomalies", "kw": "tardigrade vacuum space survival limits"},
+    {"entity": "Black_hole", "pillar": "science_anomalies", "kw": "spaghettification black hole event horizon"},
+    {"entity": "Deepwater_Horizon", "pillar": "hidden_tech", "kw": "deepwater oil rig ocean pressure"},
+    {"entity": "Tulip_mania", "pillar": "money_scale", "kw": "tulip mania single bulb house price"},
+    {"entity": "Placebo", "pillar": "mind_glitches", "kw": "placebo effect brain real painkillers"},
+    {"entity": "Olympus_Mons", "pillar": "science_anomalies", "kw": "Olympus Mons Mars volcano vs Everest"},
+    {"entity": "Panama_Canal", "pillar": "hidden_tech", "kw": "Panama Canal single ship transit toll"},
+    {"entity": "Loss_aversion", "pillar": "mind_glitches", "kw": "loss aversion psychology 2x pain"},
+    {"entity": "Antimatter", "pillar": "money_scale", "kw": "one gram of antimatter 62 trillion dollars"},
+    {"entity": "Speed_of_light", "pillar": "science_anomalies", "kw": "speed of light around Earth per second"},
+    {"entity": "Flash_crash_of_2010", "pillar": "money_scale", "kw": "2010 flash crash 1 trillion erased minutes"},
+    {"entity": "Halo_effect", "pillar": "mind_glitches", "kw": "halo effect first impression bias"},
+    {"entity": "International_Space_Station", "pillar": "hidden_tech", "kw": "ISS 16 sunrises every day orbit speed"},
 ]
 
 
