@@ -30,6 +30,7 @@ from PIL import Image
 from core.config import get_ffmpeg_bin, get_logger, load_brand_config, resolve_font
 from engine.hud_renderer import render_data_plate, render_hud_overlay
 from engine.media_fetcher import MediaFetcher
+from engine.schematic_engine import render_v6_schematic_frame
 from engine.sfx_music_engine import SAMPLE_RATE, generate_audio_pack
 
 logger = get_logger("video_composer")
@@ -121,6 +122,30 @@ def _load_beat_visual(
 ) -> Dict[str, Any]:
     """Materialize a single beat's graded frames on demand so peak RAM stays under ~450 MB."""
     w, h = size
+    if spec["kind"] == "v6_schematic":
+        sch_frames: List[np.ndarray] = []
+        steps = 40
+        for s in range(steps):
+            phase_t = s / max(steps - 1, 1)
+            anim_t = min(1.0, phase_t * 2.35)
+            pil_sch = render_v6_schematic_frame(
+                schematic_mode=spec.get("schematic_mode", "step_sequence_blueprint"),
+                schematic_data=spec.get("schematic_data", {}),
+                size=size,
+                anim_t=anim_t,
+                phase_t=phase_t,
+                chapter_num=int(spec.get("chapter_num", 1)),
+                total_chapters=int(spec.get("total_chapters", 6)),
+                chapter_tag=str(spec.get("chapter_tag", "MECHANISM")),
+                headline_line1=str(spec.get("headline_line1", "HIDDEN SCALE")),
+                headline_line2=str(spec.get("headline_line2", "EXPOSED")),
+                accent_word=str(spec.get("accent_word", "")),
+                episode_num=int(spec.get("episode_num", 9)),
+                source_credit=str(spec.get("source_credit", "VELUM ARCHIVE")),
+            )
+            sch_frames.append(cv2.cvtColor(np.asarray(pil_sch), cv2.COLOR_RGB2BGR))
+        return {"kind": "v6_schematic", "frames": sch_frames}
+
     if spec["kind"] == "photo_grade":
         clip_path = spec.get("clip_path")
         max_frames = int(spec.get("max_frames", 72))
@@ -265,13 +290,14 @@ def build_kinetic_ass_subtitles(
     words: List[Dict[str, Any]],
     out_ass_path: Path,
     size: Tuple[int, int],
+    editorial_v6: bool = False,
 ) -> Path:
-    """Generate kinetic word-by-word scaling ASS subtitles (Signal Amber / Cyan highlights)."""
+    """Generate Whisper-synced captions (V6 clean editorial style or kinetic Shorts pop)."""
     w, h = size
     is_vertical = h > w
 
     # Resolve crisp bold font family name for libass across Windows and Ubuntu Linux
-    font_path = resolve_font("headline").lower()
+    font_path = resolve_font("body" if editorial_v6 else "headline").lower()
     if "bahnschrift" in font_path:
         font_name = "Bahnschrift"
     elif "robotocondensed" in font_path:
@@ -288,9 +314,21 @@ def build_kinetic_ass_subtitles(
         font_name = "Arial"
     else:
         font_name = "DejaVu Sans"
-    font_size = 88 if is_vertical else 68
-    margin_v = 470 if is_vertical else 78
-    margin_lr = 58 if is_vertical else 120
+
+    if editorial_v6 and is_vertical:
+        font_size = 56
+        margin_v = 435
+        margin_lr = 74
+        outline_w = 2
+        shadow_w = 2
+        spacing = 0.6
+    else:
+        font_size = 88 if is_vertical else 68
+        margin_v = 470 if is_vertical else 78
+        margin_lr = 58 if is_vertical else 120
+        outline_w = 8
+        shadow_w = 4
+        spacing = 1.2
 
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -301,7 +339,7 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Kinetic,{font_name},{font_size},&H00FAF7F4,&H0000B8FF,&H0007090F,&HA507090F,-1,0,0,0,100,100,1.2,0,1,8,4,2,{margin_lr},{margin_lr},{margin_v},1
+Style: Kinetic,{font_name},{font_size},&H00FAF7F5,&H000B9EF5,&H00070C14,&H88070C14,-1,0,0,0,100,100,{spacing},0,1,{outline_w},{shadow_w},2,{margin_lr},{margin_lr},{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -322,9 +360,13 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         else:
             merged_words.append(dict(raw_w, word=tok))
 
-    # Group words into ultra-punchy 2-word viral Shorts phrases (3 words on wide 16:9)
-    max_words_grp = 2 if is_vertical else 3
-    max_chars_grp = 15 if is_vertical else 22
+    # Group words cleanly (V6 editorial: 4-5 natural sentence words; kinetic mode: 2-word punch)
+    if editorial_v6 and is_vertical:
+        max_words_grp = 5
+        max_chars_grp = 30
+    else:
+        max_words_grp = 2 if is_vertical else 3
+        max_chars_grp = 15 if is_vertical else 22
     groups: List[List[Dict[str, Any]]] = []
     cur: List[Dict[str, Any]] = []
     for word_item in merged_words:
@@ -332,7 +374,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         if not token:
             continue
         cur.append(word_item)
-        cur_chars = sum(len(x["word"]) for x in cur)
+        cur_chars = sum(len(x["word"]) for x in cur) + max(0, len(cur) - 1)
         ends_sentence = token.endswith((".", "!", "?", "—", ":"))
         if len(cur) >= max_words_grp or cur_chars >= max_chars_grp or ends_sentence:
             groups.append(cur)
@@ -351,17 +393,21 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 
             parts: List[str] = []
             for j, w_obj in enumerate(grp):
-                raw_txt = _escape_ass_text(w_obj["word"].upper())
+                raw_word = w_obj["word"] if editorial_v6 else w_obj["word"].upper()
+                raw_txt = _escape_ass_text(raw_word)
                 is_numeric = bool(re.search(r"\d|\$|%", raw_txt))
                 if j == active_idx:
-                    # Active spoken word: energetic 122% -> 100% kinetic pop + Cyan (numbers) / Amber
-                    hi_col = "&H00FFE500&" if is_numeric else "&H0000B8FF&"
-                    parts.append(
-                        f"{{\\rKinetic\\fs{font_size}\\c{hi_col}\\fscx122\\fscy122\\t(0,85,\\fscx100\\fscy100)}}{raw_txt}{{\\rKinetic}}"
-                    )
+                    if editorial_v6:
+                        hi_col = "&H00EED322&" if is_numeric else "&H000B9EF5&"
+                        parts.append(f"{{\\rKinetic\\fs{font_size}\\c{hi_col}}}{raw_txt}{{\\rKinetic}}")
+                    else:
+                        hi_col = "&H00FFE500&" if is_numeric else "&H0000B8FF&"
+                        parts.append(
+                            f"{{\\rKinetic\\fs{font_size}\\c{hi_col}\\fscx122\\fscy122\\t(0,85,\\fscx100\\fscy100)}}{raw_txt}{{\\rKinetic}}"
+                        )
                 else:
                     parts.append(
-                        f"{{\\rKinetic\\fs{font_size}\\c&H00FAF7F4&\\alpha&H18&}}{raw_txt}{{\\rKinetic}}"
+                        f"{{\\rKinetic\\fs{font_size}\\c&H00FAF7F5&\\alpha&H12&}}{raw_txt}{{\\rKinetic}}"
                     )
 
             dialogue = (
@@ -371,7 +417,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             lines.append(dialogue)
 
     out_ass_path.write_text("".join(lines), encoding="utf-8")
-    logger.info("Generated kinetic ASS subtitle track (%d words -> %s)", len(words), out_ass_path.name)
+    logger.info("Generated %s ASS subtitle track (%d words -> %s)", "editorial V6" if editorial_v6 else "kinetic", len(words), out_ass_path.name)
     return out_ass_path
 
 
@@ -526,12 +572,17 @@ def compose_cinematic_video(
         target_lufs=target_lufs,
     )
 
-    # 2. Generate Whisper-synced kinetic ASS subtitle file
-    ass_path = build_kinetic_ass_subtitles(words, work_dir / "kinetic_captions.ass", size)
+    is_v6 = bool(script.get("v6_schematic_mode"))
+    ep_num = int(script.get("episode_num", 9))
+
+    # 2. Generate Whisper-synced editorial V6 or kinetic ASS subtitle file
+    ass_path = build_kinetic_ass_subtitles(
+        words, work_dir / "kinetic_captions.ass", size, editorial_v6=is_v6
+    )
 
     # 3. Prefetch & resolve lightweight beat asset descriptors (frames load 1 beat at a time to prevent OOM)
     fetcher = MediaFetcher(work_dir / "media_cache")
-    if hasattr(fetcher, "prefetch_beats"):
+    if not is_v6 and hasattr(fetcher, "prefetch_beats"):
         prefetch_summary = fetcher.prefetch_beats(timed_beats, size)
         logger.info("Parallel media prefetch complete: %s", prefetch_summary)
     beat_specs: List[Dict[str, Any]] = []
@@ -539,6 +590,24 @@ def compose_cinematic_video(
         beat_dur = max(0.1, float(beat.get("end", 0.0)) - float(beat.get("start", 0.0)))
         if beat_dur <= 0.11:
             beat_dur = float(beat.get("duration", 2.2))
+        if beat.get("visual_type") == "v6_schematic":
+            beat_specs.append(
+                {
+                    "kind": "v6_schematic",
+                    "idx": idx,
+                    "schematic_mode": beat.get("schematic_mode", "step_sequence_blueprint"),
+                    "schematic_data": beat.get("schematic_data", {}),
+                    "chapter_num": int(beat.get("chapter_num", idx + 1)),
+                    "total_chapters": int(beat.get("total_chapters", len(timed_beats))),
+                    "chapter_tag": str(beat.get("chapter_tag", "MECHANISM")),
+                    "headline_line1": str(beat.get("headline_line1", "HIDDEN SCALE")),
+                    "headline_line2": str(beat.get("headline_line2", "EXPOSED")),
+                    "accent_word": str(beat.get("accent_word", "")),
+                    "episode_num": ep_num,
+                    "source_credit": str(beat.get("source_credit", "VELUM ARCHIVE")),
+                }
+            )
+            continue
         if beat["visual_type"] == "photo_grade":
             clip_path = fetcher.fetch_motion_clip(
                 beat["visual_query"],
@@ -658,7 +727,21 @@ def compose_cinematic_video(
                 active_beat_idx = beat_cursor
 
             vis = active_vis
-            if vis["kind"] == "video":
+            if vis["kind"] == "v6_schematic":
+                s_frames = vis["frames"]
+                s_pos = local_t * (len(s_frames) - 1)
+                frame_bgr = s_frames[min(len(s_frames) - 1, int(round(s_pos)))]
+                # Silky 4-frame editorial crossfade between schematic chapters (steady top chrome!)
+                if beat_cursor > 0 and local_frame < transition_frames and prev_beat_last_frame is not None:
+                    alpha_cf = (local_frame + 1) / float(transition_frames + 1)
+                    frame_bgr = cv2.addWeighted(frame_bgr, alpha_cf, prev_beat_last_frame, 1.0 - alpha_cf, 0.0)
+                if beat_cursor + 1 < len(timed_beats):
+                    next_start = float(timed_beats[beat_cursor + 1]["start"])
+                    if abs((t_sec + 1.0 / fps) - next_start) < (1.2 / fps):
+                        prev_beat_last_frame = frame_bgr.copy()
+                proc.stdin.write(frame_bgr.tobytes())
+                continue
+            elif vis["kind"] == "video":
                 v_frames = vis["frames"]
                 vf_pos = local_t * (len(v_frames) - 1)
                 vf_idx = min(len(v_frames) - 1, int(vf_pos))

@@ -25,9 +25,9 @@ from core.llm_client import ZeroCostLLMClient
 
 logger = get_logger("script_engine")
 
-SHORTS_MIN_WORDS = 72
-SHORTS_MAX_WORDS = 94
-SHORTS_TARGET_WORDS = 84
+SHORTS_MIN_WORDS = 84
+SHORTS_MAX_WORDS = 116
+SHORTS_TARGET_WORDS = 100
 
 PART2_CONTINUITY_HOOKS = (
     ("Part two goes even deeper. ", False),
@@ -1289,6 +1289,154 @@ class ScriptEngine:
 
         return trimmed
 
+    def _enrich_v6_schematic_beats(
+        self, beats: List[Dict[str, Any]], topic: Dict[str, Any]
+    ) -> None:
+        """Attach VELUM V6 2D schematic renderer modes, 2-line editorial headlines & citations."""
+        if not beats:
+            return
+        tid = str(topic.get("topic_id", "")).lower()
+        pillar = str(topic.get("pillar", "science_anomalies")).lower()
+        blob = f"{tid} {topic.get('primary_keyword', '')} {topic.get('hook_subtext', '')}".lower()
+        facts = topic.get("key_facts") or [
+            {"label": "PRIMARY METRIC", "value": str(topic.get("shock_hook_stat", "EXTREME")), "numeric": 100.0},
+            {"label": "SECONDARY SCALE", "value": "1,000X", "numeric": 1000.0},
+            {"label": "LIMIT", "value": "CRITICAL", "numeric": 99.0},
+            {"label": "RATIO", "value": "VERIFIED", "numeric": 10.0},
+        ]
+        while len(facts) < 4:
+            facts.append(facts[-1])
+        f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
+
+        # Select authoritative domain source citation
+        if any(k in blob for k in ("nasa", "space", "planet", "orbit", "mars", "venus", "moon", "psyche", "iss", "nemo", "gps", "star", "voyager", "rocket", "ariane")):
+            source_credit = "NASA JPL / ESA"
+        elif any(k in blob for k in ("trench", "ocean", "titanic", "implosion", "deep", "borehole", "ship", "cargo")):
+            source_credit = "NOAA / USGS"
+        elif any(k in blob for k in ("airplane", "window", "flight", "airline")):
+            source_credit = "FAA / BOEING"
+        elif any(k in blob for k in ("cable", "internet", "dns", "euv", "asml", "transistor", "2nm", "grid", "50hz", "battery", "lithium", "trading")):
+            source_credit = "IEEE / TELEGEOGRAPHY"
+        elif any(k in blob for k in ("gold", "billion", "trillion", "debt", "cash", "penny", "coin", "economy")):
+            source_credit = "FEDERAL RESERVE / WGC"
+        elif any(k in blob for k in ("dna", "brain", "bias", "dopamine", "slot", "casino", "decoy", "supermarket", "zeigarnik", "anchor", "touch")):
+            source_credit = "NATURE / BEHAVIORAL LAB"
+        else:
+            source_credit = "VELUM RESEARCH ARCHIVE"
+
+        # Choose authentic physics/engineering schematic sequence tailored to the topic domain
+        if any(k in blob for k in ("trench", "implosion", "borehole", "submarine", "ocean")):
+            seq = ["depth_pressure_cutaway", "layered_cutaway", "split_blueprint_duel", "depth_pressure_cutaway", "waveform_stability_meter"]
+            layers = ["SURFACE", "WATER COLUMN", "HULL LIMIT"]
+            stages = ["DESCENT", "PRESSURE", "FAILURE"]
+        elif any(k in blob for k in ("airplane", "window", "battery", "lithium", "transistor", "2nm", "euv", "cargo", "float", "touch")):
+            seq = ["layered_cutaway", "signal_flow_pipeline", "split_blueprint_duel", "layered_cutaway", "step_sequence_blueprint"]
+            layers = ["OUTER LAYER", "ACTIVE GAP", "INNER SHIELD"]
+            stages = ["STRESS", "CONTROL", "SAFETY"]
+        elif any(k in blob for k in ("gps", "orbit", "planet", "moon", "psyche", "nemo", "space", "star", "sitting", "rocket", "voyager")):
+            seq = ["orbital_relativity_sim", "split_blueprint_duel", "proportional_volume_scale", "orbital_relativity_sim", "exponential_scale_curve"]
+            layers = ["SURFACE", "ORBIT", "DEEP SPACE"]
+            stages = ["VELOCITY", "DRIFT", "CORRECTION"]
+        elif any(k in blob for k in ("cable", "internet", "dns", "trading", "container", "shipping", "airline")):
+            seq = ["signal_flow_pipeline", "split_blueprint_duel", "exponential_scale_curve", "signal_flow_pipeline", "step_sequence_blueprint"]
+            layers = ["SOURCE", "CONDUIT", "CHOKEPOINT"]
+            stages = ["ORIGIN", "ROUTING", "BOTTLENECK"]
+        elif any(k in blob for k in ("grid", "50hz", "traffic", "slot", "dopamine", "casino", "near-miss")):
+            seq = ["waveform_stability_meter", "step_sequence_blueprint", "split_blueprint_duel", "waveform_stability_meter", "exponential_scale_curve"]
+            layers = ["INPUT", "THRESHOLD", "CASCADE"]
+            stages = ["TRIGGER", "SPIKE", "LOCK-IN"]
+        elif any(k in blob for k in ("gold", "dna", "cube", "teaspoon")):
+            seq = ["proportional_volume_scale", "split_blueprint_duel", "exponential_scale_curve", "proportional_volume_scale", "step_sequence_blueprint"]
+            layers = ["UNIT", "DENSITY", "TOTAL MASS"]
+            stages = ["EXTRACT", "COMPRESS", "SCALE"]
+        elif pillar == "money_scale":
+            seq = ["exponential_scale_curve", "split_blueprint_duel", "proportional_volume_scale", "exponential_scale_curve", "step_sequence_blueprint"]
+            layers = ["BASELINE", "MULTIPLIER", "REALITY"]
+            stages = ["INTUITION", "GROWTH", "SHOCK"]
+        else:
+            seq = ["step_sequence_blueprint", "split_blueprint_duel", "exponential_scale_curve", "waveform_stability_meter", "step_sequence_blueprint"]
+            layers = ["SIGNAL", "MECHANISM", "LIMIT"]
+            stages = ["CAUSE", "PROCESS", "OUTCOME"]
+
+        chapter_tags = [
+            "THE PARADOX",
+            "THE PHYSICS",
+            "THE MECHANISM",
+            "THE LIMIT",
+            "THE TWIST",
+            "YOUR CALL",
+        ]
+        accents = ["amber", "cyan", "amber", "coral", "cyan", "amber"]
+        total_ch = len(beats)
+        debate = topic.get("debate_hook") or {}
+        debate_q = str(debate.get("question") or f"WOULD YOU HAVE GUESSED {f0['value']}?").upper()
+        debate_a = str(debate.get("option_a") or "MIND BLOWN").upper()
+        debate_b = str(debate.get("option_b") or "ALREADY KNEW").upper()
+
+        hook_stat = _trim_at_word_boundary(str(topic.get("shock_hook_stat", f0["value"])).upper(), 28)
+        hook_sub = _trim_at_word_boundary(str(topic.get("hook_subtext", "HIDDEN SCALE")).replace("//", "").strip().upper(), 28)
+
+        for idx, b in enumerate(beats):
+            is_last = idx == total_ch - 1
+            f_cur = facts[idx % len(facts)]
+            f_nxt = facts[(idx + 1) % len(facts)]
+            acc = accents[idx % len(accents)]
+            ch_tag = chapter_tags[-1] if is_last else chapter_tags[min(idx, len(chapter_tags) - 2)]
+
+            if idx == 0:
+                hl1 = hook_stat
+                hl2 = hook_sub or _trim_at_word_boundary(str(f0["label"]).upper(), 28)
+                acc_word = hl2.split()[-1] if hl2.split() else ""
+            elif is_last:
+                hl1 = "WHAT IS"
+                hl2 = "YOUR VERDICT?"
+                acc_word = "VERDICT?"
+            else:
+                lbl_clean = _trim_at_word_boundary(str(f_cur["label"]).upper(), 26)
+                val_clean = _trim_at_word_boundary(str(f_cur["value"]).upper(), 24)
+                hl1 = lbl_clean
+                hl2 = f"REACHING {val_clean}" if len(f"REACHING {val_clean}") <= 26 else val_clean
+                acc_word = val_clean.split()[0] if val_clean.split() else ""
+
+            mode = "verdict_poll_blueprint" if is_last else seq[idx % len(seq)]
+            s_data: Dict[str, Any] = {
+                "accent": acc,
+                "metric_label": str(f_cur["label"]),
+                "metric_value": str(f_cur["value"]),
+                "sub_label": str(f_nxt["label"]),
+                "sub_value": str(f_nxt["value"]),
+                "left_label": str(f0["label"]) if idx % 2 == 0 else str(f2["label"]),
+                "left_value": str(f0["value"]) if idx % 2 == 0 else str(f2["value"]),
+                "right_label": str(f1["label"]) if idx % 2 == 0 else str(f3["label"]),
+                "right_value": str(f1["value"]) if idx % 2 == 0 else str(f3["value"]),
+                "callout": str(f_cur["value"]) if idx > 0 else _trim_at_word_boundary(str(f0["label"]).upper(), 22),
+                "center_metric": str(f_cur["value"]),
+                "center_label": _trim_at_word_boundary(str(f_cur["label"]).upper(), 16),
+                "planet_label": "EARTH",
+                "orbiter_label": _trim_at_word_boundary(str(f_nxt["label"]).upper(), 18),
+                "layers": layers,
+                "stages": stages,
+                "nodes": [
+                    (_trim_at_word_boundary(str(f0["label"]).upper(), 16), str(f0["value"])),
+                    (_trim_at_word_boundary(str(f1["label"]).upper(), 16), str(f1["value"])),
+                    (_trim_at_word_boundary(str(f2["label"]).upper(), 16), str(f2["value"])),
+                ],
+                "question": debate_q,
+                "option_a": debate_a,
+                "option_b": debate_b,
+            }
+
+            b["visual_type"] = "v6_schematic"
+            b["schematic_mode"] = mode
+            b["schematic_data"] = s_data
+            b["chapter_num"] = idx + 1
+            b["total_chapters"] = total_ch
+            b["chapter_tag"] = ch_tag
+            b["headline_line1"] = hl1
+            b["headline_line2"] = hl2
+            b["accent_word"] = acc_word
+            b["source_credit"] = source_credit
+
     def generate_script(self, topic: Dict[str, Any], fmt: str = "shorts") -> Dict[str, Any]:
         """Generate a validated scene-by-scene script for 'shorts' (9:16) or 'longform' (16:9)."""
         beats: Optional[List[Dict[str, Any]]] = None
@@ -1360,9 +1508,14 @@ class ScriptEngine:
                 normalized_beats = self._enforce_shorts_word_budget(normalized_beats, topic)
             vseo_ok = self._verify_vseo_first_15s(normalized_beats, topic["primary_keyword"])
 
+        if fmt == "shorts":
+            self._enrich_v6_schematic_beats(normalized_beats, topic)
+
         full_narration = " ".join(b["narration"] for b in normalized_beats)
         script_payload = {
             "format": fmt,
+            "v6_schematic_mode": fmt == "shorts",
+            "episode_num": int(topic.get("episode_num", 9)),
             "topic_id": topic["topic_id"],
             "pillar": topic["pillar"],
             "primary_keyword": topic["primary_keyword"],

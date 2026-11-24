@@ -281,8 +281,9 @@ def run_single_cycle(
     # 3. Viral Idea Discovery & 85+ Gate Scoring
     idea_engine = IdeaEngine(state_db, llm=llm)
     topic = idea_engine.select_next_topic()
+    topic["episode_num"] = len(state_db.get_all_videos()) + 1
 
-    # 4. Retention-Engineered Script Architecture (0-2s Shock Hook + <=2.5s beats + VSEO<15s)
+    # 4. Retention-Engineered Script Architecture (V6 2D Schematic Chapters + VSEO<15s)
     script_engine = ScriptEngine(llm=llm)
     script = script_engine.generate_script(topic, fmt=target_format)
 

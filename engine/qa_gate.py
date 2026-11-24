@@ -135,7 +135,7 @@ def _detect_frozen_frames(video_path: Path, max_freeze_sec: float = 1.85) -> Tup
 def run_qa_gate(video_path: Path, fmt: str = "shorts") -> Dict[str, Any]:
     """Execute full automated QA audit on a rendered MP4."""
     expected_w, expected_h = (2160, 3840) if fmt == "shorts" else (1920, 1080)
-    min_dur, max_dur = (20.0, 39.5) if fmt == "shorts" else (60.0, 420.0)
+    min_dur, max_dur = (20.0, 58.0) if fmt == "shorts" else (60.0, 420.0)
 
     failures: List[str] = []
     remediation: Dict[str, Any] = {}

@@ -258,14 +258,14 @@ def _align_beats_to_audio(
     if raw_timed:
         raw_timed[-1]["end"] = round(total_dur, 3)
 
-    # Enforce strict visual cut rhythm (<= 2.08s on Shorts, <= 2.48s on Long-form)
+    # Enforce visual cut rhythm (V6 schematic chapters stay intact as continuously animated vector scenes!)
     rhythm_beats: List[Dict[str, Any]] = []
     motions = ["zoom_in", "pan_right", "zoom_out", "pan_left", "drift_up"]
     sub_idx = 0
     for b_idx, b in enumerate(raw_timed):
         dur = b["end"] - b["start"]
         is_final_beat = b_idx == len(raw_timed) - 1
-        if dur <= max_beat_sec:
+        if b.get("visual_type") == "v6_schematic" or dur <= max_beat_sec:
             sub_idx += 1
             item = dict(b)
             item["index"] = sub_idx
@@ -296,9 +296,8 @@ def _align_beats_to_audio(
                         clone["plate_data"] = {}
                 rhythm_beats.append(clone)
 
-    # V5 Cinema-First Frame-0 Lock: Beat 0 ALWAYS opens on vivid full-bleed HD footage (photo_grade)
-    # so the V5 floating cover headline pops cleanly over real moving cinema with zero box clutter!
-    if rhythm_beats and fmt == "shorts":
+    # Preserve V6 schematic mode at Beat 0; otherwise keep Beat 0 photo_grade for V5 cinema mode
+    if rhythm_beats and fmt == "shorts" and rhythm_beats[0].get("visual_type") != "v6_schematic":
         rhythm_beats[0]["visual_type"] = "photo_grade"
 
     # Recompute monotonic HUD progress 0..1 across all visual beats
@@ -319,7 +318,8 @@ def synthesize_voice_and_align(
     brand = load_brand_config()
     voice = brand.get("voices", {}).get(lang, "en-US-BrianMultilingualNeural")
     fmt = script.get("format", "shorts")
-    effective_rate = speech_rate or ("+18%" if fmt == "shorts" else "+10%")
+    is_v6 = bool(script.get("v6_schematic_mode"))
+    effective_rate = speech_rate or ("+14%" if is_v6 else ("+18%" if fmt == "shorts" else "+10%"))
     narration_text = script["full_narration"]
 
     voice_dir = work_dir / "voice"
