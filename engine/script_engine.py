@@ -18,7 +18,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from core.config import get_logger, load_prompt
 from core.llm_client import ZeroCostLLMClient
@@ -376,7 +376,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "Every window actually uses three separate acrylic panes, not one.",
         "That tiny one point five millimeter hole routes cabin pressure safely onto the thick outer pane.",
         "The middle pane stays completely untouched as an emergency shield if the outside ever cracks.",
-        "Did you actually know what that hole does? Comment below and subscribe for tomorrow's breakdown—",
+        "Without that single one point five millimeter hole, every cabin window would carry fatal structural stress.",
     ],
     "how-fast-you-move-sitting-still": [
         "You think you are sitting still right now, yet you are flying at two point one million kilometers an hour.",
@@ -466,7 +466,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "So why does solid steel sink while this floating skyscraper stays on top?",
         "Because roughly ninety percent of its massive hollow hull is trapped empty air.",
         "Spread across that footprint, the ship's average density drops below seawater, pushing back upward with equal force.",
-        "Would you ever work crossing the Pacific on one of these giants? Comment below—",
+        "So a quarter-million-ton steel skyscraper floats simply because it traps an entire ocean of air inside.",
     ],
     "slot-machine-near-miss-brain-hack": [
         "When two jackpots line up and the third symbol misses by one millimeter, your brain does something bizarre.",
@@ -508,14 +508,14 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "At that same instant, ninety two atmospheres of crushing pressure flatten everything in under one second.",
         "If offered a free one-way ticket to colonize Mars, would you go? Comment yes or no below—",
     ],
-    # ===================== VELUM V7 PHYSICAL MECHANISM STORY ARCS =====================
+    # ===================== VELUM V7.1 PHYSICAL MECHANISM STORY ARCS (ZERO OUTRO DROP-OFF) =====================
     "elevator-freefall-wedge-brake": [
         "Even if someone cut every steel cable on a modern elevator, it still physically could not free-fall.",
-        "Every elevator car hangs from up to eight braided steel ropes, and any single cable alone can hold the full cab.",
+        "Every elevator car hangs from up to eight braided steel ropes, and any single cable alone holds the entire cab.",
         "Here is what actually stops a falling elevator: an overhead mechanical wheel called an overspeed governor.",
-        "The instant the cab drops fifteen percent faster than normal, centrifugal weights inside that wheel snap outward.",
+        "The instant the cab drops fifteen percent too fast, centrifugal weights inside that wheel snap outward.",
         "That trips a mechanical rod underneath the floor, slamming two hardened steel wedges straight into the shaft rails.",
-        "The heavier the falling car, the harder those wedges bite, locking it dead in zero point one two seconds with zero electricity. Still taking the stairs?",
+        "The heavier the falling car, the harder those wedges bite, locking it dead in zero point one two seconds with zero electricity.",
     ],
     "sr71-blackbird-fuel-leak-mach3": [
         "The fastest jet ever built sat on the runway dripping jet fuel straight onto the concrete on purpose.",
@@ -523,15 +523,15 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "Once it blasted past Mach three point two, rushing air heated its metal skin to three hundred and fifteen degrees.",
         "Under that extreme heat, the entire fuselage stretched nearly eight centimeters longer in mid-air.",
         "If the panels had been sealed tight at takeoff, thermal expansion would have buckled and ripped the jet apart.",
-        "So it leaked on the runway until supersonic friction expanded the titanium and sealed every tank tight. Greatest machine ever built?",
+        "So it leaked cold on the runway until supersonic friction expanded the titanium and sealed every tank tight.",
     ],
     "train-wheels-cone-steering-trick": [
         "A ten thousand ton freight train turns smoothly around curved tracks without a steering wheel or differential.",
         "Look closely at a steel train wheel and you will notice it is not flat — it is subtly shaped like a cone.",
-        "Both wheels are locked solidly onto one single rigid steel axle, so they must always spin at the exact same speed.",
+        "Both wheels are locked solidly onto one rigid steel axle, forcing them to spin at the exact same speed.",
         "When the track curves, the axle shifts slightly outward so the outer wheel rides on its wider conical diameter.",
-        "Because a wider circle covers more distance per rotation, the outer wheel automatically pulls ahead and steers the train around the bend.",
-        "The inner metal flange barely touches the rail in normal turns — pure geometry guides the entire train. Did you think it was the flange?",
+        "Because a wider circle covers more distance per rotation, the outer wheel automatically pulls ahead around the bend.",
+        "The inner metal flange barely touches the rail in normal turns — pure cone geometry steers the entire train.",
     ],
     "volcano-trash-drop-explosion": [
         "Drop a single thirty kilogram bag of everyday garbage into an active volcano and the entire lava lake erupts.",
@@ -539,7 +539,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "Molten basalt lava sits at eleven hundred degrees, trapped right beneath a thin semi-solid skin.",
         "When researchers tossed one thirty kilogram organic bundle into Erta Ale volcano, it punched clean through that crust.",
         "Moisture inside the bundle instantly flashed into steam, expanding sixteen hundred times in a split second.",
-        "That steam shockwave blew a violent fountain of molten rock skyward, proving one dump truck would trigger a catastrophe. Did you expect that?",
+        "That steam shockwave blew a violent fountain of molten rock skyward from just thirty kilograms of waste.",
     ],
     "bridge-metal-expansion-teeth": [
         "Drive across any major bridge and you hear a sharp metallic clunk over giant steel teeth built right into the road.",
@@ -547,15 +547,15 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "Between a freezing winter night and a scorching forty five degree afternoon, steel and concrete physically stretch.",
         "Across a one kilometer highway bridge, that invisible thermal growth pushes the deck more than forty centimeters longer.",
         "Without a flexible expansion joint, thousands of tons of sideways force would buckle the roadway violently upward.",
-        "Instead, those steel teeth slide cleanly together in July and pull apart in January while traffic rolls smoothly over them. Ever wondered what caused that clunk?",
+        "Instead, those steel teeth slide cleanly together in July and pull apart in January while traffic rolls right over them.",
     ],
     "nuclear-submarine-25-years-underwater": [
         "A modern nuclear submarine can circle the planet underwater for twenty five years without surfacing for fuel once.",
         "Deep inside its steel hull sits a compact nuclear reactor core sealed for the entire operational life of the ship.",
-        "It never runs out of drinking water either, distilling thousands of liters of fresh water straight from the ocean every day.",
+        "It never runs out of drinking water either, distilling thousands of liters of fresh water straight from the ocean.",
         "Even breathable oxygen is endless: onboard electrolysis machines split seawater molecules directly into pure oxygen.",
         "So with infinite fuel, infinite water, and infinite air, what actually forces a three billion dollar submarine back to port?",
-        "Just one surprisingly human bottleneck: its storage lockers run out of crew food after roughly ninety days. Could you live sealed down there for ninety days?",
+        "Just one surprisingly human bottleneck: its storage lockers run out of crew food after roughly ninety days.",
     ],
     "deep-sea-diver-pure-oxygen-toxic": [
         "Fill a scuba diver's tank with one hundred percent pure oxygen and it becomes deadly just six meters underwater.",
@@ -563,7 +563,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "As a diver descends, water pressure squeezes more gas molecules into every single breath their lungs pull in.",
         "At just six meters down, pure oxygen crosses one point six atmospheres of partial pressure inside the bloodstream.",
         "Past that invisible line, oxygen turns neurotoxic, overwhelming brain cells and triggering sudden underwater seizures.",
-        "That is why deep technical divers actually dilute oxygen down below ten percent using helium. Did you assume scuba tanks were pure oxygen?",
+        "That is why deep technical divers actually dilute oxygen down below ten percent using helium.",
     ],
     "spacesuit-vacuum-balloon-layers": [
         "Step into the vacuum of space inside an ordinary airtight suit and it would inflate into a rigid immobile balloon.",
@@ -571,7 +571,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "To keep astronauts moving, NASA drops internal spacesuit pressure to just zero point three atmospheres of pure oxygen.",
         "Even at that lower pressure, a flexible rubber bladder alone would still balloon outward until you could not bend an elbow.",
         "Hidden right over the bladder sits a woven Dacron restraint mesh that locks the suit's exact human silhouette in place.",
-        "Wrapped inside fourteen total layers shielding against two hundred and seventy degree swings, each suit acts like a wearable spacecraft. Would you ever spacewalk?",
+        "Wrapped inside fourteen total layers against two hundred and seventy degree swings, every spacesuit is a wearable spacecraft.",
     ],
 }
 
@@ -1433,15 +1433,99 @@ class ScriptEngine:
             layers = ["SIGNAL", "MECHANISM", "LIMIT"]
             stages = ["CAUSE", "PROCESS", "OUTCOME"]
 
+        # Hand-crafted 6-chapter editorial poster headlines for all 10 V7 physical mechanisms
+        v7_headlines: Dict[str, List[Tuple[str, str, str, str]]] = {
+            "elevator-freefall-wedge-brake": [
+                ("THE MYTH", "CUT EVERY CABLE", "IT STILL WON'T FALL", "FALL"),
+                ("REDUNDANCY", "8 STEEL ROPES", "1 HOLDS THE CAB", "HOLDS"),
+                ("THE TRIGGER", "OVERSPEED WHEEL", "TRIPS AT +15%", "+15%"),
+                ("THE SYSTEM", "ZERO ELECTRICITY", "PURE MECHANICAL LOCK", "LOCK"),
+                ("THE TWIST", "STEEL WEDGES BITE", "STOPPED IN 0.12 SEC", "0.12"),
+                ("CONCLUSION", "HEAVIER THE DROP", "HARDER IT GRIPS", "GRIPS"),
+            ],
+            "sr71-blackbird-fuel-leak-mach3": [
+                ("THE PARADOX", "FASTEST JET EVER", "LEAKED ON PURPOSE", "PURPOSE"),
+                ("COLD METAL", "TITANIUM PANELS", "LEFT WIDE OPEN", "OPEN"),
+                ("MACH 3.2", "AIR FRICTION HITS", "315°C SKIN HEAT", "315°C"),
+                ("EXPANSION", "THE FUSELAGE GROWS", "+8 CM IN MID-AIR", "+8"),
+                ("THE SEAL", "HOT METAL EXPANDS", "EVERY GAP LOCKS", "LOCKS"),
+                ("CONCLUSION", "LEAKED ON LAND", "SEALED AT MACH 3", "MACH"),
+            ],
+            "train-wheels-cone-steering-trick": [
+                ("THE PARADOX", "10,000-TON TRAIN", "NO STEERING WHEEL", "STEERING"),
+                ("THE SHAPE", "NOT FLAT STEEL", "A 1:20 CONE", "CONE"),
+                ("RIGID AXLE", "BOTH WHEELS LOCKED", "EXACT SAME SPEED", "SPEED"),
+                ("ON A CURVE", "OUTER WHEEL RIDES", "WIDER DIAMETER", "WIDER"),
+                ("THE PHYSICS", "WIDER CIRCLE PULLS", "AROUND THE BEND", "BEND"),
+                ("CONCLUSION", "PURE GEOMETRY", "STEERS EVERY TRAIN", "TRAIN"),
+            ],
+            "airplane-window-tiny-hole-secret": [
+                ("THE MYSTERY", "EVERY PLANE WINDOW", "HAS A TINY HOLE", "HOLE"),
+                ("CRUISE ALT", "MINUS 56 DEGREES", "OUTSIDE THE GLASS", "GLASS"),
+                ("3 LAYERS", "NOT ONE PANE", "THREE ACRYLIC SHIELDS", "SHIELDS"),
+                ("THE VALVE", "1.5MM BLEED HOLE", "ROUTES ALL PRESSURE", "PRESSURE"),
+                ("FAIL-SAFE", "OUTER PANE CRACKS", "MIDDLE PANE HOLDS", "HOLDS"),
+                ("CONCLUSION", "ONE TINY HOLE", "SAVES THE CABIN", "CABIN"),
+            ],
+            "volcano-trash-drop-explosion": [
+                ("THE TEST", "DROP JUST 30 KG", "LAVA LAKE ERUPTS", "ERUPTS"),
+                ("THE TRAP", "BENEATH THE CRUST", "1,100°C BASALT LAVA", "1,100°C"),
+                ("THE IMPACT", "ONE SMALL BUNDLE", "PIERCES THE SKIN", "SKIN"),
+                ("FLASH BOIL", "WATER EXPANDS", "1,600X INTO STEAM", "1,600X"),
+                ("THE BLAST", "STEAM SHOCKWAVE", "BLOWS MOLTEN ROCK", "ROCK"),
+                ("CONCLUSION", "30 KG OF WASTE", "CHAIN ERUPTION", "ERUPTION"),
+            ],
+            "bridge-metal-expansion-teeth": [
+                ("THE CLUNK", "GIANT METAL TEETH", "ACROSS THE BRIDGE", "BRIDGE"),
+                ("THE REASON", "SUMMER SUNLIGHT", "STRETCHES STEEL", "STEEL"),
+                ("THERMAL SWING", "WINTER TO SUMMER", "+40 CM BRIDGE GROWTH", "+40"),
+                ("THE DANGER", "WITHOUT THIS GAP", "THE DECK SNAPS UP", "SNAPS"),
+                ("THE JOINT", "STEEL FINGERS", "MESH & ABSORB FORCE", "FORCE"),
+                ("CONCLUSION", "SLIDES IN JULY", "OPENS IN JANUARY", "JANUARY"),
+            ],
+            "nuclear-submarine-25-years-underwater": [
+                ("THE MACHINE", "UNDERWATER FOR", "25 YEARS STRAIGHT", "25"),
+                ("POWER CORE", "SEALED NUCLEAR", "LIFETIME REACTOR", "REACTOR"),
+                ("WATER & AIR", "SEAWATER SPLIT", "INTO INFINITE O2", "INFINITE"),
+                ("THE MYSTERY", "ENDLESS FUEL & AIR", "WHY EVER SURFACE?", "SURFACE?"),
+                ("THE TWIST", "ONE HUMAN LIMIT", "90 DAYS OF FOOD", "FOOD"),
+                ("CONCLUSION", "25-YEAR MACHINE", "90-DAY PANTRY", "PANTRY"),
+            ],
+            "deep-sea-diver-pure-oxygen-toxic": [
+                ("THE MYTH", "100% PURE OXYGEN", "DEADLY AT 6 METERS", "6"),
+                ("THE TANK", "SCUBA TANKS HOLD", "REGULAR 21% AIR", "21%"),
+                ("PRESSURE", "DEEP WATER PACKS", "MORE GAS PER BREATH", "BREATH"),
+                ("THE LIMIT", "AT JUST 6 METERS", "O2 HITS 1.6 ATM", "1.6"),
+                ("THE DANGER", "OXYGEN TURNS", "DEADLY NEUROTOXIN", "NEUROTOXIN"),
+                ("CONCLUSION", "DEEP DIVERS CUT O2", "BELOW 10% HELIUM", "HELIUM"),
+            ],
+            "cargo-ship-250k-tons-float-physics": [
+                ("THE PARADOX", "250,000 TONS OF STEEL", "FLOATS ON WATER", "FLOATS"),
+                ("SOLID STEEL", "7.8X DENSER", "THAN OCEAN WATER", "WATER"),
+                ("INSIDE HULL", "85% OF THE SHIP", "IS HOLLOW AIR", "AIR"),
+                ("AVERAGE MASS", "OVERALL DENSITY", "DROPS TO 0.5 G/CM3", "0.5"),
+                ("ARCHIMEDES", "DISPLACED WATER", "PUSHES STRAIGHT UP", "UP"),
+                ("CONCLUSION", "SHAPED STEEL TRAPS", "AN OCEAN OF AIR", "AIR"),
+            ],
+            "spacesuit-vacuum-balloon-layers": [
+                ("THE DANGER", "IN TOTAL VACUUM", "SUITS BALLOON RIGID", "RIGID"),
+                ("PRESSURE", "NASA DROPS AIR", "TO 0.3 ATM PURE O2", "0.3"),
+                ("THE BLADDER", "RUBBER ALONE", "STILL LOCKS ARMS", "ARMS"),
+                ("THE SECRET", "WOVEN DACRON MESH", "LOCKS SUIT SHAPE", "SHAPE"),
+                ("14 LAYERS", "SURVIVES 270°C", "SPACE TEMP SWINGS", "270°C"),
+                ("CONCLUSION", "NOT A UNIFORM", "A WEARABLE SPACECRAFT", "SPACECRAFT"),
+            ],
+        }
+
         chapter_tags = [
             "THE PARADOX",
             "THE PHYSICS",
             "THE MECHANISM",
             "THE LIMIT",
             "THE TWIST",
-            "YOUR CALL",
+            "CONCLUSION",
         ]
-        accents = ["amber", "cyan", "amber", "coral", "cyan", "amber"]
+        accents = ["amber", "cyan", "amber", "coral", "cyan", "mint"]
         total_ch = len(beats)
         debate = topic.get("debate_hook") or {}
         debate_q = str(debate.get("question") or f"WOULD YOU HAVE GUESSED {f0['value']}?").upper()
@@ -1450,32 +1534,43 @@ class ScriptEngine:
 
         hook_stat = _trim_at_word_boundary(str(topic.get("shock_hook_stat", f0["value"])).upper(), 28)
         hook_sub = _trim_at_word_boundary(str(topic.get("hook_subtext", "HIDDEN SCALE")).replace("//", "").strip().upper(), 28)
+        is_v7_sig = base_v7_tid in v7_mech_map
+        custom_hl_list = v7_headlines.get(base_v7_tid)
 
         for idx, b in enumerate(beats):
             is_last = idx == total_ch - 1
             f_cur = facts[idx % len(facts)]
             f_nxt = facts[(idx + 1) % len(facts)]
             acc = accents[idx % len(accents)]
-            ch_tag = chapter_tags[-1] if is_last else chapter_tags[min(idx, len(chapter_tags) - 2)]
 
-            if idx == 0:
-                hl1 = hook_stat
-                hl2 = hook_sub or _trim_at_word_boundary(str(f0["label"]).upper(), 28)
-                acc_word = hl2.split()[-1] if hl2.split() else ""
-            elif is_last:
-                hl1 = "WHAT IS"
-                hl2 = "YOUR VERDICT?"
-                acc_word = "VERDICT?"
+            if custom_hl_list:
+                ch_tag, hl1, hl2, acc_word = custom_hl_list[min(idx, len(custom_hl_list) - 1)]
             else:
-                lbl_clean = _trim_at_word_boundary(str(f_cur["label"]).upper(), 26)
-                val_clean = _trim_at_word_boundary(str(f_cur["value"]).upper(), 24)
-                hl1 = lbl_clean
-                hl2 = f"REACHING {val_clean}" if len(f"REACHING {val_clean}") <= 26 else val_clean
-                acc_word = val_clean.split()[0] if val_clean.split() else ""
+                ch_tag = chapter_tags[-1] if is_last else chapter_tags[min(idx, len(chapter_tags) - 2)]
+                if idx == 0:
+                    hl1 = hook_stat
+                    hl2 = hook_sub or _trim_at_word_boundary(str(f0["label"]).upper(), 28)
+                    acc_word = hl2.split()[-1] if hl2.split() else ""
+                elif is_last:
+                    hl1 = "THE REALITY"
+                    hl2 = _trim_at_word_boundary(str(f0["value"]).upper(), 24)
+                    acc_word = hl2.split()[0] if hl2.split() else ""
+                else:
+                    lbl_clean = _trim_at_word_boundary(str(f_cur["label"]).upper(), 26)
+                    val_clean = _trim_at_word_boundary(str(f_cur["value"]).upper(), 24)
+                    hl1 = lbl_clean
+                    hl2 = f"REACHING {val_clean}" if len(f"REACHING {val_clean}") <= 26 else val_clean
+                    acc_word = val_clean.split()[0] if val_clean.split() else ""
 
-            mode = "verdict_poll_blueprint" if is_last else seq[idx % len(seq)]
+            # V7.1: ZERO retention-killing poll outro! Finale stays on the triumphant physical mechanism!
+            if is_v7_sig:
+                mode = bespoke_mode if (idx in (0, 2, 4) or is_last) else seq[idx % len(seq)]
+            else:
+                mode = seq[0] if is_last else seq[idx % len(seq)]
+
             s_data: Dict[str, Any] = {
                 "accent": acc,
+                "scene_stage": 6 if is_last else (idx + 1),
                 "metric_label": str(f_cur["label"]),
                 "metric_value": str(f_cur["value"]),
                 "sub_label": str(f_nxt["label"]),

@@ -364,7 +364,7 @@ def _draw_v6_chrome(
     rail_y = 108
     rail_f = _font("mono", 20)
     draw.text((pad, rail_y - 12), "START", font=rail_f, fill=(*MUTED, 200))
-    end_txt = "VERDICT"
+    end_txt = "RESULT"
     eb = draw.textbbox((0, 0), end_txt, font=rail_f)
     draw.text((w - pad - (eb[2] - eb[0]), rail_y - 12), end_txt, font=rail_f, fill=(*MUTED, 200))
 

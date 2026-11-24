@@ -74,10 +74,36 @@ def _mech_elevator_brake(
             side = -24 if rx == rail_l else 24
             draw.line([(rx, by), (rx + side, by)], fill=(*GRID_DIM, 220), width=4)
 
+    # Progressive V7.1 mechanical story stage (Ch1 intact cables -> Ch3 snap & overspeed -> Ch5/6 locked!)
+    stage = int(data.get("scene_stage", 0))
+    if stage == 1:
+        overspeed = False
+        snapped = False
+        locked = False
+        drop_t = 0.0
+        clamp_t = 0.0
+    elif stage in (2, 3, 4):
+        overspeed = phase_t > 0.15
+        snapped = phase_t > 0.12
+        locked = False
+        drop_t = min(0.85, max(0.0, (phase_t - 0.12) / 0.72))
+        clamp_t = min(0.45, max(0.0, (phase_t - 0.55) / 0.45))
+    elif stage >= 5:
+        overspeed = True
+        snapped = True
+        locked = phase_t >= 0.18
+        drop_t = 1.0
+        clamp_t = _ease_out(min(1.0, phase_t / 0.28))
+    else:
+        overspeed = phase_t > 0.32
+        snapped = phase_t >= 0.20
+        locked = phase_t >= 0.52
+        drop_t = min(1.0, max(0.0, (phase_t - 0.18) / 0.34))
+        clamp_t = _ease_out(min(1.0, max(0.0, (phase_t - 0.38) / 0.22)))
+
     # Overhead governor pulley wheel (turns crimson when overspeed triggers)
     pulley_y = shaft_top + 38
     pulley_r = 34
-    overspeed = phase_t > 0.32
     p_col = CORAL if overspeed else CYAN
     draw.ellipse([cx - pulley_r, pulley_y - pulley_r, cx + pulley_r, pulley_y + pulley_r], fill=(*SURFACE, 240), outline=(*p_col, 245), width=4)
     for sp in range(6):
@@ -85,39 +111,35 @@ def _mech_elevator_brake(
         draw.line([(cx, pulley_y), (cx + math.cos(ang) * (pulley_r - 4), pulley_y + math.sin(ang) * (pulley_r - 4))], fill=(*p_col, 210), width=2)
     draw.text((rail_r + 22, pulley_y - 14), "GOVERNOR WHEEL", font=mono, fill=(*p_col, 240))
 
-    # Elevator cab drops briefly during 0.25..0.52 then locks HARD at locked_y!
-    drop_t = min(1.0, max(0.0, (phase_t - 0.18) / 0.34))
-    locked = phase_t >= 0.52
     cab_y = int(shaft_top + 135 + 88 * _ease_out(drop_t))
     cab_w, cab_h = 230, 210
     cab_l, cab_r = cx - cab_w // 2, cx + cab_w // 2
 
-    # Steel hoist cable (intact before 0.20, physically snapped with sparks after!)
-    if phase_t < 0.20:
-        draw.line([(cx, pulley_y + pulley_r), (cx, cab_y)], fill=(*WHITE, 220), width=4)
+    # Steel hoist cables (8 intact ropes in Ch1, physically snapped with sparks in Ch3/Ch5!)
+    if not snapped:
+        for co in (-14, -5, 5, 14):
+            draw.line([(cx + co, pulley_y + pulley_r), (cx + co, cab_y)], fill=(*CYAN, 220), width=2)
+        draw.text((rail_r + 22, pulley_y + 52), "8X STEEL ROPES", font=mono, fill=(*CYAN, 240))
     else:
         snap_y = pulley_y + pulley_r + 36
         draw.line([(cx, pulley_y + pulley_r), (cx - 12, snap_y)], fill=(*CORAL, 235), width=4)
         draw.line([(cx + 14, snap_y + 30), (cx, cab_y)], fill=(*CORAL, 210), width=4)
-        # Snap spark burst
         for k in range(6):
             sa = k * (math.tau / 6.0) + phase_t * 6.0
             sr = 12 + int(16 * ((phase_t * 3.0) % 1.0))
             draw.line([(cx, snap_y + 14), (cx + math.cos(sa) * sr, snap_y + 14 + math.sin(sa) * sr)], fill=(*AMBER, 245), width=3)
-        draw.text((cx + 28, snap_y - 2), "CABLE SEVERED", font=mono, fill=(*CORAL, 250))
+        draw.text((rail_r + 22, snap_y - 2), "CABLE SEVERED", font=mono, fill=(*CORAL, 250))
 
     # Detailed elevator cab wireframe + split doors + glowing safety frame
-    cab_col = MINT if locked else CYAN
+    cab_col = MINT if locked else (CORAL if snapped else CYAN)
     draw.rounded_rectangle([cab_l, cab_y, cab_r, cab_y + cab_h], radius=12, fill=(14, 26, 42, 240), outline=(*cab_col, 245), width=4)
-    # Interior door seam & glass window
     draw.rectangle([cab_l + 24, cab_y + 24, cab_r - 24, cab_y + cab_h - 14], outline=(*cab_col, 150), width=2)
     draw.line([(cx, cab_y + 24), (cx, cab_y + cab_h - 14)], fill=(*cab_col, 195), width=2)
-    # Floor indicator LED inside cab
-    draw.rounded_rectangle([cx - 46, cab_y + 38, cx + 46, cab_y + 68], radius=6, fill=(*SURFACE, 255), outline=(*AMBER, 220), width=2)
-    _draw_centered(draw, "LOCKED" if locked else "FALL!", cx, cab_y + 44, _font("mono", 18), (*(MINT if locked else CORAL), 255))
+    draw.rounded_rectangle([cx - 54, cab_y + 38, cx + 54, cab_y + 68], radius=6, fill=(*SURFACE, 255), outline=(*AMBER, 220), width=2)
+    led_txt = "LOCKED" if locked else ("OVERSPEED" if snapped else "NORMAL")
+    _draw_centered(draw, led_txt, cx, cab_y + 44, _font("mono", 17), (*(MINT if locked else (CORAL if snapped else CYAN)), 255))
 
     # Spring-loaded triangular steel wedge clamps underneath cab slamming into rails!
-    clamp_t = _ease_out(min(1.0, max(0.0, (phase_t - 0.38) / 0.22)))
     wedge_y = cab_y + cab_h - 24
     for side in (-1, 1):
         wx_inner = cx + side * int(cab_w // 2 - 22 + clamp_t * 28)
@@ -163,7 +185,8 @@ def _mech_sr71_blackbird(
     stages = data.get("stages") or ["COLD GAP", "MACH 3.2", "HEAT SEAL"]
     _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
 
-    hot_phase = phase_t > 0.48
+    stage = int(data.get("scene_stage", 0))
+    hot_phase = (stage >= 3) if stage > 0 else (phase_t > 0.48)
     skin_col = CORAL if hot_phase else CYAN
 
     # Supersonic Mach shock cone V-lines streaming from needle nose (x=cx, y=cy-240)
@@ -305,7 +328,8 @@ def _mech_airplane_window(
     stages = data.get("stages") or ["CABIN AIR", "1.5MM VALVE", "FAIL-SAFE"]
     _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
 
-    crack_phase = phase_t > 0.52
+    stage = int(data.get("scene_stage", 0))
+    crack_phase = (stage >= 5) if stage > 0 else (phase_t > 0.52)
     top_y, bot_y = y0 + 145, y1 - 210
     p_outer, p_mid, p_inner = cx - 195, cx, cx + 195
 
@@ -387,7 +411,13 @@ def _mech_volcano_eruption(
     draw.polygon([(cx - 132, lava_y), (cx + 132, lava_y), (cx + 125, base_y), (cx - 125, base_y)], fill=(210, 58, 24, 155), outline=(*CORAL, 245))
     draw.line([(cx - 135, lava_y), (cx + 135, lava_y)], fill=(*AMBER, 255), width=6)
 
-    erupt = phase_t >= 0.42
+    stage = int(data.get("scene_stage", 0))
+    if stage == 1:
+        erupt = False
+    elif stage >= 5:
+        erupt = True
+    else:
+        erupt = phase_t >= 0.42
     if not erupt:
         # Falling 30kg waste bundle dropping toward crust
         drop_t = min(1.0, phase_t / 0.42)
@@ -435,8 +465,13 @@ def _mech_bridge_teeth(
     stages = data.get("stages") or ["HEAT +45°C", "STEEL EXPANDS", "TEETH MESH"]
     _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
 
-    # Thermal oscillation: 0.0 = winter (-10C, gap wide), 1.0 = summer (+45C, teeth meshed tight!)
-    heat_t = 0.5 + 0.5 * math.sin(phase_t * math.tau - math.pi * 0.5)
+    stage = int(data.get("scene_stage", 0))
+    if stage == 1:
+        heat_t = 0.08 + 0.14 * phase_t
+    elif stage >= 5:
+        heat_t = 0.85 + 0.14 * math.sin(phase_t * math.pi)
+    else:
+        heat_t = 0.5 + 0.5 * math.sin(phase_t * math.tau - math.pi * 0.5)
     gap_half = int(68 - 44 * heat_t)
     deck_top, deck_bot = cy - 120, cy + 120
     deck_col = CORAL if heat_t > 0.65 else CYAN

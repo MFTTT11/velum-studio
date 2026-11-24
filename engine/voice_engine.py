@@ -316,10 +316,14 @@ def synthesize_voice_and_align(
 ) -> Dict[str, Any]:
     """Generate Edge-TTS voiceover, strip silence, extract Whisper word timings, and align beats."""
     brand = load_brand_config()
-    voice = brand.get("voices", {}).get(lang, "en-US-BrianMultilingualNeural")
     fmt = script.get("format", "shorts")
     is_v6 = bool(script.get("v6_schematic_mode"))
-    effective_rate = speech_rate or ("+14%" if is_v6 else ("+18%" if fmt == "shorts" else "+10%"))
+    # V7.1 uses Microsoft's flagship authentic documentary narrator (AndrewMultilingualNeural) at crisp +16%
+    if lang == "en" and is_v6:
+        voice = "en-US-AndrewMultilingualNeural"
+    else:
+        voice = brand.get("voices", {}).get(lang, "en-US-BrianMultilingualNeural")
+    effective_rate = speech_rate or ("+16%" if is_v6 else ("+18%" if fmt == "shorts" else "+10%"))
     narration_text = script["full_narration"]
 
     voice_dir = work_dir / "voice"
