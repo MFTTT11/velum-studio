@@ -1467,11 +1467,11 @@ class IdeaEngine:
         orig_titles = list(base_bp.get("title_variants", []))
         ref_short = (source_title or (orig_titles[0] if orig_titles else base_bp["primary_keyword"]))[:64]
         variant["title_variants"] = [
-            f"Part 2: The Wilder Numbers Behind {base_bp['primary_keyword'].title()}"[:95],
-            f"Part 2: Going Even Deeper Into {ref_short}"[:95],
-            f"The Hidden Part 2 Twist Everyone Missed: {base_bp['shock_hook_stat']}"[:95],
+            f"The Wilder Numbers Behind {base_bp['primary_keyword'].title()}"[:95],
+            f"Going Even Deeper Into {ref_short}"[:95],
+            f"The Hidden Twist Everyone Missed: {base_bp['shock_hook_stat']}"[:95],
         ]
-        variant["hook_subtext"] = "PART 2 // DEEPER SCALE"
+        variant["hook_subtext"] = "DEEPER SCALE // VERIFIED"
         return variant
 
     def _pop_viewer_idea_entry(self) -> Optional[Dict[str, Any]]:

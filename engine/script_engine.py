@@ -25,9 +25,9 @@ from core.llm_client import ZeroCostLLMClient
 
 logger = get_logger("script_engine")
 
-SHORTS_MIN_WORDS = 85
-SHORTS_MAX_WORDS = 116
-SHORTS_TARGET_WORDS = 104
+SHORTS_MIN_WORDS = 72
+SHORTS_MAX_WORDS = 94
+SHORTS_TARGET_WORDS = 84
 
 PART2_CONTINUITY_HOOKS = (
     ("Part two goes even deeper. ", False),
@@ -59,7 +59,7 @@ BANNED_SLOP_PHRASES = (
 TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     "subsea-cables-99-percent-internet": [
         "Ninety nine percent of global internet traffic does not travel through satellites in space.",
-        "It fires through undersea cables internet infrastructure thinner than a garden hose.",
+        "It fires through undersea fiber cables on the ocean floor thinner than a garden hose.",
         "At the bottom of the ocean, the active fiber core measures just seventeen millimeters across.",
         "Yet over one point four million kilometers of these glass threads wrap the planet.",
         "Every single day, ten trillion dollars of financial transfers pulse through them at light speed.",
@@ -75,7 +75,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "euv-lithography-hardest-machine": [
         "One single company in the Netherlands builds the machine that controls the modern world.",
-        "This ASML EUV lithography machine explained costs three hundred and eighty million dollars.",
+        "ASML's EUV lithography machine costs three hundred and eighty million dollars apiece.",
         "Without it, nobody can manufacture the microchips inside modern phones or artificial intelligence.",
         "Shipping just one machine requires forty freight containers and three Boeing cargo jets.",
         "Inside a vacuum chamber, it drops molten tin droplets fifty thousand times every single second.",
@@ -90,7 +90,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "mariana-trench-pressure-scale": [
         "Drop a steel ball into the Pacific and it takes over an hour to hit Challenger Deep.",
-        "This Mariana Trench pressure comparison reveals an environment more hostile than outer space.",
+        "The crushing pressure inside the Mariana Trench is far more hostile than outer space.",
         "At ten thousand nine hundred and eighty four meters down, sunlight vanished ten kilometers ago.",
         "If you placed Mount Everest on the trench floor, its peak would still sit two kilometers underwater.",
         "Down here, the ocean crushes every square inch with one thousand and eighty six atmospheres.",
@@ -104,7 +104,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "decoy-effect-pricing-trap": [
         "The medium popcorn at the cinema was never designed for anyone to actually buy it.",
-        "This decoy effect pricing psychology is the oldest trap in behavioral economics.",
+        "Behavioral economists call it the decoy effect, and almost every pricing menu uses it on you.",
         "Give customers just two choices: a small for three dollars or a large for seven dollars.",
         "In controlled experiments, sixty eight percent of buyers rationally pick the small.",
         "Wait what happens when marketers insert a useless medium priced at six dollars and fifty cents.",
@@ -118,7 +118,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "gps-relativity-drift-system": [
         "Without Albert Einstein's equations, your phone's GPS map would fail within two minutes.",
-        "This GPS general relativity time dilation happens twenty thousand kilometers above your head.",
+        "General relativity actually warps time for GPS satellites twenty thousand kilometers above your head.",
         "Each navigation satellite screams around Earth at fourteen thousand kilometers per hour.",
         "Because of high orbital speed, special relativity slows the satellite's atomic clock by seven microseconds daily.",
         "At the same time, weaker gravity high above Earth speeds that clock up by forty five microseconds.",
@@ -132,7 +132,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "all-world-gold-one-cube-scale": [
         "Melt down every ring, coin, and central bank vault bar ever mined in human history.",
-        "The all gold ever mined cube size fits inside a single twenty two meter box.",
+        "All the gold ever mined on Earth fits inside a single twenty two meter cube.",
         "Six thousand years of empires, wars, and deep-earth mining wouldn't even fill an Olympic stadium.",
         "That entire two hundred and twelve thousand ton cube could sit comfortably inside a tennis court.",
         "Gold is so ridiculously dense at nineteen point three grams per cubic centimeter that volume deceives you.",
@@ -144,7 +144,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "container-shipping-hidden-economy": [
         "Ninety percent of everything in your room arrived inside the exact same steel rectangle.",
-        "The shipping container global trade system quietly cut ocean transport costs by ninety seven percent.",
+        "Standardized shipping containers quietly slashed global ocean trade costs by ninety seven percent.",
         "Before nineteen fifty six, loading a cargo ship by hand cost nearly six dollars per ton.",
         "Standardizing one corrugated box dropped that cost to pennies and rewired global manufacturing.",
         "Today a single ultra-large vessel carries twenty four thousand containers stacked like city blocks.",
@@ -156,7 +156,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "compound-penny-vs-million-trap": [
         "Take one million dollars in cash right now, or a single penny doubled every day for thirty days.",
-        "This penny doubled 30 days exponential math exposes how badly human intuition fails growth curves.",
+        "Doubling a penny for thirty days exposes how badly human brains misjudge exponential math.",
         "By day ten, your doubled penny is worth a pathetic five dollars and twelve cents.",
         "Even on day twenty, two thirds of the way through the month, you only have five thousand dollars.",
         "Almost everyone panics here thinking the million dollar briefcase was the smarter choice.",
@@ -169,7 +169,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "global-debt-vs-physical-cash": [
         "Ninety two percent of all the money in the world does not physically exist.",
-        "This physical cash vs digital money supply gap is the biggest illusion in modern banking.",
+        "The gap between physical cash and digital money supply is modern banking's biggest illusion.",
         "Add up every paper banknote and metal coin on Earth and you get roughly nine trillion dollars.",
         "Now zoom out to the broad global money supply sitting inside digital bank ledgers.",
         "That number towers past one hundred and eight trillion dollars.",
@@ -181,7 +181,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "airline-zero-margin-business-model": [
         "Major airlines lose money flying planes and make billions operating as unregulated banks.",
-        "The airlines loyalty points bank business model completely flipped commercial aviation.",
+        "Selling loyalty points to giant banks completely flipped the airline business model.",
         "After fuel, crew, maintenance, and airport fees, an airline nets barely six dollars per passenger.",
         "One storm or fuel spike wipes out an entire quarter of ticket profits overnight.",
         "Now look at the frequent flyer mileage programs attached to those exact same airlines.",
@@ -193,7 +193,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "transistor-scale-vs-red-blood-cell": [
         "Your phone processor packs over one hundred billion physical switches inside the size of a fingernail.",
-        "A 2nm transistor size visual comparison pushes engineering straight to the edge of atomic physics.",
+        "Shrinking a transistor down to two nanometers pushes engineering straight to atomic physics.",
         "A single human red blood cell measures seven thousand five hundred nanometers wide.",
         "A modern silicon transistor gate measures just two nanometers across.",
         "That means the gap controlling electrical current is barely ten silicon atoms wide.",
@@ -205,7 +205,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "power-grid-50hz-real-time-balance": [
         "The electrical grid is the largest machine ever built, yet it stores almost zero electricity.",
-        "This electrical power grid frequency balance requires supply and demand to match every millisecond.",
+        "Keeping the power grid frequency balanced requires supply and demand to match every millisecond.",
         "Across entire continents, giant spinning turbines lock together at fifty or sixty cycles per second.",
         "When millions of homes flip on air conditioners, physical resistance actually slows those turbines down.",
         "If grid frequency drops by even one percent, transformers overheat and trip offline.",
@@ -217,7 +217,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "dns-root-servers-internet-phonebook": [
         "Thirteen logical addresses quietly direct every single click on the global internet.",
-        "This DNS root servers internet control system is the master phonebook of digital civilization.",
+        "These thirteen DNS root servers act as the master phonebook controlling the entire web.",
         "Whenever you type a website name, your device has no idea where that server physically lives.",
         "In under twenty five milliseconds, it queries a hierarchy anchored by thirteen root authorities labeled A through M.",
         "Those thirteen roots are mirrored across more than eighteen hundred secure anycast nodes worldwide.",
@@ -229,7 +229,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "high-frequency-trading-microsecond-race": [
         "Wall Street firms spent three hundred million dollars blasting through mountains to save three milliseconds.",
-        "In high frequency trading speed of light is the ultimate physical bottleneck.",
+        "In high frequency trading, the speed of light itself is the final bottleneck.",
         "A human eye blink takes three hundred milliseconds from start to finish.",
         "In that single blink, algorithmic servers execute thousands of cross-market stock orders.",
         "Trading firms realized glass fiber cables slow light down by thirty one percent compared to open air.",
@@ -241,7 +241,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "survivorship-bias-ww2-planes": [
         "When warplanes returned covered in bullet holes, generals ordered extra armor on the most damaged wings.",
-        "One mathematician stopped them and proved why survivorship bias airplanes explained a fatal logic trap.",
+        "One mathematician stopped them, uncovering survivorship bias in returning airplanes and saving thousands of lives.",
         "Abraham Wald mapped every strike across returning bombers: wings and tails were riddled with holes.",
         "The cockpit and engines came back almost completely untouched.",
         "The military assumed the wings needed reinforcement because that was where all the hits appeared.",
@@ -254,7 +254,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "supermarket-architecture-psychological-maze": [
         "No supermarket in the world puts milk, eggs, or bread near the front entrance.",
-        "These supermarket layout psychology tricks are engineered to double the time you spend walking.",
+        "Supermarket layouts are deliberately rigged with psychology tricks to double how long you walk.",
         "Every store opens with a decompression zone of bright flowers and warm bakery scents.",
         "Fresh bread smell triggers salivary glands, making shoppers buy significantly more food on impulse.",
         "Daily essentials like dairy are locked in the farthest back corner of the building.",
@@ -266,7 +266,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "variable-reward-slot-machine-phone": [
         "The pull-to-refresh gesture on your phone was modeled directly on a Las Vegas slot machine lever.",
-        "This variable reward dopamine scroll psychology keeps billions of brains hooked for hours.",
+        "That variable reward dopamine loop keeps billions of people scrolling for hours without noticing.",
         "Neuroscience discovered that dopamine does not peak when you receive a guaranteed reward.",
         "Dopamine spikes twice as high when a reward is fifty percent uncertain.",
         "If every scroll showed something amazing, your brain would habituate and get bored in minutes.",
@@ -278,7 +278,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "anchoring-bias-invisible-price-hack": [
         "Spin a rigged wheel that lands on sixty five, and people suddenly overpay for everything in the room.",
-        "This anchoring bias psychology experiment by Kahneman and Tversky exposed a permanent glitch in judgment.",
+        "Kahneman and Tversky's famous anchoring bias experiment exposed a permanent glitch in human judgment.",
         "Before estimating a number, your brain grabs the very first figure it sees as a starting anchor.",
         "Even when subjects knew the wheel was random, high anchors pulled their estimates up by eighty percent.",
         "In courtroom trials, experienced judges given a high random dice roll handed out sentences eight months longer.",
@@ -290,7 +290,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     "zeigarnik-unfinished-loop-memory": [
         "Waiters in nineteen twenties Vienna could memorize twelve complex table orders without writing a word.",
         "Yet the second the bill was paid, their brains deleted the entire order instantly.",
-        "This Zeigarnik effect unfinished task psychology explains why open loops hijack human working memory.",
+        "Psychologists call it the Zeigarnik effect: unfinished tasks hijack your working memory far more than finished ones.",
         "Psychologist Bluma Zeigarnik proved that interrupted tasks are remembered ninety percent better than completed ones.",
         "An unfinished task creates cognitive tension that keeps a background thread running in your brain.",
         "The moment the task closes, your mind purges the buffer to save energy.",
@@ -301,7 +301,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "neutron-star-teaspoon-weight-scale": [
         "Scoop up one single teaspoon of a neutron star and it weighs one billion metric tons.",
-        "This neutron star teaspoon weight comparison is the closest matter gets to a black hole.",
+        "That insane neutron star weight is the closest physical matter ever gets to a black hole.",
         "When a giant star explodes, gravity crushes a core heavier than our Sun into a sphere twenty kilometers wide.",
         "An entire solar mass packs inside the footprint of a single city.",
         "Atoms normally consist of ninety nine point nine nine nine percent empty space between nucleus and electrons.",
@@ -313,7 +313,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "human-dna-length-to-pluto-scale": [
         "Every microscopic cell in your body holds two full meters of tightly coiled genetic code.",
-        "When you calculate human body DNA length solar system scale, the math becomes astronomical.",
+        "Unwind all the DNA inside a human body and its length dwarfs the entire solar system.",
         "A single cell nucleus is just six micrometers wide, thinner than a spider silk strand.",
         "Inside that tiny sphere, two meters of DNA folds without tangling using molecular spool proteins.",
         "Now multiply those two meters across all thirty seven trillion cells in an adult human body.",
@@ -325,7 +325,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
     ],
     "earth-moon-gap-fits-all-planets": [
         "Every single school textbook drawing of the Earth and Moon lied to your eyes about scale.",
-        "In reality, all planets fit between earth and moon with four thousand kilometers to spare.",
+        "Every planet in our solar system fits right between the Earth and the Moon with room to spare.",
         "Look at the actual numbers: average lunar distance measures three hundred and eighty four thousand four hundred kilometers.",
         "Now line up Mercury, Venus, Mars, Jupiter, Saturn, Uranus, and Neptune edge to edge in space.",
         "Even with Jupiter's massive one hundred and thirty nine thousand kilometer equator, the sum is three hundred and eighty thousand kilometers.",
@@ -336,8 +336,8 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "Space is so much emptier than our drawings allow us to picture, which is why—",
     ],
     "point-nemo-closest-humans-in-space": [
-        "There is a coordinate in the South Pacific where the closest human beings to you are astronauts in orbit.",
-        "At Point Nemo closest humans ISS space station passes just four hundred and eight kilometers overhead.",
+        "There is a spot in the South Pacific where the closest humans to you are astronauts in orbit.",
+        "Above Point Nemo, the ISS space station passes just four hundred and eight kilometers overhead.",
         "Meanwhile, the nearest inhabited island on Earth sits two thousand six hundred and eighty eight kilometers away.",
         "You are literally six times closer to astronauts in space than to anyone walking on dry land.",
         "Ocean currents rotating around this zone block nutrient flow, creating an underwater biological desert.",
@@ -544,7 +544,7 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
         shorts_beats = [
             {
                 "narration": "One million seconds is just eleven and a half days.",
-                "visual_type": "data_plate",
+                "visual_type": "photo_grade",
                 "plate_mode": "comparison_bars",
                 "plate_data": {
                     "title": "THE TIME SCALE SHOCK",
@@ -776,14 +776,13 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
             # Tight 9-beat (~98 words) viral pacing for Shorts; keep full 16 beats for Long-form
             shorts_beats = [shorts_beats[i] for i in (0, 1, 2, 6, 7, 8, 12, 13, 15)]
     elif base_tid in TOPIC_STORY_ARCS:
-        # Build V2 viral retention beats: 8 ultra-tight beats (~29-34s) for Shorts, full arc for Long-form
+        # Build V5 viral retention beats: 6 ultra-tight beats (~22-27s, 72-94w) for Shorts, full arc for Long-form
         full_lines = TOPIC_STORY_ARCS[base_tid]
-        if fmt == "shorts" and len(full_lines) > 8:
+        if fmt == "shorts" and len(full_lines) > 6:
             mid = full_lines[2:-2]
             pick_indices = [
                 0,
-                max(1, len(mid) // 3),
-                max(2, (2 * len(mid)) // 3),
+                max(1, (len(mid) - 1) // 2),
                 len(mid) - 1,
             ]
             # Deduplicate while preserving narrative order
@@ -791,7 +790,7 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
             for pi in pick_indices:
                 if 0 <= pi < len(mid) and mid[pi] not in chosen_mid:
                     chosen_mid.append(mid[pi])
-            lines = full_lines[:2] + chosen_mid[:4] + [full_lines[-2], full_lines[-1]]
+            lines = full_lines[:2] + chosen_mid[:2] + [full_lines[-2], full_lines[-1]]
         else:
             lines = list(full_lines)
 
@@ -799,10 +798,10 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
         debate = topic.get("debate_hook") or {}
         debate_q = debate.get(
             "question",
-            f"DID YOU EXPECT {f1['value']} vs {f0['value']}?",
+            f"WOULD YOU HAVE GUESSED {f0['value']}?",
         )
-        debate_a = debate.get("option_a", "HIGHER")
-        debate_b = debate.get("option_b", "LOWER")
+        debate_a = debate.get("option_a", "MIND BLOWN")
+        debate_b = debate.get("option_b", "ALREADY KNEW")
 
         def _units_comparable(fa: Dict[str, Any], fb: Dict[str, Any]) -> bool:
             ua = str(fa.get("unit", "")).strip().upper()
@@ -898,9 +897,11 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                     }
                 )
             else:
-                # Cinema-first visual pacing (~65% real moving HD B-roll + high-impact visual plates at Beats 0, 2, 4)
-                use_plate = idx in (0, 2, 4)
-                p_mode, p_data = plate_sequence[(idx // 2) % len(plate_sequence)]
+                # V5 Cinema-First Viral Pacing: Beat 0 ALWAYS opens on vivid full-bleed HD footage
+                # (clean scroll-stopper thumbnail cover), then whip-zooms into animated data plates on Beats 1 & 3!
+                use_plate = idx in (1, 3)
+                plate_slot = 0 if idx == 1 else 1
+                p_mode, p_data = plate_sequence[plate_slot % len(plate_sequence)]
                 shorts_beats.append(
                     {
                         "narration": line,
@@ -916,7 +917,7 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                     }
                 )
     else:
-        # Dynamic Wikipedia / Viewer-Requested documentary synthesizer (V4 native English + clean plates)
+        # Dynamic Wikipedia / Viewer-Requested documentary synthesizer (V5 native English + clean plates)
         f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
         raw_wiki = re.sub(r"\([^)]{1,80}\)", "", topic.get("wiki_summary", ""))
         raw_wiki = re.sub(r"\s{2,}", " ", raw_wiki).strip()
@@ -928,15 +929,12 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
         kw_title = str(topic.get("display_name") or topic["primary_keyword"])
         s0 = wiki_sentences[0] if len(wiki_sentences) > 0 else f"Real measurements around {kw_title} put the baseline right at {f0['value']}."
         s1 = wiki_sentences[1] if len(wiki_sentences) > 1 else f"When researchers zoom out, the verified scale reaches {f1['value']}."
-        s2 = wiki_sentences[2] if len(wiki_sentences) > 2 else f"That puts the real-world numbers far beyond everyday intuition."
         dyn_lines = [
-            f"Most people have heard of {kw_title}, but almost nobody pictures the real scale behind it.",
+            f"Almost nobody pictures the real scale behind {kw_title}.",
             s0,
             s1,
-            f"Put those verified numbers side by side: {f0['value']} against {f1['value']}.",
-            s2,
-            "Once you stack the real data like that, the whole story clicks into focus.",
-            "Did you already know this, or was it brand new? Tell us below, and drop the next wild topic you want broken down.",
+            f"Stack those numbers side by side: {f0['value']} against {f1['value']}.",
+            "Did you already know this, or was it brand new? Tell us below and drop the next topic you want broken down.",
         ]
         debate = topic.get("debate_hook") or {}
         debate_q = str(debate.get("question") or "MIND BLOWN OR ALREADY KNEW?").upper()[:54]
@@ -955,9 +953,9 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                 }
                 vtype = "data_plate"
             else:
-                use_plate = idx in (0, 3)
+                use_plate = idx in (1, 3)
                 vtype = "data_plate" if use_plate else "photo_grade"
-                if idx == 0:
+                if idx == 1:
                     p_mode = "metric_hero"
                     p_data = {
                         "title": _trim_at_word_boundary(kw_title.upper(), 28),
@@ -1102,23 +1100,12 @@ class ScriptEngine:
     def _apply_part2_continuity_hook(
         self, beats: List[Dict[str, Any]], topic: Dict[str, Any]
     ) -> None:
-        """Seamlessly prefix Beat 0 with a punchy continuity hook on breakout Part-2 sequels."""
-        if not topic.get("is_part2_followup") or not beats:
-            return
-        first_narr = str(beats[0].get("narration", "")).strip()
-        if not first_narr:
-            return
-        low = first_narr.lower()
-        if low.startswith("part two") or low.startswith("since you loved"):
-            return
-
-        seed = int(hashlib.md5(topic["topic_id"].encode("utf-8")).hexdigest()[:4], 16)
-        prefix, lowercase_next = PART2_CONTINUITY_HOOKS[seed % len(PART2_CONTINUITY_HOOKS)]
-        if lowercase_next:
-            first_word = re.match(r"^[A-Za-z]+", first_narr)
-            if first_word and first_word.group(0) not in PROPER_OPENING_WORDS:
-                first_narr = first_narr[0].lower() + first_narr[1:]
-        beats[0]["narration"] = f"{prefix}{first_narr}"
+        """Preserve cold-scroll standalone Beat 0 hook on Part-2 sequels (V5 swipe-rate fix)."""
+        if topic.get("is_part2_followup") and beats:
+            logger.debug(
+                "V5 standalone cold-scroll hook preserved for winning-pillar sequel %s",
+                topic.get("topic_id", ""),
+            )
 
     def _apply_viewer_request_hook(
         self, beats: List[Dict[str, Any]], topic: Dict[str, Any]
@@ -1308,12 +1295,6 @@ class ScriptEngine:
 
         if self.llm.is_available:
             system_prompt = load_prompt("retention_script.md")
-            part2_note = (
-                f"This is a Part-2 sequel following breakout hit '{topic.get('part2_reference_title', '')}'. "
-                "Open Beat 0 with a punchy 4-6 word Part-2 continuity hook.\n"
-                if topic.get("is_part2_followup")
-                else ""
-            )
             viewer_note = (
                 "This topic was suggested by a viewer in our comments. "
                 "Open Beat 0 cleanly with 'A viewer asked us to break this down.'\n"
@@ -1322,8 +1303,7 @@ class ScriptEngine:
             )
             user_prompt = (
                 f"Format: {fmt}\n"
-                f"Target beats: {'6 to 8 ultra-tight beats (STRICTLY 85-105 words total, ~28-35s)' if fmt == 'shorts' else '40 to 55 beats (~3 min)'}.\n"
-                f"{part2_note}"
+                f"Target beats: {'5 to 6 ultra-tight beats (STRICTLY 72-92 words total, ~22-27s, standalone cold-scroll hook — NEVER say Part 2)' if fmt == 'shorts' else '40 to 55 beats (~3 min)'}.\n"
                 f"{viewer_note}"
                 f"Primary keyword (MUST be spoken within first 15 seconds): {topic['primary_keyword']}\n"
                 f"Topic Blueprint:\n{json.dumps(topic, ensure_ascii=False)}"

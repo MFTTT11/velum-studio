@@ -118,13 +118,13 @@ async def _synthesize_edge_tts_async(
 
 
 def _clean_voice_with_silenceremove(raw_mp3: Path, clean_wav: Path) -> float:
-    """Apply tight FFmpeg silenceremove (zero-gap loop end) + studio vocal clarity EQ to 48kHz stereo WAV."""
+    """Apply tight FFmpeg silenceremove (0.00s instant hook + zero-gap loop) + studio vocal clarity EQ."""
     ffmpeg = get_ffmpeg_bin()
     af_chain = (
         "highpass=f=80,"
-        "silenceremove=start_periods=1:start_duration=0.02:start_threshold=-40dB:"
-        "stop_periods=-1:stop_duration=0.11:stop_threshold=-36dB,"
-        "areverse,silenceremove=start_periods=1:start_duration=0.02:start_threshold=-40dB,areverse,"
+        "silenceremove=start_periods=1:start_duration=0.015:start_threshold=-38dB:"
+        "stop_periods=-1:stop_duration=0.08:stop_threshold=-35dB,"
+        "areverse,silenceremove=start_periods=1:start_duration=0.015:start_threshold=-38dB,areverse,"
         "acompressor=threshold=-17dB:ratio=3.5:attack=6:release=95:makeup=2.8,"
         "equalizer=f=180:t=q:w=1.0:g=1.6,"
         "equalizer=f=3400:t=q:w=1.2:g=2.6,"
@@ -224,9 +224,9 @@ def _scale_fallback_words(
 def _align_beats_to_audio(
     beats: List[Dict[str, Any]], words: List[Dict[str, Any]], total_dur: float, fmt: str = "shorts"
 ) -> List[Dict[str, Any]]:
-    """Map script beats onto real spoken audio times and enforce tight viral visual rhythm."""
-    max_beat_sec = 2.08 if fmt == "shorts" else 2.48
-    split_divisor = 1.92 if fmt == "shorts" else 2.25
+    """Map script beats onto real spoken audio times and enforce tight V5 viral cut rhythm."""
+    max_beat_sec = 1.78 if fmt == "shorts" else 2.48
+    split_divisor = 1.64 if fmt == "shorts" else 2.25
     # Compute cumulative word counts per beat to anchor exact time spans
     beat_word_counts = [max(1, len(re.findall(r"\S+", b["narration"]))) for b in beats]
     total_script_words = sum(beat_word_counts)
@@ -283,41 +283,23 @@ def _align_beats_to_audio(
                 clone["start"] = s
                 clone["end"] = e
                 clone["duration"] = round(e - s, 3)
-                # Alternate motion & visual variety on sub-cut so frame never stays static or generic
+                # Alternate motion & visual variety on sub-cut so frame never stays static or shows truncated text
                 if p > 0:
                     clone["camera_motion"] = motions[(sub_idx + p) % len(motions)]
                     clone["sfx"] = "tick" if p % 2 == 1 else "whoosh"
                     # Preserve closing debate CTA card on the very last sub-piece
                     if is_final_beat and p == pieces - 1 and b.get("plate_mode") == "debate_cta_plate":
                         clone["visual_type"] = "data_plate"
-                    elif clone["visual_type"] == "data_plate":
-                        clone["visual_type"] = "photo_grade"
                     else:
-                        if not clone.get("plate_data"):
-                            raw_narr = clone.get("narration", "").strip()
-                            sub_words: List[str] = []
-                            for w_tok in raw_narr.split():
-                                if len(" ".join(sub_words + [w_tok])) <= 44:
-                                    sub_words.append(w_tok)
-                                else:
-                                    break
-                            clean_sub = " ".join(sub_words).rstrip(".,;:-—").upper()
-                            clean_title = clone.get("hud_tag", "LIVE TELEMETRY").replace("//", "·")
-                            clone["plate_mode"] = "metric_hero" if p % 2 == 1 else "radar_alert"
-                            clone["plate_data"] = {
-                                "title": clean_title,
-                                "hero_value": clone.get("hud_metric", "VERIFIED"),
-                                "metric": clone.get("hud_metric", "VERIFIED"),
-                                "subtitle": clean_sub,
-                                "severity": clone.get("hud_delta", "SIGNAL"),
-                                "accent": "amber" if sub_idx % 2 == 0 else "cyan",
-                            }
-                        clone["visual_type"] = "data_plate"
+                        # V5 Cinema-First: sub-cuts ALWAYS switch to vivid moving HD B-roll (zero truncated radar text!)
+                        clone["visual_type"] = "photo_grade"
+                        clone["plate_data"] = {}
                 rhythm_beats.append(clone)
 
-    # Keep Beat 1 as our high-contrast animated scroll-stopper data plate at 0.0s
-    if rhythm_beats and rhythm_beats[0]["visual_type"] != "data_plate" and rhythm_beats[0].get("plate_data"):
-        rhythm_beats[0]["visual_type"] = "data_plate"
+    # V5 Cinema-First Frame-0 Lock: Beat 0 ALWAYS opens on vivid full-bleed HD footage (photo_grade)
+    # so the V5 floating cover headline pops cleanly over real moving cinema with zero box clutter!
+    if rhythm_beats and fmt == "shorts":
+        rhythm_beats[0]["visual_type"] = "photo_grade"
 
     # Recompute monotonic HUD progress 0..1 across all visual beats
     n_total = max(len(rhythm_beats), 1)
@@ -337,7 +319,7 @@ def synthesize_voice_and_align(
     brand = load_brand_config()
     voice = brand.get("voices", {}).get(lang, "en-US-BrianMultilingualNeural")
     fmt = script.get("format", "shorts")
-    effective_rate = speech_rate or ("+16%" if fmt == "shorts" else "+10%")
+    effective_rate = speech_rate or ("+18%" if fmt == "shorts" else "+10%")
     narration_text = script["full_narration"]
 
     voice_dir = work_dir / "voice"

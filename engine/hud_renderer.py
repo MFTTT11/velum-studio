@@ -860,41 +860,43 @@ def render_hud_overlay(
     draw.rectangle([0, 0, prog_x, rail_h], fill=(*cyan, 245))
     draw.rectangle([max(0, prog_x - 36), 0, prog_x, rail_h], fill=(*amber, 255))
 
-    # --- 2. MINIMALIST FLOATING GLASS TELEMETRY PILLS (Zero clunky bar clutter!) ---
+    # --- 2. MINIMALIST FLOATING GLASS TELEMETRY PILLS (Hidden during 0.0-1.85s V5 Clean Cover Hook) ---
+    shock_active = bool(shock_hook_text) and (0.0 <= shock_progress <= 1.0)
     pad_x = 38 if is_vertical else 52
     pill_y = 30 if is_vertical else 24
     pill_h = 54 if is_vertical else 48
     mono_sm = get_font("mono", 24 if is_vertical else 21)
     bold_sm = get_font("headline", 29 if is_vertical else 25)
 
-    # Left glass pill: pulsing REC dot + beat tag
-    left_txt = hud_tag[:16]
-    lb = draw.textbbox((0, 0), left_txt, font=mono_sm)
-    lw = (lb[2] - lb[0]) + 68
-    draw.rounded_rectangle(
-        [pad_x, pill_y, pad_x + lw, pill_y + pill_h],
-        radius=14,
-        fill=(7, 10, 18, 175),
-        outline=(*cyan, 130),
-        width=2,
-    )
-    dot_alpha = 255 if int(time_sec * 3.5) % 2 == 0 else 110
-    draw.ellipse([pad_x + 18, pill_y + pill_h // 2 - 7, pad_x + 32, pill_y + pill_h // 2 + 7], fill=(*crimson, dot_alpha))
-    draw.text((pad_x + 44, pill_y + 13), left_txt, font=mono_sm, fill=(*white, 240))
+    if not shock_active:
+        # Left glass pill: pulsing REC dot + beat tag
+        left_txt = hud_tag[:16]
+        lb = draw.textbbox((0, 0), left_txt, font=mono_sm)
+        lw = (lb[2] - lb[0]) + 68
+        draw.rounded_rectangle(
+            [pad_x, pill_y, pad_x + lw, pill_y + pill_h],
+            radius=14,
+            fill=(7, 10, 18, 175),
+            outline=(*cyan, 130),
+            width=2,
+        )
+        dot_alpha = 255 if int(time_sec * 3.5) % 2 == 0 else 110
+        draw.ellipse([pad_x + 18, pill_y + pill_h // 2 - 7, pad_x + 32, pill_y + pill_h // 2 + 7], fill=(*crimson, dot_alpha))
+        draw.text((pad_x + 44, pill_y + 13), left_txt, font=mono_sm, fill=(*white, 240))
 
-    # Right glass pill: live highlighted metric
-    right_txt = hud_metric[:18]
-    rb = draw.textbbox((0, 0), right_txt, font=bold_sm)
-    rw = (rb[2] - rb[0]) + 40
-    rx0 = w - pad_x - rw
-    draw.rounded_rectangle(
-        [rx0, pill_y, w - pad_x, pill_y + pill_h],
-        radius=14,
-        fill=(7, 10, 18, 185),
-        outline=(*amber, 165),
-        width=2,
-    )
-    draw.text((rx0 + 20, pill_y + 10), right_txt, font=bold_sm, fill=(*amber, 255))
+        # Right glass pill: live highlighted metric
+        right_txt = hud_metric[:18]
+        rb = draw.textbbox((0, 0), right_txt, font=bold_sm)
+        rw = (rb[2] - rb[0]) + 40
+        rx0 = w - pad_x - rw
+        draw.rounded_rectangle(
+            [rx0, pill_y, w - pad_x, pill_y + pill_h],
+            radius=14,
+            fill=(7, 10, 18, 185),
+            outline=(*amber, 165),
+            width=2,
+        )
+        draw.text((rx0 + 20, pill_y + 10), right_txt, font=bold_sm, fill=(*amber, 255))
 
     # --- 3. SUBTLE BRAND WATERMARK (Tucked cleanly outside Shorts UI buttons & captions) ---
     wm_size = 62 if is_vertical else 72
@@ -905,13 +907,10 @@ def render_hud_overlay(
         hud.alpha_composite(wm, dest=(wm_x, wm_y))
         draw.text((wm_x + wm_size + 12, wm_y + 18), "VELUM", font=mono_sm, fill=(*white, 155))
 
-    # --- 4. 0.0-2.1s FRAME-0 SCROLL-STOPPER HOOK (Crisp, non-overlapping impact slab) ---
-    shock_active = bool(shock_hook_text) and (0.0 <= shock_progress <= 1.0)
+    # --- 4. V5 FULL-BLEED CINEMA SCROLL-STOPPER HOOK COVER (0.0-1.85s, instant Frame-0 punch!) ---
     if shock_active:
-        if shock_progress < 0.14:
-            alpha_mult = ease_out_cubic(shock_progress / 0.14)
-        elif shock_progress > 0.85:
-            alpha_mult = max(0.0, 1.0 - (shock_progress - 0.85) / 0.15)
+        if shock_progress > 0.84:
+            alpha_mult = max(0.0, 1.0 - (shock_progress - 0.84) / 0.16)
         else:
             alpha_mult = 1.0
 
@@ -919,66 +918,90 @@ def render_hud_overlay(
             hook_layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
             hdraw = ImageDraw.Draw(hook_layer)
 
-            banner_y = 108 if is_vertical else 92
-            banner_h = 178 if is_vertical else 164
-            bx0, bx1 = (44, w - 44) if is_vertical else (200, w - 200)
+            # Pixel-smooth top cinema gradient scrim (zero horizontal banding lines!)
+            scrim_h = int(h * (0.42 if is_vertical else 0.36))
+            grad_y = np.linspace(1.0, 0.0, scrim_h, dtype=np.float32) ** 1.45
+            scrim_alpha = np.clip(np.rint(grad_y * 210.0 * alpha_mult), 0, 255).astype(np.uint8)
+            scrim_arr = np.zeros((scrim_h, w, 4), dtype=np.uint8)
+            scrim_arr[:, :, 0] = 5
+            scrim_arr[:, :, 1] = 8
+            scrim_arr[:, :, 2] = 16
+            scrim_arr[:, :, 3] = scrim_alpha[:, None]
+            hook_layer.alpha_composite(Image.fromarray(scrim_arr, mode="RGBA"), dest=(0, 0))
 
-            hdraw.rounded_rectangle(
-                [bx0, banner_y, bx1, banner_y + banner_h],
-                radius=20,
-                fill=(9, 12, 22, int(238 * alpha_mult)),
-                outline=(*crimson, int(255 * alpha_mult)),
-                width=4,
+            # Subtle live rolling shock number during first 0.55s (100% locked at Frame 0 thumbnail? Keep full value at Frame 0, subtle glow pulse!)
+            htext = (
+                shock_hook_text.upper()
+                if shock_progress < 0.04
+                else _interpolate_metric_text(shock_hook_text.upper(), min(1.0, shock_progress * 2.6))
             )
-            hdraw.rectangle(
-                [bx0 + 4, banner_y + 4, bx1 - 4, banner_y + 14],
-                fill=(*amber, int(255 * alpha_mult)),
-            )
-
-            htext = shock_hook_text.upper()
+            max_tw = w - (96 if is_vertical else 280)
             hook_font = fit_font(
                 hdraw,
                 htext,
                 "headline",
-                max_size=82 if is_vertical else 86,
-                max_width=(bx1 - bx0 - 52),
-                min_size=40,
-            )
-            sub_str = f"[ {(shock_hook_sub or '').upper()} ]"
-            sub_font = fit_font(
-                hdraw,
-                sub_str,
-                "mono",
-                max_size=26 if is_vertical else 24,
-                max_width=(bx1 - bx0 - 52),
-                min_size=18,
+                max_size=108 if is_vertical else 98,
+                max_width=max_tw,
+                min_size=46,
             )
 
-            _draw_centered_text(
+            # Crisp obsidian drop-shadow + luminous Signal Amber viral cover headline
+            title_y = 185 if is_vertical else 118
+            for ox, oy in ((0, 7), (4, 5), (-4, 5), (0, -3)):
+                _draw_centered_text(
+                    hdraw,
+                    htext,
+                    w // 2 + ox,
+                    title_y + oy,
+                    hook_font,
+                    (4, 6, 12, int(235 * alpha_mult)),
+                    max_width=max_tw,
+                )
+            title_bottom = _draw_centered_text(
                 hdraw,
                 htext,
                 w // 2,
-                banner_y + 28,
+                title_y,
                 hook_font,
                 (*amber, int(255 * alpha_mult)),
-                max_width=(bx1 - bx0 - 44),
+                max_width=max_tw,
             )
+
+            # Sleek floating accent pill right below headline (clean poster typography, zero big red boxes)
             if shock_hook_sub:
-                _draw_centered_text(
+                sub_str = shock_hook_sub.upper().strip("[] ")
+                sub_font = fit_font(
                     hdraw,
                     sub_str,
-                    w // 2,
-                    banner_y + banner_h - 46,
-                    sub_font,
-                    (*white, int(242 * alpha_mult)),
-                    max_width=(bx1 - bx0 - 52),
+                    "mono",
+                    max_size=28 if is_vertical else 24,
+                    max_width=max_tw - 48,
+                    min_size=18,
                 )
+                sb = hdraw.textbbox((0, 0), sub_str, font=sub_font)
+                sw = (sb[2] - sb[0]) + 56
+                sh = (sb[3] - sb[1]) + 24
+                pill_top = title_bottom + 24
+                hdraw.rounded_rectangle(
+                    [w // 2 - sw // 2, pill_top, w // 2 + sw // 2, pill_top + sh],
+                    radius=sh // 2,
+                    fill=(7, 11, 22, int(218 * alpha_mult)),
+                    outline=(*cyan, int(235 * alpha_mult)),
+                    width=3,
+                )
+                hdraw.text(
+                    (w // 2 - (sb[2] - sb[0]) // 2, pill_top + 10 - sb[1]),
+                    sub_str,
+                    font=sub_font,
+                    fill=(*white, int(250 * alpha_mult)),
+                )
+
             hud.alpha_composite(hook_layer)
 
     # --- 5. OPEN-LOOP RETENTION TEASE BADGE (Vertical Shorts only, y=96..144 safe band) ---
     # Strictly positioned below top pills (y=30..84), above focal card (y=310..1265),
     # above captions (y=1340..1440), and never active during the 0-2.1s Shock Hook.
-    if is_vertical and not shock_active and time_sec > 2.2 and (0.12 <= global_progress < 0.90):
+    if is_vertical and not shock_active and time_sec > 1.9 and (0.10 <= global_progress < 0.90):
         tease_y = 96
         if global_progress <= 0.72:
             fade = ease_out_cubic((global_progress - 0.12) / 0.04) if global_progress < 0.16 else 1.0

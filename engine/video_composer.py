@@ -288,8 +288,8 @@ def build_kinetic_ass_subtitles(
         font_name = "Arial"
     else:
         font_name = "DejaVu Sans"
-    font_size = 84 if is_vertical else 68
-    margin_v = 485 if is_vertical else 78
+    font_size = 88 if is_vertical else 68
+    margin_v = 470 if is_vertical else 78
     margin_lr = 58 if is_vertical else 120
 
     header = f"""[Script Info]
@@ -301,7 +301,7 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Kinetic,{font_name},{font_size},&H00FAF7F4,&H0000B8FF,&H0007090F,&HA507090F,-1,0,0,0,100,100,1.2,0,1,7,4,2,{margin_lr},{margin_lr},{margin_v},1
+Style: Kinetic,{font_name},{font_size},&H00FAF7F4,&H0000B8FF,&H0007090F,&HA507090F,-1,0,0,0,100,100,1.2,0,1,8,4,2,{margin_lr},{margin_lr},{margin_v},1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -625,7 +625,7 @@ def compose_cinematic_video(
     total_frames = max(1, int(round(total_dur * fps)))
     hook_text = script["hook_stat_text"]
     hook_sub = script.get("hook_subtext", "VELUM ARCHIVE TELEMETRY")
-    hook_window = 2.1
+    hook_window = 1.85
 
     beat_cursor = 0
     active_beat_idx = -1
@@ -677,15 +677,10 @@ def compose_cinematic_video(
                 )
             else:
                 plates = vis["frames"]
-                # Smooth continuous interpolation across all 28 living keyframes over 100% of beat
+                # Crisp nearest keyframe lookup prevents double-exposed ghosting on rolling numeric counters
                 f_pos = local_t * (len(plates) - 1)
-                i0 = min(len(plates) - 1, int(math.floor(f_pos)))
-                i1 = min(len(plates) - 1, i0 + 1)
-                frac = f_pos - i0
-                if i0 == i1 or frac < 0.02:
-                    base_plate = plates[i0]
-                else:
-                    base_plate = cv2.addWeighted(plates[i0], 1.0 - frac, plates[i1], frac, 0.0)
+                idx_nearest = min(len(plates) - 1, int(round(f_pos)))
+                base_plate = plates[idx_nearest]
                 # Smooth 1.00 -> 1.04 continuous camera push so every pixel breathes at 60fps
                 scale = 1.0 + 0.04 * local_t
                 tx = (w * (1.0 - scale)) * 0.5
@@ -761,10 +756,12 @@ def compose_cinematic_video(
             "unsharp=5:5:0.70:5:5:0.0,"
             "eq=contrast=1.05:saturation=1.12"
         )
-        crf_val = "16"
+        crf_val = "18"
+        bitrate_guard = ["-maxrate", "45M", "-bufsize", "90M", "-threads", "4"]
     else:
         vf_filter = f"ass={ass_path.name},unsharp=3:3:0.45:3:3:0.0,eq=contrast=1.04:saturation=1.08"
-        crf_val = "16"
+        crf_val = "17"
+        bitrate_guard = ["-maxrate", "25M", "-bufsize", "50M", "-threads", "4"]
 
     final_cmd = [
         ffmpeg,
@@ -781,6 +778,7 @@ def compose_cinematic_video(
         "fast",
         "-crf",
         crf_val,
+        *bitrate_guard,
         "-profile:v",
         "high",
         "-pix_fmt",

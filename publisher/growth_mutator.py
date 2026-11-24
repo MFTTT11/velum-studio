@@ -52,9 +52,11 @@ BREAKOUT_MIN_VIEWS = 1000
 BREAKOUT_FAST_VIEWS = 250
 BREAKOUT_FAST_VPH = 80.0
 
+FAST_RESCUE_MIN_AGE_HOURS = 4.0
+FAST_RESCUE_MAX_VIEWS = 250
 TITLE_RESCUE_MIN_AGE_HOURS = 8.0
 TITLE_RESCUE_MAX_VIEWS = 950
-TITLE_RESCUE_COOLDOWN_HOURS = 10.0
+TITLE_RESCUE_COOLDOWN_HOURS = 8.0
 
 
 def _parse_utc_ts(raw_ts: Optional[str]) -> Optional[datetime]:
@@ -323,18 +325,21 @@ def _should_trigger_18h_title_rescue(
     titles: List[str],
     hours_since_last_mut: float,
 ) -> bool:
-    """Evaluate 18h/36h A/B Title Rescue eligibility with strict cooldown safety."""
+    """Evaluate V5 Fast 4h (<250v) & Standard 8h/16h (<950v) A/B Title Rescue with cooldown safety."""
     if not video_row.get("youtube_id"):
         return False
     cur_var = int(video_row.get("active_variant", 0))
     if cur_var >= len(titles) - 1:
         return False
+    if hours_since_last_mut < TITLE_RESCUE_COOLDOWN_HOURS:
+        return False
+    # Fast 4-hour rescue on fresh stalled uploads (Variant A -> B while still inside fresh feed push!)
+    if cur_var == 0 and age_hours >= FAST_RESCUE_MIN_AGE_HOURS and views < FAST_RESCUE_MAX_VIEWS:
+        return True
     if views >= TITLE_RESCUE_MAX_VIEWS:
         return False
     required_age = TITLE_RESCUE_MIN_AGE_HOURS * (cur_var + 1)
     if age_hours < required_age:
-        return False
-    if hours_since_last_mut < TITLE_RESCUE_COOLDOWN_HOURS:
         return False
     return True
 
