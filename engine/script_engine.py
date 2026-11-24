@@ -916,25 +916,32 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                     }
                 )
     else:
-        # Dynamic Wikipedia anomaly synthesizer fallback (tight 8-beat V2 viral structure)
+        # Dynamic Wikipedia / Viewer-Requested documentary synthesizer (V4 native English + clean plates)
         f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
+        raw_wiki = re.sub(r"\([^)]{1,80}\)", "", topic.get("wiki_summary", ""))
+        raw_wiki = re.sub(r"\s{2,}", " ", raw_wiki).strip()
         wiki_sentences = [
             s.strip()
-            for s in re.split(r"(?<=[.!?])\s+", topic.get("wiki_summary", ""))
-            if len(s.strip()) > 25
+            for s in re.split(r"(?<=[.!?])\s+", raw_wiki)
+            if 28 <= len(s.strip()) <= 165
         ]
-        s0 = wiki_sentences[0] if len(wiki_sentences) > 0 else f"The verified benchmark hits {f1['value']}."
-        s1 = wiki_sentences[1] if len(wiki_sentences) > 1 else f"At full scale, {f2['label'].lower()} reaches {f2['value']}."
+        kw_title = str(topic.get("display_name") or topic["primary_keyword"])
+        s0 = wiki_sentences[0] if len(wiki_sentences) > 0 else f"Real measurements around {kw_title} put the baseline right at {f0['value']}."
+        s1 = wiki_sentences[1] if len(wiki_sentences) > 1 else f"When researchers zoom out, the verified scale reaches {f1['value']}."
+        s2 = wiki_sentences[2] if len(wiki_sentences) > 2 else f"That puts the real-world numbers far beyond everyday intuition."
         dyn_lines = [
-            f"One verified number breaks everything you assumed about {topic['primary_keyword']}: {f0['value']}.",
+            f"Most people have heard of {kw_title}, but almost nobody pictures the real scale behind it.",
             s0,
-            f"Zoom out to {f1['label'].lower()} and the figure explodes to {f1['value']}.",
             s1,
-            f"Put that directly beside {f2['label'].lower()} at {f2['value']}.",
-            f"At the extreme edge, {f3['label'].lower()} reaches {f3['value']}.",
-            "Human intuition flattens massive leaps until you stack the raw scale side by side.",
-            "Did you expect that number to be higher or lower? Drop your call below before realizing—",
+            f"Put those verified numbers side by side: {f0['value']} against {f1['value']}.",
+            s2,
+            "Once you stack the real data like that, the whole story clicks into focus.",
+            "Did you already know this, or was it brand new? Tell us below, and drop the next wild topic you want broken down.",
         ]
+        debate = topic.get("debate_hook") or {}
+        debate_q = str(debate.get("question") or "MIND BLOWN OR ALREADY KNEW?").upper()[:54]
+        debate_a = str(debate.get("option_a") or "MIND BLOWN").upper()[:20]
+        debate_b = str(debate.get("option_b") or "ALREADY KNEW").upper()[:20]
         shorts_beats = []
         for idx, line in enumerate(dyn_lines):
             is_last = idx == len(dyn_lines) - 1
@@ -942,26 +949,33 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
             if is_last:
                 p_mode = "debate_cta_plate"
                 p_data = {
-                    "question": f"HIGHER OR LOWER THAN YOU EXPECTED?",
-                    "option_a": "HIGHER",
-                    "option_b": "LOWER",
+                    "question": debate_q,
+                    "option_a": debate_a,
+                    "option_b": debate_b,
                 }
                 vtype = "data_plate"
             else:
-                vtype = "data_plate" if idx % 2 == 0 else "photo_grade"
-                p_mode = "split_vs_clash" if idx == 0 else ("visual_scale_blocks" if idx == 2 else "comparison_bars")
-                p_data = {
-                    "title": _trim_at_word_boundary(fact_ref["label"], 26),
-                    "hero_value": fact_ref["value"],
-                    "left_label": _trim_at_word_boundary(f0["label"], 24),
-                    "left_value": 10.0,
-                    "left_display": f0["value"],
-                    "right_label": _trim_at_word_boundary(f1["label"], 24),
-                    "right_value": 100.0,
-                    "right_display": f1["value"],
-                    "ratio_badge": _trim_at_word_boundary(topic["shock_hook_stat"], 32),
-                    "accent": "amber" if idx % 2 == 0 else "cyan",
-                }
+                use_plate = idx in (0, 3)
+                vtype = "data_plate" if use_plate else "photo_grade"
+                if idx == 0:
+                    p_mode = "metric_hero"
+                    p_data = {
+                        "title": _trim_at_word_boundary(kw_title.upper(), 28),
+                        "hero_value": _trim_at_word_boundary(topic["shock_hook_stat"], 24),
+                        "subtitle": _trim_at_word_boundary(topic.get("hook_subtext", "VERIFIED SCALE"), 40),
+                        "accent": "amber",
+                    }
+                else:
+                    p_mode = "dual_fact_spotlight"
+                    p_data = {
+                        "title": _trim_at_word_boundary(f"{kw_title.upper()} // SCALE", 30),
+                        "left_label": _trim_at_word_boundary(f0["label"], 22),
+                        "left_display": f0["value"],
+                        "right_label": _trim_at_word_boundary(f1["label"], 22),
+                        "right_display": f1["value"],
+                        "ratio_badge": "VERIFIED TELEMETRY",
+                        "accent": "cyan",
+                    }
             shorts_beats.append(
                 {
                     "narration": line,
@@ -972,7 +986,7 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                     "hud_tag": f"VELUM · {idx + 1:02d}",
                     "hud_metric": fact_ref["value"],
                     "hud_delta": _trim_at_word_boundary(fact_ref["label"], 22),
-                    "sfx": "sub_boom" if idx == 0 else ("sonar" if is_last else ("whoosh" if idx % 2 == 0 else "tick")),
+                    "sfx": "sub_boom" if idx == 0 else ("sonar" if is_last else ("whoosh" if idx == 3 else "tick")),
                     "camera_motion": ["zoom_in", "pan_right", "zoom_out", "pan_left"][idx % 4],
                 }
             )
@@ -1105,6 +1119,20 @@ class ScriptEngine:
             if first_word and first_word.group(0) not in PROPER_OPENING_WORDS:
                 first_narr = first_narr[0].lower() + first_narr[1:]
         beats[0]["narration"] = f"{prefix}{first_narr}"
+
+    def _apply_viewer_request_hook(
+        self, beats: List[Dict[str, Any]], topic: Dict[str, Any]
+    ) -> None:
+        """Credit viewers naturally at Beat 0 when producing a harvested viewer-requested topic."""
+        if not topic.get("is_viewer_requested") or not beats:
+            return
+        first_narr = str(beats[0].get("narration", "")).strip()
+        if not first_narr:
+            return
+        low = first_narr.lower()
+        if low.startswith("a viewer asked") or low.startswith("one of you asked"):
+            return
+        beats[0]["narration"] = f"A viewer asked us to break this down. {first_narr}"
 
     @staticmethod
     def _count_words(beats: List[Dict[str, Any]]) -> int:
@@ -1286,10 +1314,17 @@ class ScriptEngine:
                 if topic.get("is_part2_followup")
                 else ""
             )
+            viewer_note = (
+                "This topic was suggested by a viewer in our comments. "
+                "Open Beat 0 cleanly with 'A viewer asked us to break this down.'\n"
+                if topic.get("is_viewer_requested")
+                else ""
+            )
             user_prompt = (
                 f"Format: {fmt}\n"
                 f"Target beats: {'6 to 8 ultra-tight beats (STRICTLY 85-105 words total, ~28-35s)' if fmt == 'shorts' else '40 to 55 beats (~3 min)'}.\n"
                 f"{part2_note}"
+                f"{viewer_note}"
                 f"Primary keyword (MUST be spoken within first 15 seconds): {topic['primary_keyword']}\n"
                 f"Topic Blueprint:\n{json.dumps(topic, ensure_ascii=False)}"
             )
@@ -1329,7 +1364,8 @@ class ScriptEngine:
                 }
             )
 
-        # Seamlessly add Part-2 continuity hook before enforcing word budget so count never bloats
+        # Seamlessly add Viewer-Request or Part-2 continuity hook before enforcing word budget so count never bloats
+        self._apply_viewer_request_hook(normalized_beats, topic)
         self._apply_part2_continuity_hook(normalized_beats, topic)
 
         if fmt == "shorts":
@@ -1353,6 +1389,7 @@ class ScriptEngine:
             "hook_stat_text": topic["shock_hook_stat"],
             "hook_subtext": topic.get("hook_subtext", "VELUM ARCHIVE TELEMETRY"),
             "is_part2_followup": bool(topic.get("is_part2_followup", False)),
+            "is_viewer_requested": bool(topic.get("is_viewer_requested", False)),
             "part2_reference_title": str(topic.get("part2_reference_title", "")),
             "vseo_verified_under_15s": vseo_ok,
             "full_narration": full_narration,
@@ -1360,12 +1397,13 @@ class ScriptEngine:
             "beats": normalized_beats,
         }
         logger.info(
-            "Script generated: %s | format=%s | beats=%d | words=%d | part2=%s | VSEO<15s=%s",
+            "Script generated: %s | format=%s | beats=%d | words=%d | part2=%s | viewer=%s | VSEO<15s=%s",
             topic["topic_id"],
             fmt,
             len(normalized_beats),
             script_payload["word_count"],
             script_payload["is_part2_followup"],
+            script_payload["is_viewer_requested"],
             vseo_ok,
         )
         return script_payload

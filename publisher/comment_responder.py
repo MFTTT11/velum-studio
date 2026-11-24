@@ -21,7 +21,9 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
+from urllib.parse import quote
 
+import requests
 from langdetect import DetectorFactory, detect
 
 from core.config import (
@@ -34,6 +36,42 @@ from core.llm_client import ZeroCostLLMClient
 from core.state_db import StateDB, utc_now_iso
 from engine.idea_engine import CURATED_BLUEPRINTS
 from publisher.youtube_uploader import build_youtube_service
+
+WIKI_HARVEST_UA = "VelumBroadcastEngine/4.2 (https://github.com/MFTTT11/velum-studio; educational)"
+VIEWER_IDEAS_MAX_QUEUE = 10
+
+IDEA_REQUEST_PATTERNS = [
+    re.compile(r"(?:next\s+video|topic\s+idea|video\s+idea|suggestion|idea|s[ıi]radaki|öneri)\s*[:\-]\s*([A-Za-zÀ-ÿğüşöçıİĞÜŞÖÇ0-9\s,'\-]{4,70}?)(?:[.!?]|$)", re.IGNORECASE),
+    re.compile(r"(?:make\s+a\s+video\s+(?:about|on)|do\s+(?:a\s+video\s+(?:about|on)\s+)?|explain|break\s+down|cover|talk\s+about)\s+([A-Za-z0-9\s,'\-]{4,70}?)(?:\s+next|\s+please|\s+pls|[.!?]|$)", re.IGNORECASE),
+    re.compile(r"(?:you\s+should\s+(?:do|cover|explain|try)|can\s+you\s+(?:do|explain|cover))\s+([A-Za-z0-9\s,'\-]{4,70}?)(?:\s+next|\s+please|\s+pls|[.!?]|$)", re.IGNORECASE),
+    re.compile(r"(?:what\s+(?:if|about)|how\s+(?:does|do|much|fast|deep|long|big)|why\s+(?:does|do|is|are|can'?t))\s+([A-Za-z0-9\s,'\-]{5,75}?)(?:[.!?]|$)", re.IGNORECASE),
+    re.compile(r"([A-Za-zÀ-ÿğüşöçıİĞÜŞÖÇ0-9\s,'\-]{4,65}?)\s+(?:hakkında\s+video|anlat(?:ır\s*mısın|sana|ın)?|konusunu\s+işle|videosu\s+yap)", re.IGNORECASE),
+    re.compile(r"(?:peki|acaba)\s+([A-Za-zÀ-ÿğüşöçıİĞÜŞÖÇ0-9\s,'\-]{5,70}?)(?:\s+ne\s+olur|\s+nasıl|\s+neden|[.!?]|$)", re.IGNORECASE),
+]
+
+NON_IDEA_NOISE = {
+    "this", "that", "it", "more", "next", "part 2", "part two", "video", "short", "shorts",
+    "this video", "something", "anything", "everything", "nothing", "true", "false", "fake",
+    "real", "good", "great", "nice", "cool", "wow", "lol", "bro", "first", "yes", "no",
+    "amazing", "awesome", "incredible", "interesting", "fascinating", "thanks", "thank",
+    "please", "really", "actually", "literally", "someone", "everyone", "people", "watching",
+    "channel", "subscribe", "subscribed", "comment", "comments", "explain", "better", "crazy",
+    "insane", "unreal", "wild", "mind", "blown", "awesome", "fantastic", "perfect",
+    "bunu", "şunu", "böyle", "devam", "harika", "süper", "efsane", "muhteşem", "teşekkür",
+    "teşekkürler", "gerçekten", "inanılmaz", "izledim", "abone", "güzel", "müthiş",
+}
+
+LEADING_IDEA_FILLERS = re.compile(
+    r"^(?:abi|hocam|kanka|lütfen|bir\s+de|bence|acaba|peki|hey|yo|bro|please|pls|the|a|an)\s+",
+    re.IGNORECASE,
+)
+
+PILLAR_KEYWORDS = {
+    "money_scale": ("money", "dollar", "billion", "trillion", "gold", "bank", "debt", "economy", "wealth", "tax", "market", "inflation", "bitcoin", "crypto", "stock", "currency", "price", "cost", "rich", "coin"),
+    "hidden_tech": ("internet", "cable", "satellite", "chip", "processor", "airplane", "plane", "rocket", "engine", "battery", "grid", "nuclear", "submarine", "ship", "bridge", "tunnel", "skyscraper", "computer", "ai", "algorithm", "radar", "gps", "laser", "reactor"),
+    "mind_glitches": ("brain", "psychology", "bias", "illusion", "memory", "dopamine", "casino", "sleep", "dream", "fear", "habit", "attention", "decision", "perception", "placebo", "effect", "paradox", "trapped", "addiction"),
+    "science_anomalies": ("space", "planet", "star", "black hole", "sun", "moon", "mars", "venus", "jupiter", "earth", "ocean", "trench", "volcano", "radiation", "quantum", "atom", "gravity", "speed", "light", "pressure", "temperature", "ice", "earthquake", "tsunami", "virus", "dna", "human body"),
+}
 
 DetectorFactory.seed = 42
 logger = get_logger("comment_responder")
@@ -651,6 +689,257 @@ def _native_multilang_reply(
     return _sanitize_human_reply(picked)
 
 
+def _translate_to_english_free(text: str, source_lang: str = "auto") -> str:
+    """Zero-key translation from any viewer language into English for Wikipedia verification."""
+    sl = source_lang if source_lang and source_lang != "en" else "auto"
+    try:
+        resp = requests.get(
+            "https://translate.googleapis.com/translate_a/single",
+            params={"client": "gtx", "sl": sl, "tl": "en", "dt": "t", "q": text},
+            timeout=7,
+        )
+        if resp.status_code == 200:
+            payload = resp.json()
+            translated = "".join(seg[0] for seg in payload[0] if seg and seg[0]).strip()
+            if translated:
+                return translated
+    except Exception as exc:
+        logger.debug("GTX to-English translation fallback (%s)", type(exc).__name__)
+    try:
+        mm_resp = requests.get(
+            "https://api.mymemory.translated.net/get",
+            params={"q": text[:200], "langpair": f"{sl if sl != 'auto' else 'tr'}|en"},
+            timeout=7,
+        )
+        if mm_resp.status_code == 200:
+            tr_txt = str(mm_resp.json().get("responseData", {}).get("translatedText", "")).strip()
+            if tr_txt:
+                return tr_txt
+    except Exception as exc:
+        logger.debug("MyMemory to-English translation fallback (%s)", type(exc).__name__)
+    return text
+
+
+def _extract_viewer_idea_candidate(comment_text: str, lang: str) -> Optional[str]:
+    """Extract a clean, non-trivial topic concept from a viewer comment (None if junk/reaction)."""
+    cleaned = re.sub(r"@[A-Za-z0-9_.\-]+", "", comment_text or "").strip()
+    if len(cleaned) < 12 or len(cleaned) > 320:
+        return None
+    if is_spam_comment(cleaned):
+        return None
+
+    candidate = ""
+    for pat in IDEA_REQUEST_PATTERNS:
+        m = pat.search(cleaned)
+        if m:
+            candidate = m.group(1).strip(" .,!?;:\"'()-")
+            if len(candidate) >= 4:
+                break
+
+    if not candidate:
+        return None
+
+    # Strip leading informal greetings/fillers (e.g. "Abi ...", "Hey ...", "the ...")
+    for _ in range(3):
+        trimmed = LEADING_IDEA_FILLERS.sub("", candidate).strip(" .,!?;:\"'()-")
+        if trimmed == candidate:
+            break
+        candidate = trimmed
+
+    if len(candidate) < 4:
+        return None
+
+    # Translate non-English idea phrasing cleanly into English for Wikipedia verification
+    if lang != "en":
+        translated = _translate_to_english_free(candidate, source_lang=lang)
+        if translated:
+            candidate = translated
+
+    candidate = re.sub(r"[^A-Za-z0-9\s\-']", " ", candidate)
+    candidate = re.sub(r"\s{2,}", " ", candidate).strip()
+    for _ in range(2):
+        trimmed = LEADING_IDEA_FILLERS.sub("", candidate).strip()
+        if trimmed == candidate:
+            break
+        candidate = trimmed
+
+    words = [w for w in candidate.split() if len(w) >= 2]
+    if not words or len(words) > 10:
+        return None
+    if len(words) == 1 and len(words[0]) < 6:
+        return None
+    low_cand = " ".join(words).lower()
+    if low_cand in NON_IDEA_NOISE:
+        return None
+    meaningful = [w for w in words if w.lower() not in NON_IDEA_NOISE and len(w) >= 3]
+    if not meaningful:
+        return None
+    return " ".join(words[:7])
+
+
+def _infer_pillar_for_text(text: str) -> str:
+    low = text.lower()
+    best_pillar = "science_anomalies"
+    best_hits = 0
+    for pillar, kws in PILLAR_KEYWORDS.items():
+        hits = sum(1 for kw in kws if kw in low)
+        if hits > best_hits:
+            best_hits = hits
+            best_pillar = pillar
+    return best_pillar
+
+
+def evaluate_and_harvest_viewer_idea(
+    comment_text: str,
+    lang: str,
+    state_db: StateDB,
+    current_topic_ctx: Optional[Dict[str, Any]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Evaluate a viewer comment for a novel, verifiable video topic; ignore junk, queue real gems."""
+    phrase = _extract_viewer_idea_candidate(comment_text, lang)
+    if not phrase:
+        return None
+
+    # Deduplicate against current video, curated library, produced topics, and existing viewer queue
+    used_ids = set(state_db.get_used_topic_ids())
+    raw_q = state_db.get_meta("viewer_ideas_queue_json")
+    try:
+        queue: List[Dict[str, Any]] = json.loads(raw_q) if raw_q else []
+        if not isinstance(queue, list):
+            queue = []
+    except json.JSONDecodeError:
+        queue = []
+
+    if len(queue) >= VIEWER_IDEAS_MAX_QUEUE:
+        return None
+
+    phrase_tokens = {t for t in re.findall(r"[a-z0-9]+", phrase.lower()) if len(t) >= 4}
+    if current_topic_ctx:
+        cur_blob = f"{current_topic_ctx.get('topic_id', '')} {current_topic_ctx.get('title', '')} {current_topic_ctx.get('primary_keyword', '')}".lower()
+        cur_tokens = {t for t in re.findall(r"[a-z0-9]+", cur_blob) if len(t) >= 4}
+        if phrase_tokens and len(phrase_tokens & cur_tokens) >= len(phrase_tokens):
+            return None
+
+    curated_entities: Set[str] = set()
+    for bp in CURATED_BLUEPRINTS:
+        if bp.get("wiki_entity"):
+            curated_entities.add(str(bp["wiki_entity"]).lower())
+        bp_tokens = {
+            t for t in re.findall(r"[a-z0-9]+", f"{bp['topic_id']} {bp['primary_keyword']}".lower())
+            if len(t) >= 4
+        }
+        if phrase_tokens and len(phrase_tokens & bp_tokens) >= len(phrase_tokens):
+            return None
+    for q_item in queue:
+        if q_item.get("query", "").lower() == phrase.lower():
+            return None
+
+    # Live Zero-Key Wikipedia verification: only accept real, factual, documentable phenomena
+    try:
+        search_resp = requests.get(
+            "https://en.wikipedia.org/w/api.php",
+            headers={"User-Agent": WIKI_HARVEST_UA},
+            params={"action": "opensearch", "search": phrase, "limit": 3, "namespace": 0, "format": "json"},
+            timeout=7,
+        )
+        if search_resp.status_code != 200:
+            return None
+        payload = search_resp.json()
+        titles = payload[1] if isinstance(payload, list) and len(payload) > 1 else []
+        if not titles:
+            return None
+
+        chosen_title = ""
+        chosen_extract = ""
+        for title in titles[:3]:
+            sum_resp = requests.get(
+                f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(title.replace(' ', '_'))}",
+                headers={"User-Agent": WIKI_HARVEST_UA},
+                timeout=7,
+            )
+            if sum_resp.status_code != 200:
+                continue
+            sdata = sum_resp.json()
+            if sdata.get("type") == "disambiguation":
+                continue
+            extract = str(sdata.get("extract") or "").strip().replace("\n", " ")
+            if len(extract) < 140:
+                continue
+            chosen_title = str(sdata.get("title") or title).strip()
+            chosen_extract = extract[:520]
+            break
+
+        if not chosen_title or not chosen_extract:
+            return None
+    except Exception as exc:
+        logger.debug("Viewer idea Wikipedia check skipped (%s)", type(exc).__name__)
+        return None
+
+    resolved_entity = chosen_title.replace(" ", "_")
+    if resolved_entity.lower() in curated_entities:
+        return None
+
+    entity_slug = re.sub(r"[^a-z0-9]+", "-", chosen_title.lower()).strip("-")[:48]
+    topic_id = f"viewer-{entity_slug}"
+    if (
+        topic_id in used_ids
+        or entity_slug in used_ids
+        or any(item.get("topic_id") == topic_id or item.get("wiki_entity", "").lower() == resolved_entity.lower() for item in queue)
+    ):
+        return None
+
+    # Score documentary worthiness (must contain concrete facts/numbers or strong domain fit)
+    nums = re.findall(r"\b\d[\d,\.]*\s*(?:km|m|million|billion|trillion|%|percent|years|seconds|tons|degrees|meters|miles|hours|days)?", chosen_extract, re.I)
+    pillar = _infer_pillar_for_text(f"{phrase} {chosen_title} {chosen_extract}")
+    score = 68 + (10 if len(nums) >= 2 else (5 if len(nums) == 1 else 0)) + (8 if len(chosen_extract) >= 240 else 0)
+    if score < 76:
+        return None
+
+    idea_entry = {
+        "topic_id": topic_id,
+        "wiki_entity": chosen_title.replace(" ", "_"),
+        "title_clean": chosen_title,
+        "query": phrase,
+        "pillar": pillar,
+        "wiki_summary": chosen_extract,
+        "score": min(96, score),
+        "harvested_at": utc_now_iso(),
+    }
+    queue.append(idea_entry)
+    state_db.set_meta("viewer_ideas_queue_json", json.dumps(queue, ensure_ascii=False))
+    logger.info(
+        "VIEWER IDEA HARVESTED -> %s (%s | pillar=%s | score=%d)",
+        chosen_title,
+        topic_id,
+        pillar,
+        idea_entry["score"],
+    )
+    return idea_entry
+
+
+def _build_idea_accepted_reply(topic_name: str, lang: str) -> str:
+    """Craft a warm personal reply letting the viewer know their idea was added to production."""
+    if lang == "tr":
+        return _sanitize_human_reply(
+            f"Harika fikir! {topic_name} konusunu hemen sıradaki video havuzuna aldım, yakında yayında olacak. Takipte kal!"
+        )
+    if lang == "es":
+        return _sanitize_human_reply(
+            f"Gran idea, acabo de añadir {topic_name} a la lista de próximos videos. Quédate pendiente!"
+        )
+    if lang == "de":
+        return _sanitize_human_reply(
+            f"Starke Idee! Ich habe {topic_name} direkt auf unsere Produktionsliste gesetzt, kommt bald!"
+        )
+    if lang == "fr":
+        return _sanitize_human_reply(
+            f"Super idée, je viens d'ajouter {topic_name} à notre liste des prochaines vidéos. Reste connecté !"
+        )
+    return _sanitize_human_reply(
+        f"Love that idea, just added {topic_name} straight to our upcoming breakdown queue. Keep an eye out for it!"
+    )
+
+
 def craft_reply(
     comment_text: str,
     topic_title: str,
@@ -717,6 +1006,7 @@ def run_comment_cycle(
         "spam_filtered": 0,
         "queued": 0,
         "sent_now": 0,
+        "ideas_harvested": 0,
         "samples": [],
     }
 
@@ -786,8 +1076,8 @@ def run_comment_cycle(
         except Exception as exc:
             logger.debug("Could not resolve own channel ID (%s)", type(exc).__name__)
 
-        # Batch statistics lookup (1 quota unit for up to 10 active videos)
-        active_videos = videos[:10]
+        # Batch statistics lookup (1 quota unit for up to 25 active videos so older hits are never missed!)
+        active_videos = videos[:25]
         batch_ids = [str(v["youtube_id"]) for v in active_videos if v.get("youtube_id")]
         stats_map: Dict[str, Dict[str, Any]] = {}
         if batch_ids:
@@ -825,8 +1115,9 @@ def run_comment_cycle(
                     )
 
             try:
+                # Include `replies` at 0 extra quota cost so replies to our pinned discussion comment are NEVER missed!
                 resp = youtube.commentThreads().list(
-                    part="snippet",
+                    part="snippet,replies",
                     videoId=yt_id,
                     maxResults=25,
                     order="time",
@@ -836,23 +1127,45 @@ def run_comment_cycle(
                 logger.warning("Could not fetch comments for %s (%s)", yt_id, type(exc).__name__)
                 continue
 
+            # Collect both top-level viewer comments AND viewer replies under existing threads
+            incoming_entries: List[Tuple[str, str, str, bool]] = []
             for item in resp.get("items", []):
                 top = item["snippet"]["topLevelComment"]
-                cid = top["id"]
-                author_ch = top["snippet"].get("authorChannelId", {}).get("value", "")
-                if my_channel_id and author_ch == my_channel_id:
-                    continue
+                top_id = top["id"]
+                top_author = top["snippet"].get("authorChannelId", {}).get("value", "")
+                if not (my_channel_id and top_author == my_channel_id):
+                    incoming_entries.append((top_id, top_id, top["snippet"].get("textDisplay", ""), True))
+                # Also inspect thread replies (e.g., viewers answering our pinned debate comment!)
+                for rep in (item.get("replies") or {}).get("comments", []):
+                    rep_id = rep.get("id", "")
+                    rep_author = rep.get("snippet", {}).get("authorChannelId", {}).get("value", "")
+                    if rep_id and not (my_channel_id and rep_author == my_channel_id):
+                        incoming_entries.append((rep_id, top_id, rep.get("snippet", {}).get("textDisplay", ""), False))
+
+            for cid, reply_parent_id, text, is_top_level in incoming_entries:
                 if state_db.is_comment_processed(cid):
                     continue
                 summary["fetched"] += 1
-                text = top["snippet"].get("textDisplay", "")
                 decision = craft_reply(text, title, llm=llm, topic_context=topic_ctx)
                 sched_iso = now.replace(microsecond=0).isoformat()
                 if decision["is_spam"]:
                     summary["spam_filtered"] += 1
                     state_db.record_comment_reply(cid, yt_id, "spam", "", True, sched_iso, status="filtered_spam")
-                else:
-                    # Approve comment visibility on channel via official API
+                    continue
+
+                # Evaluate whether this viewer comment contains a genuinely useful, novel topic idea!
+                harvested = evaluate_and_harvest_viewer_idea(
+                    text,
+                    decision["detected_lang"],
+                    state_db,
+                    current_topic_ctx=topic_ctx,
+                )
+                reply_text = decision["reply_text"]
+                if harvested is not None:
+                    summary["ideas_harvested"] += 1
+                    reply_text = _build_idea_accepted_reply(harvested["title_clean"], decision["detected_lang"])
+
+                if is_top_level:
                     try:
                         youtube.comments().setModerationStatus(
                             id=cid, moderationStatus="published"
@@ -860,40 +1173,42 @@ def run_comment_cycle(
                     except Exception as exc:
                         logger.debug("Moderation publish skipped (%s)", type(exc).__name__)
 
-                    sent_ok = False
-                    try:
-                        youtube.comments().insert(
-                            part="snippet",
-                            body={
-                                "snippet": {
-                                    "parentId": cid,
-                                    "textOriginal": decision["reply_text"],
-                                }
-                            },
-                        ).execute()
-                        sent_ok = True
-                        summary["sent_now"] += 1
-                        logger.info(
-                            "Replied to viewer comment (%s) on %s [%s] -> %s",
-                            decision["detected_lang"],
-                            yt_id,
-                            topic_ctx.get("topic_id") or title[:24],
-                            decision["reply_text"],
-                        )
-                    except Exception as exc:
-                        summary["queued"] += 1
-                        logger.warning("Immediate reply deferred to queue (%s)", type(exc).__name__)
-
-                    state_db.record_comment_reply(
-                        cid,
-                        yt_id,
+                sent_ok = False
+                try:
+                    youtube.comments().insert(
+                        part="snippet",
+                        body={
+                            "snippet": {
+                                "parentId": reply_parent_id,
+                                "textOriginal": reply_text,
+                            }
+                        },
+                    ).execute()
+                    sent_ok = True
+                    summary["sent_now"] += 1
+                    logger.info(
+                        "Replied to viewer %s (%s) on %s [%s]%s -> %s",
+                        "comment" if is_top_level else "thread reply",
                         decision["detected_lang"],
-                        decision["reply_text"],
-                        False,
-                        sched_iso,
-                        status="sent" if sent_ok else "scheduled",
-                        replied_at=sched_iso if sent_ok else None,
+                        yt_id,
+                        topic_ctx.get("topic_id") or title[:24],
+                        " [IDEA HARVESTED]" if harvested else "",
+                        reply_text,
                     )
+                except Exception as exc:
+                    summary["queued"] += 1
+                    logger.warning("Immediate reply deferred to queue (%s)", type(exc).__name__)
+
+                state_db.record_comment_reply(
+                    cid,
+                    yt_id,
+                    decision["detected_lang"],
+                    reply_text,
+                    False,
+                    sched_iso,
+                    status="sent" if sent_ok else "scheduled",
+                    replied_at=sched_iso if sent_ok else None,
+                )
 
         due = state_db.get_due_comment_replies(utc_now_iso())
         for row in due[:15]:
@@ -902,7 +1217,7 @@ def run_comment_cycle(
                     part="snippet",
                     body={
                         "snippet": {
-                            "parentId": row["youtube_comment_id"],
+                            "parentId": str(row["youtube_comment_id"]).split(".", 1)[0],
                             "textOriginal": row["reply_text"],
                         }
                     },
@@ -913,10 +1228,11 @@ def run_comment_cycle(
                 logger.warning("Reply send error for %s (%s)", row["comment_hash"], type(exc).__name__)
 
     logger.info(
-        "Live comment cycle done | fetched=%d | spam=%d | queued=%d | sent=%d",
+        "Live comment cycle done | fetched=%d | spam=%d | queued=%d | sent=%d | ideas_harvested=%d",
         summary["fetched"],
         summary["spam_filtered"],
         summary["queued"],
         summary["sent_now"],
+        summary["ideas_harvested"],
     )
     return summary

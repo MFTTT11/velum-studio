@@ -1474,6 +1474,125 @@ class IdeaEngine:
         variant["hook_subtext"] = "PART 2 // DEEPER SCALE"
         return variant
 
+    def _pop_viewer_idea_entry(self) -> Optional[Dict[str, Any]]:
+        """Pop and persist the oldest verified viewer-requested topic from state.db."""
+        raw = self.db.get_meta("viewer_ideas_queue_json")
+        if not raw:
+            return None
+        try:
+            queue = json.loads(raw)
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(queue, list) or not queue:
+            return None
+        entry = queue.pop(0)
+        self.db.set_meta("viewer_ideas_queue_json", json.dumps(queue, ensure_ascii=False))
+        return entry if isinstance(entry, dict) else None
+
+    def _build_viewer_idea_blueprint(
+        self, entry: Dict[str, Any], used_ids: set[str]
+    ) -> Dict[str, Any]:
+        """Convert a Wikipedia-verified viewer idea into a full V4 documentary blueprint."""
+        clean_name = str(entry.get("title_clean") or entry.get("query") or "Hidden Phenomenon").strip()
+        wiki_entity = str(entry.get("wiki_entity") or clean_name.replace(" ", "_")).strip()
+        pillar = str(entry.get("pillar") or "science_anomalies").strip()
+        extract = str(entry.get("wiki_summary") or "").strip()
+        if not extract and wiki_entity:
+            extract = self._enrich_with_wikipedia_fact(wiki_entity) or ""
+
+        base_tid = str(entry.get("topic_id") or "").strip()
+        if not base_tid:
+            slug = re.sub(r"[^a-z0-9]+", "-", clean_name.lower()).strip("-")[:48]
+            base_tid = f"viewer-{slug or 'topic'}"
+        topic_id = base_tid
+        suffix = 2
+        while topic_id in used_ids:
+            topic_id = f"{base_tid}-{suffix}"
+            suffix += 1
+
+        raw_nums = re.findall(
+            r"\b\d[\d,\.]*\s*(?:km/s|km/h|km|million|billion|trillion|%|percent|years|seconds|milliseconds|tons|tonnes|degrees|meters|metres|miles|hours|days|light-years|kg|mw|gw|tw|v|hz)?\b",
+            extract,
+            re.IGNORECASE,
+        )
+        cleaned_nums: List[str] = []
+        for item in raw_nums:
+            val = re.sub(r"\s+", " ", item.strip()).upper()
+            if val and val not in cleaned_nums:
+                cleaned_nums.append(val)
+
+        def _parse_numeric(val: str, default: float) -> float:
+            m = re.search(r"[\d,\.]+", val)
+            if not m:
+                return default
+            try:
+                return float(m.group(0).replace(",", ""))
+            except ValueError:
+                return default
+
+        n0 = cleaned_nums[0][:14] if len(cleaned_nums) > 0 else "EXTREME"
+        n1 = cleaned_nums[1][:14] if len(cleaned_nums) > 1 else "100%"
+        n2 = cleaned_nums[2][:14] if len(cleaned_nums) > 2 else "VERIFIED"
+        n3 = cleaned_nums[3][:14] if len(cleaned_nums) > 3 else "GLOBAL"
+
+        first_token = re.sub(r"[^A-Za-z0-9]", "", clean_name.split()[0]).upper()[:10] or "VIEWER"
+        shock_stat = f"{clean_name.upper()[:22]}"
+        if cleaned_nums:
+            candidate_stat = f"{cleaned_nums[0]} // {first_token}"
+            if len(candidate_stat) <= 24:
+                shock_stat = candidate_stat
+
+        pillar_label = pillar.replace("_", " ").upper()[:16]
+        return {
+            "topic_id": topic_id,
+            "pillar": pillar,
+            "format_signature": "viewer_request_scale",
+            "primary_keyword": clean_name.lower(),
+            "title_variants": [
+                f"A Viewer Asked About {clean_name} — The Real Numbers Are Wild"[:95],
+                f"Inside {clean_name}: The Verified Scale Nobody Talks About"[:95],
+                f"Why {clean_name} Breaks Every Intuition You Have"[:95],
+            ],
+            "thumbnail_hooks": [
+                [first_token, "EXPLAINED"],
+                [n0[:9] if cleaned_nums else "VIEWER", "SCALE"],
+                ["HIDDEN", "REALITY"],
+            ],
+            "shock_hook_stat": shock_stat,
+            "hook_subtext": "VIEWER REQUEST // VERIFIED DATA",
+            "wiki_entity": wiki_entity,
+            "wiki_summary": extract,
+            "is_viewer_requested": True,
+            "display_name": clean_name,
+            "viewer_query_clean": str(entry.get("query") or clean_name)[:80],
+            "scores": {
+                "shock_hook": 22,
+                "visualizability": 18,
+                "curiosity_gap": 19,
+                "comment_velocity": 14,
+                "data_density": 9,
+                "search_demand": 9,
+            },
+            "key_facts": [
+                {"label": "KEY BENCHMARK", "value": n0, "numeric": _parse_numeric(n0, 10.0), "unit": "METRIC_A"},
+                {"label": "VERIFIED SCALE", "value": n1, "numeric": _parse_numeric(n1, 100.0), "unit": "METRIC_B"},
+                {"label": "MEASURED DETAIL", "value": n2, "numeric": _parse_numeric(n2, 50.0), "unit": "METRIC_C"},
+                {"label": "CATEGORY", "value": n3 if len(cleaned_nums) > 3 else pillar_label, "numeric": _parse_numeric(n3, 1.0), "unit": "TIER"},
+            ],
+            "debate_hook": {
+                "question": f"DID YOU ALREADY KNOW THIS ABOUT {clean_name.upper()[:24]}?",
+                "option_a": "MIND BLOWN",
+                "option_b": "ALREADY KNEW",
+            },
+            "visual_queries": [
+                f"{clean_name} documentary photography",
+                f"{clean_name} science space architecture",
+                f"{clean_name} close up macro",
+                "earth from space night satellite",
+                "modern laboratory engineering dark",
+            ],
+        }
+
     def _pop_part2_queue_entry(self) -> Optional[Dict[str, Any]]:
         """Pop and persist the oldest queued breakout Part-2 sequel entry from state.db."""
         raw = self.db.get_meta("part2_queue_json")
@@ -1526,8 +1645,33 @@ class IdeaEngine:
         return result
 
     def select_next_topic(self, preferred_pillar: Optional[str] = None) -> Dict[str, Any]:
-        """Select the highest-scoring unused concept (prioritizing breakout Part-2 clones first)."""
+        """Select the highest-scoring unused concept (viewer ideas -> Part-2 clones -> leaderboard pool)."""
         used_ids = set(self.db.get_used_topic_ids())
+
+        # 0. PRIORITY CHECK: Verified Viewer-Requested Idea Harvester queue
+        while True:
+            viewer_entry = self._pop_viewer_idea_entry()
+            if viewer_entry is None:
+                break
+            candidate_tid = str(viewer_entry.get("topic_id") or "")
+            if candidate_tid and candidate_tid in used_ids:
+                continue
+            viewer_bp = self._build_viewer_idea_blueprint(viewer_entry, used_ids)
+            scored_viewer = self.score_idea(viewer_bp)
+            scored_viewer["is_viewer_requested"] = True
+            scored_viewer["approved"] = True
+            scored_viewer["total_score"] = max(88, int(scored_viewer.get("total_score", 90)))
+            self.db.save_topic(
+                scored_viewer,
+                format_signature=scored_viewer.get("format_signature", "viewer_request_scale"),
+            )
+            logger.info(
+                "VIEWER-REQUESTED TOPIC ACTIVATED -> %s | pillar=%s | score=%d/100",
+                scored_viewer["topic_id"],
+                scored_viewer["pillar"],
+                scored_viewer["total_score"],
+            )
+            return scored_viewer
 
         # 1. PRIORITY CHECK: Breakout Winner Part-2 Auto-Cloner queue
         part2_entry = self._pop_part2_queue_entry()
