@@ -1201,7 +1201,12 @@ def render_v6_schematic_frame(
     stage = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     sdraw = ImageDraw.Draw(stage)
     stage_box = (60, 428, w - 60, 1246)
-    renderer = _RENDERERS.get(schematic_mode, _render_step_sequence_blueprint)
+    renderer = _RENDERERS.get(schematic_mode)
+    if renderer is None and schematic_mode.startswith("mech_"):
+        from engine.v7_mechanisms import V7_MECHANISM_RENDERERS
+        renderer = V7_MECHANISM_RENDERERS.get(schematic_mode)
+    if renderer is None:
+        renderer = _render_step_sequence_blueprint
     renderer(sdraw, stage_box, schematic_data, anim_t, phase_t, accent_col)
 
     canvas.alpha_composite(stage)

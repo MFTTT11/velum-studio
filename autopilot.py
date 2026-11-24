@@ -211,11 +211,11 @@ def run_single_cycle(
             )
         else:
             guard_reason = (
-                f"3-hour anti-spam spacing window active ({hours_since_last:.2f}h since last upload; "
+                f"8-hour anti-cannibalization spacing window active ({hours_since_last:.2f}h since last upload; "
                 f"{shorts_today}/{daily_cap} Shorts today)"
             )
             logger.info(
-                "Engagement & Velocity Blitz: respecting 3-hour anti-spam spacing window (%.2fh since last upload; %d/%d Shorts today) -> running Branding Sync, Comment Responder & Real-Time Velocity Growth Mutator.",
+                "Engagement & Velocity Blitz: respecting 8-hour spacing window (%.2fh since last upload; %d/%d Shorts today) -> running Branding Sync, Comment Responder & Real-Time Velocity Growth Mutator.",
                 hours_since_last,
                 shorts_today,
                 daily_cap,

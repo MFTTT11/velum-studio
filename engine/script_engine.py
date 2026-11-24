@@ -508,6 +508,71 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "At that same instant, ninety two atmospheres of crushing pressure flatten everything in under one second.",
         "If offered a free one-way ticket to colonize Mars, would you go? Comment yes or no below—",
     ],
+    # ===================== VELUM V7 PHYSICAL MECHANISM STORY ARCS =====================
+    "elevator-freefall-wedge-brake": [
+        "Even if someone cut every steel cable on a modern elevator, it still physically could not free-fall.",
+        "Every elevator car hangs from up to eight braided steel ropes, and any single cable alone can hold the full cab.",
+        "Here is what actually stops a falling elevator: an overhead mechanical wheel called an overspeed governor.",
+        "The instant the cab drops fifteen percent faster than normal, centrifugal weights inside that wheel snap outward.",
+        "That trips a mechanical rod underneath the floor, slamming two hardened steel wedges straight into the shaft rails.",
+        "The heavier the falling car, the harder those wedges bite, locking it dead in zero point one two seconds with zero electricity. Still taking the stairs?",
+    ],
+    "sr71-blackbird-fuel-leak-mach3": [
+        "The fastest jet ever built sat on the runway dripping jet fuel straight onto the concrete on purpose.",
+        "Engineers could not bolt the SR-71 Blackbird's titanium body panels tightly together on the ground.",
+        "Once it blasted past Mach three point two, rushing air heated its metal skin to three hundred and fifteen degrees.",
+        "Under that extreme heat, the entire fuselage stretched nearly eight centimeters longer in mid-air.",
+        "If the panels had been sealed tight at takeoff, thermal expansion would have buckled and ripped the jet apart.",
+        "So it leaked on the runway until supersonic friction expanded the titanium and sealed every tank tight. Greatest machine ever built?",
+    ],
+    "train-wheels-cone-steering-trick": [
+        "A ten thousand ton freight train turns smoothly around curved tracks without a steering wheel or differential.",
+        "Look closely at a steel train wheel and you will notice it is not flat — it is subtly shaped like a cone.",
+        "Both wheels are locked solidly onto one single rigid steel axle, so they must always spin at the exact same speed.",
+        "When the track curves, the axle shifts slightly outward so the outer wheel rides on its wider conical diameter.",
+        "Because a wider circle covers more distance per rotation, the outer wheel automatically pulls ahead and steers the train around the bend.",
+        "The inner metal flange barely touches the rail in normal turns — pure geometry guides the entire train. Did you think it was the flange?",
+    ],
+    "volcano-trash-drop-explosion": [
+        "Drop a single thirty kilogram bag of everyday garbage into an active volcano and the entire lava lake erupts.",
+        "It sounds like the cheapest landfill on Earth until you see what happens below the cooled dark crust.",
+        "Molten basalt lava sits at eleven hundred degrees, trapped right beneath a thin semi-solid skin.",
+        "When researchers tossed one thirty kilogram organic bundle into Erta Ale volcano, it punched clean through that crust.",
+        "Moisture inside the bundle instantly flashed into steam, expanding sixteen hundred times in a split second.",
+        "That steam shockwave blew a violent fountain of molten rock skyward, proving one dump truck would trigger a catastrophe. Did you expect that?",
+    ],
+    "bridge-metal-expansion-teeth": [
+        "Drive across any major bridge and you hear a sharp metallic clunk over giant steel teeth built right into the road.",
+        "Those interlocking metal fingers are the only reason summer sunlight does not snap the bridge in half.",
+        "Between a freezing winter night and a scorching forty five degree afternoon, steel and concrete physically stretch.",
+        "Across a one kilometer highway bridge, that invisible thermal growth pushes the deck more than forty centimeters longer.",
+        "Without a flexible expansion joint, thousands of tons of sideways force would buckle the roadway violently upward.",
+        "Instead, those steel teeth slide cleanly together in July and pull apart in January while traffic rolls smoothly over them. Ever wondered what caused that clunk?",
+    ],
+    "nuclear-submarine-25-years-underwater": [
+        "A modern nuclear submarine can circle the planet underwater for twenty five years without surfacing for fuel once.",
+        "Deep inside its steel hull sits a compact nuclear reactor core sealed for the entire operational life of the ship.",
+        "It never runs out of drinking water either, distilling thousands of liters of fresh water straight from the ocean every day.",
+        "Even breathable oxygen is endless: onboard electrolysis machines split seawater molecules directly into pure oxygen.",
+        "So with infinite fuel, infinite water, and infinite air, what actually forces a three billion dollar submarine back to port?",
+        "Just one surprisingly human bottleneck: its storage lockers run out of crew food after roughly ninety days. Could you live sealed down there for ninety days?",
+    ],
+    "deep-sea-diver-pure-oxygen-toxic": [
+        "Fill a scuba diver's tank with one hundred percent pure oxygen and it becomes deadly just six meters underwater.",
+        "Most people assume scuba tanks hold pure oxygen, when they actually contain normal compressed air at twenty one percent.",
+        "As a diver descends, water pressure squeezes more gas molecules into every single breath their lungs pull in.",
+        "At just six meters down, pure oxygen crosses one point six atmospheres of partial pressure inside the bloodstream.",
+        "Past that invisible line, oxygen turns neurotoxic, overwhelming brain cells and triggering sudden underwater seizures.",
+        "That is why deep technical divers actually dilute oxygen down below ten percent using helium. Did you assume scuba tanks were pure oxygen?",
+    ],
+    "spacesuit-vacuum-balloon-layers": [
+        "Step into the vacuum of space inside an ordinary airtight suit and it would inflate into a rigid immobile balloon.",
+        "With zero outside air pushing back, Earth-level cabin pressure pushes outward with tons of force across every seam.",
+        "To keep astronauts moving, NASA drops internal spacesuit pressure to just zero point three atmospheres of pure oxygen.",
+        "Even at that lower pressure, a flexible rubber bladder alone would still balloon outward until you could not bend an elbow.",
+        "Hidden right over the bladder sits a woven Dacron restraint mesh that locks the suit's exact human silhouette in place.",
+        "Wrapped inside fourteen total layers shielding against two hundred and seventy degree swings, each suit acts like a wearable spacecraft. Would you ever spacewalk?",
+    ],
 }
 
 
@@ -1308,52 +1373,62 @@ class ScriptEngine:
             facts.append(facts[-1])
         f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
 
-        # Select authoritative domain source citation
-        if any(k in blob for k in ("nasa", "space", "planet", "orbit", "mars", "venus", "moon", "psyche", "iss", "nemo", "gps", "star", "voyager", "rocket", "ariane")):
+        # Select authoritative domain source citation + bespoke V7 physical mechanism renderer
+        v7_mech_map = {
+            "elevator-freefall-wedge-brake": ("mech_elevator_brake", "ASME / OTIS ENGINEERING"),
+            "sr71-blackbird-fuel-leak-mach3": ("mech_sr71_blackbird", "LOCKHEED / NASA"),
+            "train-wheels-cone-steering-trick": ("mech_train_wheel_cone", "UIC / RAIL PHYSICS"),
+            "airplane-window-tiny-hole-secret": ("mech_airplane_window", "FAA / BOEING"),
+            "volcano-trash-drop-explosion": ("mech_volcano_eruption", "USGS / VOLCANOLOGY"),
+            "bridge-metal-expansion-teeth": ("mech_bridge_teeth", "ASCE / STRUCTURAL"),
+            "nuclear-submarine-25-years-underwater": ("mech_nuclear_sub", "US NAVY / DOE"),
+            "deep-sea-diver-pure-oxygen-toxic": ("mech_diver_oxygen", "NOAA / DAN DIVING"),
+            "cargo-ship-250k-tons-float-physics": ("mech_cargo_ship", "IMO / NAVAL ARCH"),
+            "spacesuit-vacuum-balloon-layers": ("mech_spacesuit_layers", "NASA JSC"),
+        }
+        base_v7_tid = re.sub(r"-(?:v\d+|part2(?:-\d+)?)$", "", tid)
+        if base_v7_tid in v7_mech_map:
+            bespoke_mode, source_credit = v7_mech_map[base_v7_tid]
+            seq = [bespoke_mode, "split_blueprint_duel", bespoke_mode, "step_sequence_blueprint", bespoke_mode]
+            layers = ["PRIMARY", "MECHANISM", "FAIL-SAFE"]
+            stages = []
+        elif any(k in blob for k in ("nasa", "space", "planet", "orbit", "mars", "venus", "moon", "psyche", "iss", "nemo", "gps", "star", "voyager", "rocket", "ariane")):
             source_credit = "NASA JPL / ESA"
-        elif any(k in blob for k in ("trench", "ocean", "titanic", "implosion", "deep", "borehole", "ship", "cargo")):
-            source_credit = "NOAA / USGS"
-        elif any(k in blob for k in ("airplane", "window", "flight", "airline")):
-            source_credit = "FAA / BOEING"
-        elif any(k in blob for k in ("cable", "internet", "dns", "euv", "asml", "transistor", "2nm", "grid", "50hz", "battery", "lithium", "trading")):
-            source_credit = "IEEE / TELEGEOGRAPHY"
-        elif any(k in blob for k in ("gold", "billion", "trillion", "debt", "cash", "penny", "coin", "economy")):
-            source_credit = "FEDERAL RESERVE / WGC"
-        elif any(k in blob for k in ("dna", "brain", "bias", "dopamine", "slot", "casino", "decoy", "supermarket", "zeigarnik", "anchor", "touch")):
-            source_credit = "NATURE / BEHAVIORAL LAB"
-        else:
-            source_credit = "VELUM RESEARCH ARCHIVE"
-
-        # Choose authentic physics/engineering schematic sequence tailored to the topic domain
-        if any(k in blob for k in ("trench", "implosion", "borehole", "submarine", "ocean")):
-            seq = ["depth_pressure_cutaway", "layered_cutaway", "split_blueprint_duel", "depth_pressure_cutaway", "waveform_stability_meter"]
-            layers = ["SURFACE", "WATER COLUMN", "HULL LIMIT"]
-            stages = ["DESCENT", "PRESSURE", "FAILURE"]
-        elif any(k in blob for k in ("airplane", "window", "battery", "lithium", "transistor", "2nm", "euv", "cargo", "float", "touch")):
-            seq = ["layered_cutaway", "signal_flow_pipeline", "split_blueprint_duel", "layered_cutaway", "step_sequence_blueprint"]
-            layers = ["OUTER LAYER", "ACTIVE GAP", "INNER SHIELD"]
-            stages = ["STRESS", "CONTROL", "SAFETY"]
-        elif any(k in blob for k in ("gps", "orbit", "planet", "moon", "psyche", "nemo", "space", "star", "sitting", "rocket", "voyager")):
             seq = ["orbital_relativity_sim", "split_blueprint_duel", "proportional_volume_scale", "orbital_relativity_sim", "exponential_scale_curve"]
             layers = ["SURFACE", "ORBIT", "DEEP SPACE"]
             stages = ["VELOCITY", "DRIFT", "CORRECTION"]
+        elif any(k in blob for k in ("trench", "ocean", "titanic", "implosion", "deep", "borehole", "submarine")):
+            source_credit = "NOAA / USGS"
+            seq = ["depth_pressure_cutaway", "layered_cutaway", "split_blueprint_duel", "depth_pressure_cutaway", "waveform_stability_meter"]
+            layers = ["SURFACE", "WATER COLUMN", "HULL LIMIT"]
+            stages = ["DESCENT", "PRESSURE", "FAILURE"]
+        elif any(k in blob for k in ("battery", "lithium", "transistor", "2nm", "euv", "touch")):
+            source_credit = "IEEE / ASML"
+            seq = ["layered_cutaway", "signal_flow_pipeline", "split_blueprint_duel", "layered_cutaway", "step_sequence_blueprint"]
+            layers = ["OUTER LAYER", "ACTIVE GAP", "INNER SHIELD"]
+            stages = ["STRESS", "CONTROL", "SAFETY"]
         elif any(k in blob for k in ("cable", "internet", "dns", "trading", "container", "shipping", "airline")):
+            source_credit = "IEEE / TELEGEOGRAPHY"
             seq = ["signal_flow_pipeline", "split_blueprint_duel", "exponential_scale_curve", "signal_flow_pipeline", "step_sequence_blueprint"]
             layers = ["SOURCE", "CONDUIT", "CHOKEPOINT"]
             stages = ["ORIGIN", "ROUTING", "BOTTLENECK"]
         elif any(k in blob for k in ("grid", "50hz", "traffic", "slot", "dopamine", "casino", "near-miss")):
+            source_credit = "IEEE / BEHAVIORAL LAB"
             seq = ["waveform_stability_meter", "step_sequence_blueprint", "split_blueprint_duel", "waveform_stability_meter", "exponential_scale_curve"]
             layers = ["INPUT", "THRESHOLD", "CASCADE"]
             stages = ["TRIGGER", "SPIKE", "LOCK-IN"]
         elif any(k in blob for k in ("gold", "dna", "cube", "teaspoon")):
+            source_credit = "NATURE / WGC"
             seq = ["proportional_volume_scale", "split_blueprint_duel", "exponential_scale_curve", "proportional_volume_scale", "step_sequence_blueprint"]
             layers = ["UNIT", "DENSITY", "TOTAL MASS"]
             stages = ["EXTRACT", "COMPRESS", "SCALE"]
         elif pillar == "money_scale":
+            source_credit = "FEDERAL RESERVE / WGC"
             seq = ["exponential_scale_curve", "split_blueprint_duel", "proportional_volume_scale", "exponential_scale_curve", "step_sequence_blueprint"]
             layers = ["BASELINE", "MULTIPLIER", "REALITY"]
             stages = ["INTUITION", "GROWTH", "SHOCK"]
         else:
+            source_credit = "VELUM RESEARCH ARCHIVE"
             seq = ["step_sequence_blueprint", "split_blueprint_duel", "exponential_scale_curve", "waveform_stability_meter", "step_sequence_blueprint"]
             layers = ["SIGNAL", "MECHANISM", "LIMIT"]
             stages = ["CAUSE", "PROCESS", "OUTCOME"]

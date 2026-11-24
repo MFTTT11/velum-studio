@@ -1289,6 +1289,253 @@ CURATED_BLUEPRINTS: List[Dict[str, Any]] = [
             "astronaut mars space suit nasa",
         ],
     },
+    # ===================== VELUM V7 SIGNATURE PHYSICAL MECHANISM EPISODES =====================
+    {
+        "topic_id": "elevator-freefall-wedge-brake",
+        "pillar": "hidden_tech",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "why elevators cannot free fall",
+        "title_variants": [
+            "Why a Modern Elevator Physically Cannot Free-Fall",
+            "What Happens in 0.12 Seconds If Every Elevator Cable Snaps",
+            "The Hidden Steel Wedge Inside Every Elevator Shaft",
+        ],
+        "thumbnail_hooks": [["CABLE SNAPS", "STOPS IN 0.12S"], ["ZERO", "FREE FALL"], ["8X STEEL", "SAFETY"]],
+        "shock_hook_stat": "STOPS IN 0.12 SECONDS",
+        "hook_subtext": "ELEVATOR WEDGE BRAKE PHYSICS",
+        "debate_hook": {
+            "question": "DOES THIS MAKE YOU TRUST ELEVATORS MORE — OR STILL TAKE THE STAIRS?",
+            "option_a": "TRUST PHYSICS",
+            "option_b": "STILL STAIRS",
+            "pinned": "Even if every single steel hoist cable snapped at once, mechanical spring-loaded wedges slam into the shaft rails with zero electricity in 0.12 seconds. Does that calm your nerves, or still stairs?",
+        },
+        "wiki_entity": "Elevator",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "CABLE RATING", "value": "8X OVERBUILT", "numeric": 8, "unit": "X"},
+            {"label": "BRAKE RESPONSE", "value": "0.12 SECONDS", "numeric": 0.12, "unit": "SEC"},
+            {"label": "POWER NEEDED", "value": "ZERO VOLTS", "numeric": 0, "unit": "V"},
+            {"label": "GOVERNOR TRIP", "value": "+15% SPEED", "numeric": 15, "unit": "%"},
+        ],
+        "visual_queries": ["modern glass elevator shaft architecture"],
+    },
+    {
+        "topic_id": "sr71-blackbird-fuel-leak-mach3",
+        "pillar": "hidden_tech",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "why SR-71 Blackbird leaked fuel",
+        "title_variants": [
+            "Why the Fastest Jet Ever Built Leaked Fuel on Purpose",
+            "Why the SR-71 Blackbird Had to Leak Before Reaching Mach 3.2",
+            "The 315°C Engineering Trick Hidden Inside the SR-71",
+        ],
+        "thumbnail_hooks": [["MACH 3.2", "315°C SEAL"], ["LEAKED FUEL", "ON PURPOSE"], ["SR-71", "SECRET"]],
+        "shock_hook_stat": "LEAKED FUEL ON PURPOSE",
+        "hook_subtext": "SR-71 MACH 3.2 TITANIUM PHYSICS",
+        "debate_hook": {
+            "question": "WAS THE SR-71 THE GREATEST MACHINE HUMANS EVER BUILT?",
+            "option_a": "UNBEATABLE",
+            "option_b": "SOMETHING ELSE",
+            "pinned": "At Mach 3.2, air friction heated the SR-71's titanium skin to 315°C, expanding its panels until every fuel gap sealed shut mid-flight. Is the SR-71 the greatest machine ever built?",
+        },
+        "wiki_entity": "Lockheed_SR-71_Blackbird",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "CRUISE SPEED", "value": "MACH 3.2", "numeric": 3.2, "unit": "MACH"},
+            {"label": "SKIN HEAT", "value": "315 CELSIUS", "numeric": 315, "unit": "C"},
+            {"label": "FUSELAGE GROW", "value": "+8 CM LONGER", "numeric": 8, "unit": "CM"},
+            {"label": "MISSILE HITS", "value": "ZERO EVER", "numeric": 0, "unit": "HITS"},
+        ],
+        "visual_queries": ["SR-71 Blackbird supersonic jet"],
+    },
+    {
+        "topic_id": "train-wheels-cone-steering-trick",
+        "pillar": "hidden_tech",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "why train wheels are cone shaped",
+        "title_variants": [
+            "Why Train Wheels Aren't Flat (The Genius Cone Trick)",
+            "How a 10,000-Ton Train Turns Corners Without a Steering Wheel",
+            "The 1:20 Cone Geometry That Keeps Every Train on Track",
+        ],
+        "thumbnail_hooks": [["NO STEERING", "WHEEL"], ["1:20 CONE", "GENIUS"], ["SELF-CENTER", "PHYSICS"]],
+        "shock_hook_stat": "NO STEERING WHEEL NEEDED",
+        "hook_subtext": "CONICAL TRAIN WHEEL GEOMETRY",
+        "debate_hook": {
+            "question": "DID YOU THINK THE METAL FLANGE WAS WHAT KEPT TRAINS ON TRACK?",
+            "option_a": "YES I DID",
+            "option_b": "KNEW THE CONE",
+            "pinned": "Train wheels are locked onto one solid steel axle, yet their subtle 1:20 conical slope lets the outer wheel roll on a wider diameter and self-steer every curve. Did you think it was the flange?",
+        },
+        "wiki_entity": "Train_wheel",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "WHEEL TAPER", "value": "1 : 20 CONE", "numeric": 20, "unit": "RATIO"},
+            {"label": "AXLE DESIGN", "value": "1 SOLID BAR", "numeric": 1, "unit": "BAR"},
+            {"label": "FLANGE ROLE", "value": "BACKUP ONLY", "numeric": 1, "unit": "TIER"},
+            {"label": "STEERING POWER", "value": "PURE GEOMETRY", "numeric": 100, "unit": "%"},
+        ],
+        "visual_queries": ["high speed train steel railway tracks"],
+    },
+    {
+        "topic_id": "volcano-trash-drop-explosion",
+        "pillar": "science_anomalies",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "why we dont throw trash into volcanoes",
+        "title_variants": [
+            "Why Throwing Just 30 KG of Trash Into a Volcano Triggers an Eruption",
+            "What Actually Happens If You Drop Garbage Into Lava",
+            "Why Lava Explodes When Anything Wet Touches It",
+        ],
+        "thumbnail_hooks": [["30 KG DROP", "EXPLODES LAVA"], ["1,600X STEAM", "BLAST"], ["DON'T DROP", "IN VOLCANO"]],
+        "shock_hook_stat": "30 KG TRIGGERS AN ERUPTION",
+        "hook_subtext": "VOLCANO STEAM FLASH PHYSICS",
+        "debate_hook": {
+            "question": "HAVE YOU EVER WONDERED WHY WE DON'T DUMP TRASH IN VOLCANOES?",
+            "option_a": "ALWAYS WONDERED",
+            "option_b": "KNEW IT BLOWS",
+            "pinned": "Researchers dropped a single 30 kg bundle into Erta Ale's lava lake — piercing the crust caused trapped moisture to flash 1,600x into steam, triggering a violent magma fountain. Did you expect that?",
+        },
+        "wiki_entity": "Lava_lake",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "MAGMA HEAT", "value": "1,100 CELSIUS", "numeric": 1100, "unit": "C"},
+            {"label": "TEST BUNDLE", "value": "JUST 30 KG", "numeric": 30, "unit": "KG"},
+            {"label": "STEAM EXPANSION", "value": "1,600X VOLUME", "numeric": 1600, "unit": "X"},
+            {"label": "CHAIN REACTION", "value": "INSTANT BLAST", "numeric": 1, "unit": "SEC"},
+        ],
+        "visual_queries": ["active volcano lava crater eruption"],
+    },
+    {
+        "topic_id": "bridge-metal-expansion-teeth",
+        "pillar": "hidden_tech",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "why bridges have metal teeth gaps",
+        "title_variants": [
+            "Why Every Major Bridge Has Giant Metal Teeth Across the Road",
+            "What Happens to a Steel Bridge in Summer Without This Gap",
+            "How Sunlight Stretches Giant Bridges by Over 40 Centimeters",
+        ],
+        "thumbnail_hooks": [["+40 CM", "GROWTH"], ["METAL TEETH", "SAVE BRIDGES"], ["HEAT BUCKLE", "PHYSICS"]],
+        "shock_hook_stat": "STRETCHES 40 CM IN SUMMER",
+        "hook_subtext": "BRIDGE THERMAL EXPANSION JOINTS",
+        "debate_hook": {
+            "question": "EVER HEARD THAT CLUNK DRIVING OVER BRIDGE METAL TEETH?",
+            "option_a": "NOW IT MAKES SENSE",
+            "option_b": "ALREADY KNEW",
+            "pinned": "A 1-kilometer steel bridge physically stretches over 40 centimeters between winter and summer — without those interlocking finger teeth, thermal pressure would snap the road upward. Did you know why they clunk?",
+        },
+        "wiki_entity": "Expansion_joint",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 14, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "SUMMER GROWTH", "value": "+40 CM SHIFT", "numeric": 40, "unit": "CM"},
+            {"label": "TEMP SWING", "value": "-10 TO +45 C", "numeric": 55, "unit": "C"},
+            {"label": "BUCKLE FORCE", "value": "THOUSANDS TONS", "numeric": 1000, "unit": "TONS"},
+            {"label": "JOINT DESIGN", "value": "STEEL FINGERS", "numeric": 1, "unit": "JOINT"},
+        ],
+        "visual_queries": ["suspension bridge steel highway deck"],
+    },
+    {
+        "topic_id": "nuclear-submarine-25-years-underwater",
+        "pillar": "hidden_tech",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "how long can nuclear submarines stay underwater",
+        "title_variants": [
+            "Nuclear Submarines Can Stay Underwater 25 Years — Only One Thing Stops Them",
+            "How Nuclear Submarines Make Infinite Air and Water Under the Ocean",
+            "The Surprising 90-Day Bottleneck on a $3 Billion Nuclear Submarine",
+        ],
+        "thumbnail_hooks": [["25 YR FUEL", "90 DAY LIMIT"], ["INFINITE AIR", "UNDERSEA"], ["ONE HUMAN", "BOTTLENECK"]],
+        "shock_hook_stat": "25 YR FUEL vs 90 DAY LIMIT",
+        "hook_subtext": "NUCLEAR SUBMARINE ENDURANCE",
+        "debate_hook": {
+            "question": "COULD YOU LIVE SEALED UNDERWATER WITH ZERO SUNLIGHT FOR 90 DAYS?",
+            "option_a": "NO CHANCE",
+            "option_b": "I COULD DO IT",
+            "pinned": "A nuclear submarine carries 25 years of reactor fuel and splits seawater into endless oxygen and drinking water — it only ever surfaces because the crew runs out of food after ~90 days. Could you last 90 days?",
+        },
+        "wiki_entity": "Nuclear_submarine",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "REACTOR CORE", "value": "25 YEARS FUEL", "numeric": 25, "unit": "YRS"},
+            {"label": "OXYGEN SOURCE", "value": "SEAWATER H2O", "numeric": 100, "unit": "%"},
+            {"label": "CREW SIZE", "value": "130 SAILORS", "numeric": 130, "unit": "CREW"},
+            {"label": "REAL LIMIT", "value": "90 DAYS FOOD", "numeric": 90, "unit": "DAYS"},
+        ],
+        "visual_queries": ["nuclear submarine underwater ocean"],
+    },
+    {
+        "topic_id": "deep-sea-diver-pure-oxygen-toxic",
+        "pillar": "science_anomalies",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "why scuba divers dont breathe pure oxygen",
+        "title_variants": [
+            "Why Breathing Pure Oxygen Underwater Turns Deadly at Just 6 Meters",
+            "Why Deep-Sea Divers Never Put 100% Oxygen in Their Tanks",
+            "The 6-Meter Pressure Limit That Turns Oxygen Into Poison",
+        ],
+        "thumbnail_hooks": [["PURE O2", "DEADLY AT 6M"], ["1.6 ATM", "TOXIC LIMIT"], ["NOT 100%", "OXYGEN"]],
+        "shock_hook_stat": "PURE O2 = TOXIC AT 6 METERS",
+        "hook_subtext": "SCUBA PARTIAL PRESSURE PHYSICS",
+        "debate_hook": {
+            "question": "DID YOU ASSUME SCUBA TANKS WERE FILLED WITH 100% PURE OXYGEN?",
+            "option_a": "THOUGHT IT WAS O2",
+            "option_b": "KNEW IT'S AIR",
+            "pinned": "Under water pressure, breathing 100% pure oxygen crosses 1.6 ATM partial pressure at just 6 meters deep — triggering sudden CNS oxygen toxicity. Standard scuba tanks hold regular 21% O2 air. Did you know?",
+        },
+        "wiki_entity": "Oxygen_toxicity",
+        "scores": {"shock_hook": 25, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 9, "search_demand": 9},
+        "key_facts": [
+            {"label": "TOXIC CEILING", "value": "JUST 6 METERS", "numeric": 6, "unit": "M"},
+            {"label": "DANGER LIMIT", "value": "1.6 ATM O2", "numeric": 1.6, "unit": "ATM"},
+            {"label": "SCUBA TANK", "value": "21% OXYGEN", "numeric": 21, "unit": "%"},
+            {"label": "DEEP MIX", "value": "HELIUM TRIMIX", "numeric": 10, "unit": "%"},
+        ],
+        "visual_queries": ["scuba diver deep blue ocean underwater"],
+    },
+    {
+        "topic_id": "spacesuit-vacuum-balloon-layers",
+        "pillar": "hidden_tech",
+        "format_signature": "v7_physical_mechanism",
+        "primary_keyword": "why spacesuits dont explode like balloons",
+        "title_variants": [
+            "Why a Spacesuit Doesn't Inflate Into a Giant Balloon in Vacuum",
+            "The 14 Hidden Layers Keeping Astronauts Alive in Space",
+            "Why Moving Your Fingers in a Spacesuit Feels Like Squeezing a Basketball",
+        ],
+        "thumbnail_hooks": [["14 LAYERS", "VS VACUUM"], ["0.3 ATM", "BALLOON LOCK"], ["SPACESUIT", "CUTAWAY"]],
+        "shock_hook_stat": "14 LAYERS VS TOTAL VACUUM",
+        "hook_subtext": "NASA SPACESUIT PRESSURE MESH",
+        "debate_hook": {
+            "question": "WOULD YOU STEP OUTSIDE THE SPACE STATION IN A 14-LAYER SUIT?",
+            "option_a": "IN A HEARTBEAT",
+            "option_b": "NO WAY",
+            "pinned": "In zero-pressure vacuum, normal air pressure would turn a spacesuit into an immovable rigid balloon — NASA lowers suit pressure to 0.3 ATM pure oxygen and locks it inside a Dacron restraint weave. Would you spacewalk?",
+        },
+        "wiki_entity": "Space_suit",
+        "scores": {"shock_hook": 24, "visualizability": 20, "curiosity_gap": 20, "comment_velocity": 15, "data_density": 10, "search_demand": 9},
+        "key_facts": [
+            {"label": "SUIT LAYERS", "value": "14 LAYERS", "numeric": 14, "unit": "LAYERS"},
+            {"label": "INTERNAL AIR", "value": "0.3 ATM O2", "numeric": 0.3, "unit": "ATM"},
+            {"label": "TEMP SHIELD", "value": "-150 TO +120 C", "numeric": 270, "unit": "C"},
+            {"label": "SUIT MASS", "value": "127 KG EARTH", "numeric": 127, "unit": "KG"},
+        ],
+        "visual_queries": ["astronaut spacewalk earth nasa"],
+    },
+]
+
+# VELUM V7 Priority Signature Slate: next unused high-curiosity physical mechanism episodes run FIRST!
+V7_SIGNATURE_PRIORITY_IDS: List[str] = [
+    "elevator-freefall-wedge-brake",
+    "sr71-blackbird-fuel-leak-mach3",
+    "train-wheels-cone-steering-trick",
+    "airplane-window-tiny-hole-secret",
+    "volcano-trash-drop-explosion",
+    "bridge-metal-expansion-teeth",
+    "nuclear-submarine-25-years-underwater",
+    "deep-sea-diver-pure-oxygen-toxic",
+    "cargo-ship-250k-tons-float-physics",
+    "spacesuit-vacuum-balloon-layers",
 ]
 
 # Dynamic Wikipedia anomaly seed pool used after all 24 curated blueprints are exhausted (0-key infinite mode)
@@ -1672,6 +1919,31 @@ class IdeaEngine:
                 scored_viewer["total_score"],
             )
             return scored_viewer
+
+        # 0.5 PRIORITY CHECK: VELUM V7 Signature Physical Mechanism Slate (unmistakable CAD animations)
+        if preferred_pillar is None:
+            for sig_id in V7_SIGNATURE_PRIORITY_IDS:
+                if sig_id in used_ids:
+                    continue
+                sig_bp = next((bp for bp in CURATED_BLUEPRINTS if bp["topic_id"] == sig_id), None)
+                if sig_bp is not None:
+                    scored_sig = self.score_idea(sig_bp)
+                    wiki_entity = scored_sig.get("wiki_entity", "")
+                    if wiki_entity and not scored_sig.get("wiki_summary"):
+                        summary = self._enrich_with_wikipedia_fact(wiki_entity)
+                        if summary:
+                            scored_sig["wiki_summary"] = summary
+                    self.db.save_topic(
+                        scored_sig,
+                        format_signature=scored_sig.get("format_signature", "v7_physical_mechanism"),
+                    )
+                    logger.info(
+                        "VELUM V7 SIGNATURE MECHANISM ACTIVATED -> %s | pillar=%s | score=%d/100",
+                        scored_sig["topic_id"],
+                        scored_sig["pillar"],
+                        scored_sig["total_score"],
+                    )
+                    return scored_sig
 
         # 1. PRIORITY CHECK: Breakout Winner Part-2 Auto-Cloner queue
         part2_entry = self._pop_part2_queue_entry()

@@ -133,15 +133,15 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
     launch_dt = _parse_utc_iso(state_db.get_meta("launch_date")) or now
     day_num = max(1, (now.date() - launch_dt.date()).days + 1)
 
-    daily_shorts_cap = 4
-    shorts_hours = [12, 16, 20, 0]
+    daily_shorts_cap = 2
+    shorts_hours = [8, 18]
 
     if day_num <= 13:
         allow_longform = False
-        phase = f"V3_BLITZ_DAY_{day_num} (4 Viral 4K Shorts/day)"
+        phase = f"V7_SIGNATURE_DAY_{day_num} (2 High-Craft Mechanical 4K Shorts/day)"
     else:
         allow_longform = (day_num % 2 == 1)
-        phase = f"SCALE_PHASE_DAY_{day_num} (4 Shorts/day + Long-form every 2d)"
+        phase = f"SCALE_PHASE_DAY_{day_num} (2 Mechanical Shorts/day + Long-form every 2d)"
 
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     two_days_ago = (now - timedelta(days=2)).isoformat()
@@ -173,7 +173,7 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
     else:
         hours_since_last_upload = 999.0
 
-    spacing_guard_active = bool(hours_since_last_upload < 2.8 and not daily_quota_reached)
+    spacing_guard_active = bool(hours_since_last_upload < 7.5 and not daily_quota_reached)
 
     # Collect already-scheduled publishAt timestamps so slots never collide
     existing_slots = {

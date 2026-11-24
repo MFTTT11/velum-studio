@@ -490,14 +490,22 @@ def _mix_master_cinema_audio(
     out_audio_wav: Path,
     total_duration: float,
     target_lufs: float = -14.0,
+    twist_drop_sec: Optional[float] = None,
 ) -> Path:
-    """Mix voice + auto-ducked tension bed (`sidechaincompress`) + SFX and master to -14 LUFS."""
+    """Mix voice + auto-ducked tension bed (+ V7 0.22s Twist Silence Shock) + SFX at -14 LUFS."""
     ffmpeg = get_ffmpeg_bin()
+    # V7 Dramatic Silence Shock: dip music bed to near-zero for 220ms right before THE TWIST drops!
+    bed_mute_filter = ""
+    if twist_drop_sec is not None and 4.0 < twist_drop_sec < (total_duration - 2.0):
+        t0 = max(0.0, twist_drop_sec - 0.22)
+        t1 = twist_drop_sec
+        bed_mute_filter = f",volume=enable='between(t,{t0:.3f},{t1:.3f})':volume=0.03"
+
     # Auto-ducking: narration triggers sidechaincompress on tension bed so music dips when speaking
     filter_complex = (
         "[0:a]asplit=2[voice_main][voice_sc];"
         "[1:a]volume=0.26[bed_lvl];"
-        "[bed_lvl][voice_sc]sidechaincompress=threshold=0.018:ratio=7.5:attack=15:release=320:makeup=1[bed_ducked];"
+        f"[bed_lvl][voice_sc]sidechaincompress=threshold=0.018:ratio=7.5:attack=15:release=320:makeup=1{bed_mute_filter}[bed_ducked];"
         "[2:a]volume=0.85[sfx_lvl];"
         "[voice_main][bed_ducked][sfx_lvl]amix=inputs=3:duration=first:normalize=0,"
         f"loudnorm=I={target_lufs:.1f}:TP=-1.5:LRA=8,"
@@ -558,8 +566,12 @@ def compose_cinematic_video(
         len(timed_beats),
     )
 
-    # 1. Generate royalty-free SFX & duration-matched tension underscore
+    # 1. Generate royalty-free SFX & duration-matched tension underscore (+ V7 Twist Silence Shock)
     sfx_assets = generate_audio_pack(work_dir, total_dur)
+    twist_drop_sec: Optional[float] = None
+    if len(timed_beats) >= 5:
+        twist_drop_sec = float(timed_beats[-2].get("start", 0.0))
+        timed_beats[-2]["sfx"] = "sub_boom"
     sfx_stem = _build_sfx_stem(
         timed_beats, sfx_assets, total_dur, work_dir / "audio_assets" / "sfx_stem.wav"
     )
@@ -570,6 +582,7 @@ def compose_cinematic_video(
         work_dir / "audio_assets" / "master_mix.wav",
         total_dur,
         target_lufs=target_lufs,
+        twist_drop_sec=twist_drop_sec,
     )
 
     is_v6 = bool(script.get("v6_schematic_mode"))
