@@ -725,16 +725,47 @@ def run_growth_mutation_cycle(
 
         # Self-optimizing Pillar Velocity Leaderboard (guides IdeaEngine toward fastest-growing niches)
         pillar_buckets: Dict[str, List[float]] = {}
+        engine_buckets: Dict[str, List[Dict[str, float]]] = {}
+        try:
+            from engine.idea_engine import V7_SIGNATURE_PRIORITY_IDS
+            v7_sig_set = set(V7_SIGNATURE_PRIORITY_IDS)
+        except Exception:
+            v7_sig_set = set()
+
         with state_db._connect() as conn:
             for v in videos:
                 row = conn.execute(
-                    "SELECT pillar FROM topics WHERE topic_id = ?", (v["topic_id"],)
+                    "SELECT pillar, payload_json FROM topics WHERE topic_id = ?", (v["topic_id"],)
                 ).fetchone()
                 if not row:
                     continue
                 vph = float(v.get("views_per_hour", 0.0))
+                views_i = int(v.get("views", 0))
+                likes_i = int(v.get("likes", 0))
                 if vph > 0:
                     pillar_buckets.setdefault(row["pillar"], []).append(vph)
+
+                if views_i > 0 or vph > 0:
+                    tid = str(v.get("topic_id", ""))
+                    created_ts = str(v.get("created_at", ""))
+                    is_v7_mech = tid in v7_sig_set
+                    if not is_v7_mech and row["payload_json"]:
+                        try:
+                            p_obj = json.loads(row["payload_json"])
+                            is_v7_mech = bool(p_obj.get("v7_mechanism"))
+                        except Exception:
+                            is_v7_mech = False
+                    if is_v7_mech:
+                        eng_tier = "v7_physical_mechanism"
+                    elif created_ts >= "2026-11-24T18:35:00":
+                        eng_tier = "v6_abstract_schematic"
+                    else:
+                        eng_tier = "v5_cinematic_broll"
+                    like_rate = (likes_i / max(views_i, 1)) * 100.0
+                    engine_buckets.setdefault(eng_tier, []).append(
+                        {"views": float(views_i), "vph": vph, "like_rate_pct": like_rate}
+                    )
+
         if pillar_buckets:
             pillar_leaderboard = {
                 p: round(sum(vals) / len(vals), 2)
@@ -745,6 +776,24 @@ def run_growth_mutation_cycle(
             state_db.set_meta("pillar_performance_json", json.dumps(pillar_leaderboard))
             report["pillar_velocity_leaderboard"] = pillar_leaderboard
             logger.info("Updated autonomous pillar velocity leaderboard: %s", pillar_leaderboard)
+
+        if engine_buckets:
+            format_leaderboard = {}
+            for tier, items in sorted(
+                engine_buckets.items(),
+                key=lambda kv: sum(x["vph"] for x in kv[1]) / max(len(kv[1]), 1),
+                reverse=True,
+            ):
+                cnt = len(items)
+                format_leaderboard[tier] = {
+                    "videos": cnt,
+                    "avg_views": round(sum(x["views"] for x in items) / cnt, 1),
+                    "avg_views_per_hour": round(sum(x["vph"] for x in items) / cnt, 2),
+                    "avg_like_rate_pct": round(sum(x["like_rate_pct"] for x in items) / cnt, 2),
+                }
+            state_db.set_meta("format_performance_json", json.dumps(format_leaderboard))
+            report["format_performance_leaderboard"] = format_leaderboard
+            logger.info("Updated autonomous format performance leaderboard: %s", format_leaderboard)
 
     if out_dir is not None:
         (out_dir / "growth_mutator_report.json").write_text(

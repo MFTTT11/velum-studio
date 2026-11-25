@@ -30,7 +30,11 @@ from PIL import Image
 from core.config import get_ffmpeg_bin, get_logger, load_brand_config, resolve_font
 from engine.hud_renderer import render_data_plate, render_hud_overlay
 from engine.media_fetcher import MediaFetcher
-from engine.schematic_engine import render_v6_schematic_frame
+from engine.schematic_engine import (
+    prepare_v6_chapter_context,
+    render_v6_schematic_frame,
+    render_v6_stream_frame_bgr,
+)
 from engine.sfx_music_engine import SAMPLE_RATE, generate_audio_pack
 
 logger = get_logger("video_composer")
@@ -123,28 +127,21 @@ def _load_beat_visual(
     """Materialize a single beat's graded frames on demand so peak RAM stays under ~450 MB."""
     w, h = size
     if spec["kind"] == "v6_schematic":
-        sch_frames: List[np.ndarray] = []
-        steps = 40
-        for s in range(steps):
-            phase_t = s / max(steps - 1, 1)
-            anim_t = min(1.0, phase_t * 2.35)
-            pil_sch = render_v6_schematic_frame(
-                schematic_mode=spec.get("schematic_mode", "step_sequence_blueprint"),
-                schematic_data=spec.get("schematic_data", {}),
-                size=size,
-                anim_t=anim_t,
-                phase_t=phase_t,
-                chapter_num=int(spec.get("chapter_num", 1)),
-                total_chapters=int(spec.get("total_chapters", 6)),
-                chapter_tag=str(spec.get("chapter_tag", "MECHANISM")),
-                headline_line1=str(spec.get("headline_line1", "HIDDEN SCALE")),
-                headline_line2=str(spec.get("headline_line2", "EXPOSED")),
-                accent_word=str(spec.get("accent_word", "")),
-                episode_num=int(spec.get("episode_num", 9)),
-                source_credit=str(spec.get("source_credit", "VELUM ARCHIVE")),
-            )
-            sch_frames.append(cv2.cvtColor(np.asarray(pil_sch), cv2.COLOR_RGB2BGR))
-        return {"kind": "v6_schematic", "frames": sch_frames}
+        # VELUM V7.2: pre-bake static chapter chrome once (~12 MB RAM) and stream true 60fps frames live!
+        ctx = prepare_v6_chapter_context(
+            schematic_mode=spec.get("schematic_mode", "step_sequence_blueprint"),
+            schematic_data=spec.get("schematic_data", {}),
+            size=size,
+            chapter_num=int(spec.get("chapter_num", 1)),
+            total_chapters=int(spec.get("total_chapters", 6)),
+            chapter_tag=str(spec.get("chapter_tag", "MECHANISM")),
+            headline_line1=str(spec.get("headline_line1", "HIDDEN SCALE")),
+            headline_line2=str(spec.get("headline_line2", "EXPOSED")),
+            accent_word=str(spec.get("accent_word", "")),
+            episode_num=int(spec.get("episode_num", 9)),
+            source_credit=str(spec.get("source_credit", "VELUM ARCHIVE")),
+        )
+        return {"kind": "v6_schematic_stream", "ctx": ctx}
 
     if spec["kind"] == "photo_grade":
         clip_path = spec.get("clip_path")
@@ -713,8 +710,12 @@ def compose_cinematic_video(
     active_beat_idx = -1
     active_vis: Optional[Dict[str, Any]] = None
     cached_hud_blend: Optional[Tuple[np.ndarray, np.ndarray, np.ndarray]] = None
+    cached_sch_bgr: Optional[np.ndarray] = None
     prev_beat_last_frame: Optional[np.ndarray] = None
-    transition_frames = 4  # Snappy 66ms whip-zoom impact cut
+    transition_frames = 4  # Snappy 66ms whip-zoom impact cut for b-roll
+    sch_transition_frames = 10  # Silky 166ms cubic-eased chapter crossfade for V7.2 schematics
+    # Native 60.0 FPS vector streaming for Shorts (<=65s), fluid 30.0 FPS for long-form documentaries
+    sch_render_stride = 1 if total_dur <= 65.0 else 2
 
     assert proc.stdin is not None
     try:
@@ -736,15 +737,38 @@ def compose_cinematic_video(
 
             if beat_cursor != active_beat_idx or active_vis is None:
                 active_vis = None
+                cached_sch_bgr = None
                 active_vis = _load_beat_visual(beat_specs[beat_cursor], fetcher, size)
                 active_beat_idx = beat_cursor
 
             vis = active_vis
-            if vis["kind"] == "v6_schematic":
+            if vis["kind"] == "v6_schematic_stream":
+                # VELUM V7.2: True fluid 60fps (Shorts) / 30fps (Long-form) live vector streaming!
+                if local_frame % sch_render_stride == 0 or cached_sch_bgr is None:
+                    anim_t = min(1.0, local_t * 2.35)
+                    cached_sch_bgr = render_v6_stream_frame_bgr(
+                        ctx=vis["ctx"],
+                        anim_t=anim_t,
+                        phase_t=local_t,
+                        global_t_sec=t_sec,
+                        local_t=local_t,
+                    )
+                frame_bgr = cached_sch_bgr
+                # Silky 10-frame (166ms) cubic-eased crossfade between schematic chapters
+                if beat_cursor > 0 and local_frame < sch_transition_frames and prev_beat_last_frame is not None:
+                    raw_cf = (local_frame + 1) / float(sch_transition_frames + 1)
+                    alpha_cf = 1.0 - (1.0 - raw_cf) ** 3
+                    frame_bgr = cv2.addWeighted(frame_bgr, alpha_cf, prev_beat_last_frame, 1.0 - alpha_cf, 0.0)
+                if beat_cursor + 1 < len(timed_beats):
+                    next_start = float(timed_beats[beat_cursor + 1]["start"])
+                    if abs((t_sec + 1.0 / fps) - next_start) < (1.2 / fps):
+                        prev_beat_last_frame = frame_bgr.copy()
+                proc.stdin.write(frame_bgr.tobytes())
+                continue
+            elif vis["kind"] == "v6_schematic":
                 s_frames = vis["frames"]
                 s_pos = local_t * (len(s_frames) - 1)
                 frame_bgr = s_frames[min(len(s_frames) - 1, int(round(s_pos)))]
-                # Silky 4-frame editorial crossfade between schematic chapters (steady top chrome!)
                 if beat_cursor > 0 and local_frame < transition_frames and prev_beat_last_frame is not None:
                     alpha_cf = (local_frame + 1) / float(transition_frames + 1)
                     frame_bgr = cv2.addWeighted(frame_bgr, alpha_cf, prev_beat_last_frame, 1.0 - alpha_cf, 0.0)

@@ -294,9 +294,9 @@ def _draw_meter_bar(
     )
 
 
-@lru_cache(maxsize=6)
+@lru_cache(maxsize=8)
 def _base_canvas_array(w: int, h: int, accent: Tuple[int, int, int]) -> np.ndarray:
-    """Precompute silky radial blueprint slate backdrop once per (size, accent) for blazing 60fps renders."""
+    """Precompute silky radial blueprint slate backdrop + architectural dot-matrix grid once per (size, accent)."""
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
     nx = xx / max(w - 1, 1)
     ny = yy / max(h - 1, 1)
@@ -306,52 +306,57 @@ def _base_canvas_array(w: int, h: int, accent: Tuple[int, int, int]) -> np.ndarr
     for c in range(3):
         grad = BG_TOP[c] * (1.0 - ny) + BG_BOT[c] * ny
         arr[:, :, c] = np.clip(grad + accent[c] * radial + CYAN[c] * glow_cyan, 0, 255)
+    # Bake subtle architectural dot-matrix micro-grid directly via NumPy slicing (eliminates 600 Python draws/frame)
+    dot_alpha = 72.0 / 255.0
+    dot_rgb = np.array([72.0, 102.0, 138.0], dtype=np.float32)
+    ys = np.arange(140, max(141, h - 180), 54)
+    xs = np.arange(27, w, 54)
+    grid_patch = arr[np.ix_(ys, xs)]
+    arr[np.ix_(ys, xs)] = np.clip(grid_patch * (1.0 - dot_alpha) + dot_rgb * dot_alpha, 0, 255)
     return arr.astype(np.uint8)
 
 
-def _create_v6_backdrop(w: int, h: int, accent: Tuple[int, int, int], phase_t: float) -> Image.Image:
-    base = _base_canvas_array(w, h, accent)
-    canvas = Image.fromarray(base, mode="RGB").convert("RGBA")
-    ov = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(ov)
-
-    # Subtle architectural dot-matrix micro-grid (clean, modern, distinct from boxy grids)
-    step = 54
-    for gx in range(27, w, step):
-        for gy in range(140, h - 180, step):
-            draw.point((gx, gy), fill=(72, 102, 138, 72))
-
-    # Gentle living horizontal stream/depth particles so frame never appears frozen
+def _draw_living_backdrop_streams(
+    draw: ImageDraw.ImageDraw,
+    w: int,
+    stream_t: float,
+) -> None:
+    """Draw continuous living horizontal stream particles driven by unbroken timeline time."""
     for i in range(16):
-        speed = 180 + (i % 4) * 75
-        px = int((w - ((i * 173 + phase_t * speed) % (w + 160))) + 40)
+        speed = 115.0 + (i % 4) * 52.0
+        px = int((w - ((i * 173.0 + stream_t * speed) % (w + 160.0))) + 40.0)
         py = 440 + ((i * 97) % 780)
         slen = 36 + (i % 3) * 28
         draw.line([(px, py), (px + slen, py)], fill=(*CYAN, 26 + (i % 3) * 10), width=2)
 
-    canvas.alpha_composite(ov)
+
+def _create_v6_backdrop(w: int, h: int, accent: Tuple[int, int, int], phase_t: float) -> Image.Image:
+    base = _base_canvas_array(w, h, accent)
+    canvas = Image.fromarray(base, mode="RGB")
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    _draw_living_backdrop_streams(draw, w, phase_t * 2.4)
     return canvas
 
 
-def _draw_v6_chrome(
-    canvas: Image.Image,
-    chapter_num: int,
-    total_chapters: int,
-    chapter_tag: str,
-    headline_line1: str,
-    headline_line2: str,
-    accent_word: str,
-    accent_col: Tuple[int, int, int],
-    episode_num: int,
-    source_credit: str,
-    phase_t: float,
-    anim_t: float,
-) -> None:
-    """Draw VELUM V6 persistent editorial top bar, 6-node progress rail, colossal headline & footer."""
-    w, h = canvas.size
-    layer = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(layer)
+def prepare_v6_chapter_context(
+    schematic_mode: str,
+    schematic_data: Dict[str, Any],
+    size: Tuple[int, int] = (1080, 1920),
+    chapter_num: int = 1,
+    total_chapters: int = 6,
+    chapter_tag: str = "THE MECHANISM",
+    headline_line1: str = "HIDDEN SCALE",
+    headline_line2: str = "EXPOSED BY PHYSICS",
+    accent_word: str = "",
+    episode_num: int = 1,
+    source_credit: str = "VELUM RESEARCH",
+) -> Dict[str, Any]:
+    """Pre-bake static per-chapter chrome & settled typography ONCE for butter-smooth native 60fps streaming."""
+    w, h = size
     pad = 60
+    accent_col = _accent_color(str(schematic_data.get("accent", "amber")))
+    base_bg = Image.fromarray(_base_canvas_array(w, h, accent_col).copy(), mode="RGB")
+    draw = ImageDraw.Draw(base_bg, "RGBA")
 
     # 1. Top Editorial Header: @VelumDispatch  |  EPISODE XX
     hdr_f = _font("mono", 25)
@@ -360,7 +365,7 @@ def _draw_v6_chrome(
     ebb = draw.textbbox((0, 0), ep_txt, font=hdr_f)
     draw.text((w - pad - (ebb[2] - ebb[0]), 48), ep_txt, font=hdr_f, fill=(*MUTED, 220))
 
-    # 2. 6-Node VELUM Geometric Phase Progress Rail (y=108)
+    # 2. Static parts of 6-Node VELUM Geometric Phase Progress Rail (y=108)
     rail_y = 108
     rail_f = _font("mono", 20)
     draw.text((pad, rail_y - 12), "START", font=rail_f, fill=(*MUTED, 200))
@@ -373,28 +378,13 @@ def _draw_v6_chrome(
     cur_idx = max(0, min(n_steps - 1, chapter_num - 1))
     xs = [rx0 + i * ((rx1 - rx0) / max(1, n_steps - 1)) for i in range(n_steps)]
 
-    # Base dim rail + active completed amber rail
     draw.line([(rx0, rail_y), (rx1, rail_y)], fill=(*GRID_DIM, 200), width=3)
-    prog_x = xs[cur_idx]
     if cur_idx > 0:
-        draw.line([(rx0, rail_y), (prog_x, rail_y)], fill=(*AMBER, 240), width=4)
-    # Smooth fractional progress toward next waypoint during current chapter
-    if cur_idx + 1 < n_steps:
-        frac_x = xs[cur_idx] + (xs[cur_idx + 1] - xs[cur_idx]) * min(0.85, phase_t * 0.85)
-        draw.line([(xs[cur_idx], rail_y), (frac_x, rail_y)], fill=(*CYAN, 200), width=3)
-
-    pulse = 0.5 + 0.5 * math.sin(phase_t * math.tau * 2.0)
+        draw.line([(rx0, rail_y), (xs[cur_idx], rail_y)], fill=(*AMBER, 240), width=4)
     for i, nx in enumerate(xs):
         if i < cur_idx:
             _draw_diamond(draw, nx, rail_y, 9, (*AMBER, 255), (*AMBER, 255), width=2)
-        elif i == cur_idx:
-            glow_r = 15 + 3 * pulse
-            draw.ellipse(
-                [nx - glow_r, rail_y - glow_r, nx + glow_r, rail_y + glow_r],
-                fill=(*CYAN, int(45 + 40 * pulse)),
-            )
-            _draw_diamond(draw, nx, rail_y, 11, (*CYAN, 255), (*WHITE, 255), width=2)
-        else:
+        elif i > cur_idx:
             _draw_diamond(draw, nx, rail_y, 8, (*BG_TOP, 255), (*MUTED, 165), width=2)
 
     # 3. Chapter Pill Badge (y=154..198)
@@ -412,36 +402,26 @@ def _draw_v6_chrome(
     )
     draw.text((pad + 20, 154 + 10 - pbb[1]), pill_txt, font=pill_f, fill=(*accent_col, 250))
 
-    # 4. Colossal 2-Line Editorial Headline (y=214..398, zero clutter boxes!)
+    # 4. Pre-fit Colossal 2-Line Editorial Headline ONCE (avoids 10+ textbbox lookups per frame)
     max_hw = w - pad * 2
     l1 = headline_line1.upper().strip()
     l2 = headline_line2.upper().strip()
-    alpha_h = int(255 * min(1.0, 0.35 + 0.65 * _ease_out(anim_t * 1.8)))
-    slide_y = int((1.0 - _ease_out(anim_t * 2.0)) * 14)
-
     f1 = _fit_font(draw, l1, "headline", 86, max_hw, min_size=46)
     f2 = _fit_font(draw, l2, "headline", 86, max_hw, min_size=46)
-    # Harmonize line sizes so typography looks balanced like a print poster
-    h1_size = getattr(f1, "size", 76)
-    h2_size = getattr(f2, "size", 76)
-    uni_size = min(h1_size, h2_size)
+    uni_size = min(getattr(f1, "size", 76), getattr(f2, "size", 76))
     head_f = _font("headline", uni_size)
-
-    y_l1 = 218 + slide_y
-    draw.text((pad, y_l1), l1, font=head_f, fill=(*WHITE, alpha_h))
     bb1 = draw.textbbox((0, 0), l1, font=head_f)
-    y_l2 = y_l1 + (bb1[3] - bb1[1]) + 22
+    y_l2_offset = (bb1[3] - bb1[1]) + 22
 
-    # Highlight accent_word (or final word of line 2) in radiant accent color
     acc_target = (accent_word or "").upper().strip()
     words_l2 = l2.split()
+    l2_layout: List[Tuple[int, str, Tuple[int, int, int]]] = []
     cur_x = pad
     for idx_w, tok in enumerate(words_l2):
         is_acc = (acc_target and acc_target in tok) or (not acc_target and idx_w == len(words_l2) - 1)
         col = accent_col if is_acc else WHITE
-        draw.text((cur_x, y_l2), tok, font=head_f, fill=(*col, alpha_h))
-        tok_w = draw.textbbox((0, 0), tok + " ", font=head_f)[2]
-        cur_x += tok_w
+        l2_layout.append((cur_x, tok, col))
+        cur_x += draw.textbbox((0, 0), tok + " ", font=head_f)[2]
 
     # 5. Subtle Schematic Attribution Strip (y=1278) right above editorial captions
     foot_y = 1278
@@ -453,7 +433,124 @@ def _draw_v6_chrome(
         sbb = draw.textbbox((0, 0), src_txt, font=foot_f)
         draw.text((w - pad - (sbb[2] - sbb[0]), foot_y), src_txt, font=foot_f, fill=(*MUTED, 185))
 
-    canvas.alpha_composite(layer)
+    # Pre-bake settled headline backdrop used for ~76% of frames once intro slide finishes
+    settled_bg = base_bg.copy()
+    sdraw = ImageDraw.Draw(settled_bg, "RGBA")
+    y_l1_settled = 218
+    sdraw.text((pad, y_l1_settled), l1, font=head_f, fill=(*WHITE, 255))
+    y_l2_settled = y_l1_settled + y_l2_offset
+    for tx, tok, col in l2_layout:
+        sdraw.text((tx, y_l2_settled), tok, font=head_f, fill=(*col, 255))
+
+    # Resolve renderer callable once per chapter
+    renderer = _RENDERERS.get(schematic_mode)
+    if renderer is None and schematic_mode.startswith("mech_"):
+        from engine.v7_mechanisms import V7_MECHANISM_RENDERERS
+        renderer = V7_MECHANISM_RENDERERS.get(schematic_mode)
+    if renderer is None:
+        renderer = _render_step_sequence_blueprint
+
+    return {
+        "size": (w, h),
+        "pad": pad,
+        "base_bg": base_bg,
+        "settled_bg": settled_bg,
+        "accent_col": accent_col,
+        "schematic_mode": schematic_mode,
+        "schematic_data": schematic_data,
+        "renderer": renderer,
+        "chapter_num": chapter_num,
+        "n_steps": n_steps,
+        "cur_idx": cur_idx,
+        "xs": xs,
+        "rail_y": rail_y,
+        "head_f": head_f,
+        "l1": l1,
+        "y_l2_offset": y_l2_offset,
+        "l2_layout": l2_layout,
+    }
+
+
+def _draw_v6_dynamic_frame(
+    ctx: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    global_t_sec: Optional[float] = None,
+    local_t: Optional[float] = None,
+) -> Image.Image:
+    """Render one silky V7.2 frame onto cached chapter chrome (zero full-frame alpha_composite overhead)."""
+    w, h = ctx["size"]
+    pad = ctx["pad"]
+    settled = anim_t >= 0.56
+    canvas = ctx["settled_bg"].copy() if settled else ctx["base_bg"].copy()
+    draw = ImageDraw.Draw(canvas, "RGBA")
+
+    # 1. Unbroken continuous background telemetry flow streaks
+    stream_t = global_t_sec if global_t_sec is not None else (phase_t * 4.5)
+    _draw_living_backdrop_streams(draw, w, stream_t)
+
+    # 2. Smooth fractional progress beam + pulsing active diamond node
+    cur_idx = ctx["cur_idx"]
+    n_steps = ctx["n_steps"]
+    xs = ctx["xs"]
+    rail_y = ctx["rail_y"]
+    if cur_idx + 1 < n_steps:
+        frac_x = xs[cur_idx] + (xs[cur_idx + 1] - xs[cur_idx]) * min(0.92, phase_t * 0.92)
+        draw.line([(xs[cur_idx], rail_y), (frac_x, rail_y)], fill=(*CYAN, 215), width=3)
+
+    pulse_phase = global_t_sec * 1.15 if global_t_sec is not None else (phase_t * 2.0)
+    pulse = 0.5 + 0.5 * math.sin(pulse_phase * math.tau)
+    nx = xs[cur_idx]
+    glow_r = 15.0 + 3.5 * pulse
+    draw.ellipse(
+        [nx - glow_r, rail_y - glow_r, nx + glow_r, rail_y + glow_r],
+        fill=(*CYAN, int(45 + 42 * pulse)),
+    )
+    _draw_diamond(draw, nx, rail_y, 11, (*CYAN, 255), (*WHITE, 255), width=2)
+
+    # 3. Animated cubic-eased headline glide during chapter entrance only (0.0ms once settled!)
+    if not settled:
+        e_head = _ease_out(min(1.0, anim_t * 1.8))
+        alpha_h = int(255 * min(1.0, 0.30 + 0.70 * e_head))
+        slide_y = int(round((1.0 - _ease_out(min(1.0, anim_t * 2.0))) * 16.0))
+        y_l1 = 218 + slide_y
+        head_f = ctx["head_f"]
+        draw.text((pad, y_l1), ctx["l1"], font=head_f, fill=(*WHITE, alpha_h))
+        y_l2 = y_l1 + ctx["y_l2_offset"]
+        for tx, tok, col in ctx["l2_layout"]:
+            draw.text((tx, y_l2), tok, font=head_f, fill=(*col, alpha_h))
+
+    # 4. Tactile damped mechanical recoil on climax chapters (Ch 3 rupture / Ch 5 twist)
+    jitter_x = 0
+    jitter_y = 0
+    lt = phase_t if local_t is None else local_t
+    if ctx["chapter_num"] in (3, 5) and 0.0 <= lt <= 0.18:
+        decay = (1.0 - lt / 0.18) ** 2
+        jitter_x = int(round(math.sin(lt * 92.0) * 5.0 * decay))
+        jitter_y = int(round(math.cos(lt * 74.0) * 3.5 * decay))
+
+    stage_box = (60 + jitter_x, 428 + jitter_y, w - 60 + jitter_x, 1246 + jitter_y)
+    ctx["renderer"](draw, stage_box, ctx["schematic_data"], anim_t, phase_t, ctx["accent_col"])
+    return canvas
+
+
+def render_v6_stream_frame_bgr(
+    ctx: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    global_t_sec: float,
+    local_t: float,
+) -> np.ndarray:
+    """Stream one ready-to-pipe OpenCV BGR uint8 frame directly from cached chapter context."""
+    pil_rgb = _draw_v6_dynamic_frame(
+        ctx=ctx,
+        anim_t=anim_t,
+        phase_t=phase_t,
+        global_t_sec=global_t_sec,
+        local_t=local_t,
+    )
+    arr_rgb = np.asarray(pil_rgb)
+    return np.ascontiguousarray(arr_rgb[:, :, ::-1])
 
 
 # ==============================================================================
@@ -1178,36 +1275,18 @@ def render_v6_schematic_frame(
     episode_num: int = 1,
     source_credit: str = "VELUM RESEARCH",
 ) -> Image.Image:
-    """Render one crisp RGB frame of a VELUM V6 2D technical schematic animation."""
-    w, h = size
-    accent_col = _accent_color(str(schematic_data.get("accent", "amber")))
-    canvas = _create_v6_backdrop(w, h, accent_col, phase_t)
-
-    _draw_v6_chrome(
-        canvas=canvas,
+    """Render one crisp RGB frame of a VELUM V6/V7 2D technical schematic animation."""
+    ctx = prepare_v6_chapter_context(
+        schematic_mode=schematic_mode,
+        schematic_data=schematic_data,
+        size=size,
         chapter_num=chapter_num,
         total_chapters=total_chapters,
         chapter_tag=chapter_tag,
         headline_line1=headline_line1,
         headline_line2=headline_line2,
         accent_word=accent_word,
-        accent_col=accent_col,
         episode_num=episode_num,
         source_credit=source_credit,
-        phase_t=phase_t,
-        anim_t=anim_t,
     )
-
-    stage = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    sdraw = ImageDraw.Draw(stage)
-    stage_box = (60, 428, w - 60, 1246)
-    renderer = _RENDERERS.get(schematic_mode)
-    if renderer is None and schematic_mode.startswith("mech_"):
-        from engine.v7_mechanisms import V7_MECHANISM_RENDERERS
-        renderer = V7_MECHANISM_RENDERERS.get(schematic_mode)
-    if renderer is None:
-        renderer = _render_step_sequence_blueprint
-    renderer(sdraw, stage_box, schematic_data, anim_t, phase_t, accent_col)
-
-    canvas.alpha_composite(stage)
-    return canvas.convert("RGB")
+    return _draw_v6_dynamic_frame(ctx=ctx, anim_t=anim_t, phase_t=phase_t)

@@ -294,8 +294,8 @@ def _mech_train_wheel_cone(
         # Contact highlight dot on rail top
         draw.ellipse([base_rx - 10, rail_y - 10, base_rx + 10, rail_y + 10], fill=(*col, 255), outline=(*WHITE, 255), width=2)
 
-    # Dynamic radius callouts showing R_OUTER > R_INNER
-    _draw_centered(draw, "RIGID SOLID AXLE (NO STEERING WHEEL)", cx, axle_y - 54, mono, (*WHITE, 230))
+    # Dynamic radius callouts showing R_OUTER > R_INNER (centered on moving axle cleanly inside wheel gap)
+    _draw_centered(draw, "RIGID SOLID AXLE", cx + shift_x, axle_y - 52, mono, (*WHITE, 235))
     lbl_l = "SMALL RADIUS" if shift_x >= 0 else "LARGE RADIUS (FASTER)"
     lbl_r = "LARGE RADIUS (FASTER)" if shift_x >= 0 else "SMALL RADIUS"
     _draw_centered(draw, lbl_l, rail_lx, rail_y + 100, mono, (*(AMBER if shift_x < 0 else CYAN), 245))
