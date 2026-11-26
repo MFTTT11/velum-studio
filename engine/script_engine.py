@@ -1053,78 +1053,158 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
             )
 
     if fmt == "longform":
-        # Genuine 3-chapter documentary expansion (zero verbatim repetition of Shorts sentences!)
+        # VELUM V8.1: True 3.2-4.2 minute (440-560w) 4-Chapter Hidden Mechanics Compilation Documentary!
+        # Chains the lead mechanism + 3 complementary verified engineering/physics mysteries for 4,000-hour watch time!
         f0, f1, f2, f3 = facts[0], facts[1], facts[2], facts[3]
         kw = topic["primary_keyword"]
-        expanded: List[Dict[str, Any]] = list(shorts_beats[:-1])
-        deep_mechanics = [
+        lead_beats = [dict(b) for b in shorts_beats]
+        if lead_beats and lead_beats[-1]["narration"].rstrip().endswith(("to", "you", "why", "never", "can")):
+            lead_beats[-1]["narration"] = (
+                f"And that single hidden physical principle behind {kw} is only the first of four engineering secrets hiding in plain sight."
+            )
+        expanded: List[Dict[str, Any]] = [
+            {
+                "narration": (
+                    f"Every single day, billions of people trust hidden engineering mechanisms without ever seeing how they work. "
+                    f"Today we slice open four unbelievable systems — starting with {kw}."
+                ),
+                "visual_type": "photo_grade",
+                "plate_mode": "metric_hero",
+                "plate_data": {},
+                "visual_query": q(0),
+                "hud_tag": "CH.01 · X-RAY INTRO",
+                "hud_metric": str(topic.get("shock_hook_stat", f0["value"])).upper(),
+                "hud_delta": "4 HIDDEN MECHANISMS",
+                "sfx": "sub_boom",
+                "camera_motion": "zoom_in",
+            }
+        ]
+        expanded.extend(lead_beats)
+
+        # Pull 3 complementary verified mechanisms from TOPIC_STORY_ARCS (excluding current topic)
+        companion_pool = [
             (
-                f"To understand why {kw} breaks everyday intuition, we have to examine the underlying ratio.",
-                "system_nodes",
-                {
-                    "title": "CORE MECHANISM",
-                    "nodes": [f0["value"], f1["value"], f2["value"]],
-                    "caption": _trim_at_word_boundary(topic["hook_subtext"], 38),
-                },
+                "elevator-freefall-wedge-brake",
+                "ELEVATOR WEDGE BRAKE",
+                "0.12 SEC LOCK",
+                "modern glass elevator shaft cables steel",
+                "Mechanism number two sits right beneath your feet every time you step into a skyscraper elevator.",
             ),
             (
-                f"Human perception evolved for linear local steps, not jumps from {f0['value']} straight to {f1['value']}.",
-                "visual_scale_blocks",
-                {
-                    "title": "NON-LINEAR SCALING GAP",
-                    "left_label": _trim_at_word_boundary(f0["label"], 24),
-                    "left_value": float(abs(f0["numeric"])) or 1.0,
-                    "left_display": f0["value"],
-                    "right_label": _trim_at_word_boundary(f1["label"], 24),
-                    "right_value": float(abs(f1["numeric"])) or 100.0,
-                    "right_display": f1["value"],
-                    "ratio_badge": "PERCEPTION FAILURE",
-                },
+                "sr71-blackbird-fuel-leak-mach3",
+                "SR-71 MACH 3.2 SEAL",
+                "315 C EXPANSION",
+                "sr71 blackbird supersonic jet aircraft",
+                "Next, look at the fastest jet ever built — an aircraft engineered to leak fuel straight onto the runway.",
             ),
             (
-                f"Once you isolate {f2['label'].lower()} at {f2['value']}, the hidden engineering margin becomes unmistakable.",
-                "radar_alert",
-                {"title": _trim_at_word_boundary(f2["label"], 26), "metric": f2["value"], "subtitle": "STRUCTURAL BOTTLENECK", "severity": "HIGH"},
+                "train-wheels-cone-steering-trick",
+                "CONICAL TRAIN WHEELS",
+                "1 : 20 CONE SLOPE",
+                "freight train steel wheels railway track",
+                "Mechanism number three moves ten thousand tons of steel around sharp curves without a steering wheel.",
             ),
             (
-                f"At the extreme boundary of {f3['label'].lower()}, the system hits {f3['value']}.",
-                "timeline_scale",
-                {
-                    "title": "BOUNDARY TELEMETRY",
-                    "markers": [
-                        {"label": _trim_at_word_boundary(f0["label"], 22), "value": f0["value"], "pct": 0.18, "color": "cyan"},
-                        {"label": _trim_at_word_boundary(f2["label"], 22), "value": f2["value"], "pct": 0.55, "color": "amber"},
-                        {"label": _trim_at_word_boundary(f3["label"], 22), "value": f3["value"], "pct": 0.90, "color": "crimson"},
-                    ],
-                },
+                "airplane-window-tiny-hole-secret",
+                "AIRPLANE BLEED HOLE",
+                "1.5 MM SAFETY VALVE",
+                "airplane passenger window clouds sky",
+                "Our next hidden safeguard is a microscopic hole sitting inches from your face at thirty six thousand feet.",
             ),
             (
-                "That is why headlines routinely mislead smart people when numbers cross an order-of-magnitude threshold.",
-                "metric_hero",
-                {
-                    "title": "COGNITIVE TAKEAWAY",
-                    "hero_value": _trim_at_word_boundary(topic["shock_hook_stat"], 32),
-                    "subtitle": "VISUALIZE THE RATIO FIRST",
-                    "accent": "cyan",
-                },
+                "bridge-metal-expansion-teeth",
+                "BRIDGE THERMAL TEETH",
+                "+40 CM SHIFT",
+                "suspension bridge steel highway deck",
+                "Even the giant highway bridges you drive across every week are secretly growing and shrinking with the sun.",
+            ),
+            (
+                "nuclear-submarine-25-years-underwater",
+                "NUCLEAR SUB LIMIT",
+                "25 YR vs 90 DAYS",
+                "nuclear submarine underwater ocean",
+                "Now dive beneath the ocean into a three billion dollar nuclear machine with infinite air, infinite water, and one human flaw.",
+            ),
+            (
+                "spacesuit-vacuum-balloon-layers",
+                "SPACESUIT 14 LAYERS",
+                "0.3 ATM DACRON",
+                "astronaut spacewalk earth nasa",
+                "Finally, step outside into the total vacuum of space where ordinary pressure turns cloth into an unbendable balloon.",
             ),
         ]
-        for idx, (narr, pmode, pdata) in enumerate(deep_mechanics):
+        chosen_companions = [c for c in companion_pool if c[0] != base_tid][:3]
+        for ch_idx, (c_tid, c_title, c_metric, c_query, c_bridge) in enumerate(chosen_companions, start=2):
+            arc_lines = list(TOPIC_STORY_ARCS.get(c_tid, []))
+            if not arc_lines:
+                continue
+            # Clean trailing loop connector on the final beat of each chapter so documentary narration completes cleanly
+            if arc_lines[-1].rstrip().endswith(("to", "you", "why", "never", "can")):
+                arc_lines[-1] = f"It is pure physics doing the heavy lifting silently behind the scenes of {c_title.lower()}."
             expanded.append(
                 {
-                    "narration": narr,
-                    "visual_type": "data_plate" if idx % 2 == 0 else "photo_grade",
-                    "plate_mode": pmode,
-                    "plate_data": pdata,
-                    "visual_query": q(idx + 1),
-                    "hud_tag": f"CH.02 · {idx + 1:02d}",
-                    "hud_metric": facts[idx % len(facts)]["value"],
-                    "hud_delta": "DEEP DIVE",
-                    "sfx": "whoosh" if idx % 2 == 0 else "tick",
-                    "camera_motion": ["pan_right", "zoom_in", "pan_left", "zoom_out"][idx % 4],
+                    "narration": c_bridge,
+                    "visual_type": "data_plate",
+                    "plate_mode": "metric_hero",
+                    "plate_data": {
+                        "title": f"CHAPTER 0{ch_idx} // {c_title}",
+                        "hero_value": c_metric,
+                        "subtitle": "VERIFIED ENGINEERING BREAKDOWN",
+                        "accent": "cyan" if ch_idx % 2 == 0 else "amber",
+                    },
+                    "visual_query": c_query,
+                    "hud_tag": f"CH.0{ch_idx} · {c_title[:16]}",
+                    "hud_metric": c_metric,
+                    "hud_delta": f"MECHANISM {ch_idx}/4",
+                    "sfx": "xray_scan",
+                    "camera_motion": "zoom_in",
                 }
             )
-        expanded.append(shorts_beats[-1])
+            for l_idx, line in enumerate(arc_lines):
+                expanded.append(
+                    {
+                        "narration": line,
+                        "visual_type": "photo_grade" if l_idx % 2 == 0 else "data_plate",
+                        "plate_mode": "metric_hero" if l_idx % 4 == 1 else "radar_alert",
+                        "plate_data": {
+                            "title": c_title,
+                            "hero_value": c_metric,
+                            "metric": c_metric,
+                            "subtitle": _trim_at_word_boundary(line.upper(), 44),
+                            "accent": "amber" if l_idx % 2 else "cyan",
+                            "severity": "HIGH",
+                        },
+                        "visual_query": c_query,
+                        "hud_tag": f"CH.0{ch_idx} · {l_idx + 1:02d}",
+                        "hud_metric": c_metric,
+                        "hud_delta": c_title[:18],
+                        "sfx": "whoosh" if l_idx == 0 else ("sub_boom" if l_idx == len(arc_lines) - 2 else "tick"),
+                        "camera_motion": ["zoom_in", "pan_right", "zoom_out", "pan_left"][l_idx % 4],
+                    }
+                )
+
+        # High-converting documentary conclusion targeting our 25-34 adult engineering audience
+        expanded.append(
+            {
+                "narration": (
+                    "Every one of these four systems solves an extreme physical problem with deceptively simple geometry and physics. "
+                    "Subscribe to Velum Dispatch for daily sixty frames per second X-Ray breakdowns, and tell us in the comments which machine we should slice open next."
+                ),
+                "visual_type": "data_plate",
+                "plate_mode": "debate_cta_plate",
+                "plate_data": {
+                    "question": "WHICH HIDDEN MECHANISM SURPRISED YOU MOST?",
+                    "option_a": "DROP YOUR PICK",
+                    "option_b": "+ SUBSCRIBE",
+                },
+                "visual_query": q(0),
+                "hud_tag": "VELUM DISPATCH · NEXT",
+                "hud_metric": "4 / 4 DECODED",
+                "hud_delta": "SUBSCRIBE",
+                "sfx": "sonar",
+                "camera_motion": "zoom_out",
+            }
+        )
         return expanded
 
     return shorts_beats

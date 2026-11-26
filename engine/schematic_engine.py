@@ -357,14 +357,9 @@ def _compose_reality_backdrop(
         blended = np.clip(base_arr * 0.82 + p_arr * 0.18, 0, 255).astype(np.uint8)
         return Image.fromarray(blended, mode="RGB")
 
-    # Chapter 1 Scroll-Stopper Hook: vivid real subject in center viewport (y=428..1246)
-    # with deep editorial vignette top (headline) & bottom (captions) for razor-sharp contrast
-    yy = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None, None]
-    # Center band (0.22..0.67) showcases vibrant reality at ~82% visibility; top/bottom fade to dark slate
-    top_fade = np.clip((yy - 0.17) / 0.10, 0.0, 1.0)
-    bot_fade = np.clip((0.72 - yy) / 0.11, 0.0, 1.0)
-    window_vis = (top_fade * bot_fade) * 0.84 + 0.14
-    blended = np.clip(base_arr * (1.0 - window_vis) + p_arr * window_vis, 0, 255).astype(np.uint8)
+    # Chapter 1 Optical Viewfinder Mode: deep ambient 16% color-matched slate outside viewport
+    # so the live 60fps zooming real-world lens inside (56..1024, 424..1250) pops with ZERO edge seam!
+    blended = np.clip(base_arr * 0.84 + p_arr * 0.16, 0, 255).astype(np.uint8)
     return Image.fromarray(blended, mode="RGB")
 
 
@@ -552,8 +547,14 @@ def prepare_v6_chapter_context(
         sdraw.text((tx, y_l2_settled), tok, font=head_f, fill=(*col, 255))
 
     # Resolve renderer callable once per chapter (V8 Chapter-1 Reality Hook uses X-Ray scanner overlay!)
-    if hook_reality_mode and real_backdrop_rgb is not None:
+    is_hook_reality = bool(hook_reality_mode and real_backdrop_rgb is not None)
+    real_zoom_src: Optional[Image.Image] = None
+    if is_hook_reality:
         renderer = _draw_reality_xray_scanner
+        p_src = real_backdrop_rgb.convert("RGB")
+        if p_src.size != (w, h):
+            p_src = p_src.resize((w, h), Image.Resampling.LANCZOS)
+        real_zoom_src = p_src
     else:
         renderer = _RENDERERS.get(schematic_mode)
         if renderer is None and schematic_mode.startswith("mech_"):
@@ -567,6 +568,7 @@ def prepare_v6_chapter_context(
         "pad": pad,
         "base_bg": base_bg,
         "settled_bg": settled_bg,
+        "real_zoom_src": real_zoom_src,
         "accent_col": accent_col,
         "schematic_mode": schematic_mode,
         "schematic_data": schematic_data,
@@ -580,7 +582,7 @@ def prepare_v6_chapter_context(
         "l1": l1,
         "y_l2_offset": y_l2_offset,
         "l2_layout": l2_layout,
-        "hook_reality_mode": bool(hook_reality_mode and real_backdrop_rgb is not None),
+        "hook_reality_mode": is_hook_reality,
         "show_subscribe_cta": bool(show_subscribe_cta),
     }
 
@@ -592,11 +594,33 @@ def _draw_v6_dynamic_frame(
     global_t_sec: Optional[float] = None,
     local_t: Optional[float] = None,
 ) -> Image.Image:
-    """Render one silky V8 frame onto cached chapter chrome (zero full-frame alpha_composite overhead)."""
+    """Render one silky V8.1 frame onto cached chapter chrome (with live 60fps Ch-1 reality push-in!)."""
     w, h = ctx["size"]
     pad = ctx["pad"]
     settled = anim_t >= 0.56
     canvas = ctx["settled_bg"].copy() if settled else ctx["base_bg"].copy()
+
+    # V8.1 Chapter-1 live 60fps Ken Burns slow push-in (1.00 -> 1.095) inside the real-world viewport
+    if ctx.get("hook_reality_mode") and ctx.get("real_zoom_src") is not None:
+        src_img: Image.Image = ctx["real_zoom_src"]
+        vx0, vy0, vx1, vy1 = 56, 424, w - 56, 1250
+        vw, vh = vx1 - vx0, vy1 - vy0
+        z_scale = 1.0 + 0.095 * _ease_out(max(0.0, min(1.0, phase_t)))
+        cw = vw / z_scale
+        ch = vh / z_scale
+        cx_v = (vx0 + vx1) * 0.5
+        cy_v = (vy0 + vy1) * 0.5
+        crop_box = (
+            max(0.0, cx_v - cw * 0.5),
+            max(0.0, cy_v - ch * 0.5),
+            min(float(w), cx_v + cw * 0.5),
+            min(float(h), cy_v + ch * 0.5),
+        )
+        zoomed_patch = src_img.crop(crop_box).resize((vw, vh), Image.Resampling.BILINEAR)
+        canvas.paste(zoomed_patch, (vx0, vy0))
+        vdraw = ImageDraw.Draw(canvas, "RGBA")
+        vdraw.rectangle([vx0, vy0, vx1, vy1], outline=(*CYAN, 115), width=2)
+
     draw = ImageDraw.Draw(canvas, "RGBA")
 
     # 1. Unbroken continuous background telemetry flow streaks (skip over bright reality hook center)

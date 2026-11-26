@@ -165,6 +165,29 @@ def synth_riser(duration: float = 1.2) -> np.ndarray:
     return np.stack([sig, sig * 0.96], axis=1)
 
 
+def synth_xray_scan(duration: float = 0.52) -> np.ndarray:
+    """VELUM V8.1 signature sci-fi X-Ray laser sweep + crisp mechanical lock impact."""
+    n = int(SAMPLE_RATE * duration)
+    t = np.linspace(0, duration, n, endpoint=False)
+    prog = t / duration
+    # Descending dual-harmonic laser scan beam (1950Hz -> 420Hz)
+    freq = 1950.0 * (0.215 ** (prog ** 0.78))
+    phase = 2.0 * np.pi * np.cumsum(freq) / SAMPLE_RATE
+    laser = (
+        0.42 * np.sin(phase)
+        + 0.22 * np.sin(phase * 1.503)
+    ) * np.sin(np.pi * prog) ** 0.75
+    # High-tech crisp air whoosh riding the laser line
+    rng = np.random.default_rng(808)
+    air = _bandpass(rng.normal(0, 1, n), 900.0, 4800.0) * np.sin(np.pi * prog) ** 1.3 * 0.42
+    # Deep tactile latch thump at lock-in (t=0.04s)
+    latch = np.sin(2.0 * np.pi * 68.0 * t) * np.exp(-t * 14.0) * 0.58
+    attack = np.clip(t / 0.006, 0.0, 1.0)
+    left = (laser + air * 0.9 + latch) * attack * 0.85
+    right = (laser * 0.95 + np.roll(air, 120) * 0.9 + latch) * attack * 0.85
+    return np.stack([left, right], axis=1)
+
+
 def synth_tension_bed(duration: float) -> np.ndarray:
     """Synthesize a dark, pulsing Netflix/Vox documentary underscore bed (D minor, 120 BPM)."""
     total_dur = max(5.0, float(duration) + 1.2)
@@ -235,6 +258,7 @@ def generate_audio_pack(work_dir: Path, total_duration: float) -> Dict[str, Path
         "sonar": _write_stereo_wav(sfx_dir / "sonar.wav", synth_sonar()),
         "glitch": _write_stereo_wav(sfx_dir / "glitch.wav", synth_glitch()),
         "riser": _write_stereo_wav(sfx_dir / "riser.wav", synth_riser()),
+        "xray_scan": _write_stereo_wav(sfx_dir / "xray_scan.wav", synth_xray_scan()),
         "tension_bed": _write_stereo_wav(sfx_dir / "tension_bed.wav", synth_tension_bed(total_duration)),
     }
     logger.info(

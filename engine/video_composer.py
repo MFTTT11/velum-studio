@@ -329,12 +329,12 @@ def build_kinetic_ass_subtitles(
         font_name = "DejaVu Sans"
 
     if editorial_v6 and is_vertical:
-        font_size = 56
-        margin_v = 435
-        margin_lr = 74
-        outline_w = 2
-        shadow_w = 2
-        spacing = 0.6
+        font_size = 66
+        margin_v = 425
+        margin_lr = 70
+        outline_w = 4
+        shadow_w = 3
+        spacing = 0.8
     else:
         font_size = 88 if is_vertical else 68
         margin_v = 470 if is_vertical else 78
@@ -373,10 +373,10 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         else:
             merged_words.append(dict(raw_w, word=tok))
 
-    # Group words cleanly (V6 editorial: 4-5 natural sentence words; kinetic mode: 2-word punch)
+    # Group words cleanly (V8.1 punchy 3-word dopamine bursts; kinetic mode: 2-word punch)
     if editorial_v6 and is_vertical:
-        max_words_grp = 5
-        max_chars_grp = 30
+        max_words_grp = 3
+        max_chars_grp = 21
     else:
         max_words_grp = 2 if is_vertical else 3
         max_chars_grp = 15 if is_vertical else 22
@@ -412,7 +412,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
                 if j == active_idx:
                     if editorial_v6:
                         hi_col = "&H00EED322&" if is_numeric else "&H000B9EF5&"
-                        parts.append(f"{{\\rKinetic\\fs{font_size}\\c{hi_col}}}{raw_txt}{{\\rKinetic}}")
+                        parts.append(
+                            f"{{\\rKinetic\\fs{font_size}\\c{hi_col}\\fscx110\\fscy110\\t(0,65,\\fscx100\\fscy100)}}{raw_txt}{{\\rKinetic}}"
+                        )
                     else:
                         hi_col = "&H00FFE500&" if is_numeric else "&H0000B8FF&"
                         parts.append(
@@ -579,9 +581,11 @@ def compose_cinematic_video(
         len(timed_beats),
     )
 
-    # 1. Generate royalty-free SFX & duration-matched tension underscore (+ V7 Twist Silence Shock)
+    # 1. Generate royalty-free SFX & duration-matched tension underscore (+ V8 X-Ray Scan & Twist Silence Shock)
     sfx_assets = generate_audio_pack(work_dir, total_dur)
     twist_drop_sec: Optional[float] = None
+    if bool(script.get("v6_schematic_mode")) and len(timed_beats) >= 2:
+        timed_beats[1]["sfx"] = "xray_scan"
     if len(timed_beats) >= 5:
         twist_drop_sec = float(timed_beats[-2].get("start", 0.0))
         timed_beats[-2]["sfx"] = "sub_boom"

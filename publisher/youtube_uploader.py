@@ -136,17 +136,17 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
     daily_shorts_cap = 2
     shorts_hours = [8, 18]
 
-    if day_num <= 13:
+    if day_num <= 5:
         allow_longform = False
-        phase = f"V7_SIGNATURE_DAY_{day_num} (2 High-Craft Mechanical 4K Shorts/day)"
+        phase = f"V8_IGNITION_DAY_{day_num} (2 High-Craft Reality->X-Ray 4K Shorts/day)"
     else:
-        allow_longform = (day_num % 2 == 1)
-        phase = f"SCALE_PHASE_DAY_{day_num} (2 Mechanical Shorts/day + Long-form every 2d)"
+        allow_longform = True
+        phase = f"V8_MONETIZATION_SCALE_DAY_{day_num} (2 X-Ray Shorts/day + 16:9 4-Chapter Doc every 3d)"
 
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    two_days_ago = (now - timedelta(days=2)).isoformat()
+    three_days_ago = (now - timedelta(days=3)).isoformat()
     shorts_today = state_db.count_videos_by_format_since("shorts", today_start)
-    longform_recent = state_db.count_videos_by_format_since("longform", two_days_ago)
+    longform_recent = state_db.count_videos_by_format_since("longform", three_days_ago)
 
     if allow_longform and longform_recent == 0 and shorts_today >= 1:
         recommended_format = "longform"
