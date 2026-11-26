@@ -222,73 +222,66 @@ def _build_native_omni_seo(
         f"{_format_chapter_ts(total_dur * 0.80)} — The Exponential System Behind the Numbers",
     ]
 
-    # 300+ word authoritative documentary micro-article
+    # Build 100% unique episode-specific documentary description (V8: zero boilerplate template openings!)
+    spoken_summary = re.sub(r"\s+", " ", str(script.get("full_narration") or "").strip())
+    hook_sub = str(topic.get("hook_subtext") or kw).strip()
     article_paragraphs = [
         (
-            f"Most people hear large numbers every single day in news headlines, financial markets, "
-            f"and science documentaries without ever picturing what those scales actually represent in physical reality. "
-            f"This visual breakdown of {kw} strips away abstract jargon and translates invisible magnitudes into "
-            f"immediate, unmistakable measurements your brain can grasp in under sixty seconds. "
-            f"Using verified telemetry comparisons across {pillar}, we place everyday baselines right next to "
-            f"extreme thresholds so the hidden structure becomes impossible to ignore."
+            f"{spoken_summary} "
+            f"In this {brand['channel_name']} 60fps X-Ray engineering breakdown of {kw}, we peel back the outer surface "
+            f"to show the exact physical mechanism at work ({hook_sub.lower()})."
         ),
         (
-            f"At the center of this analysis sits a stark contrast: {f0['label'].lower()} measures {f0['value']}, "
-            f"while {f1['label'].lower()} jumps all the way to {f1['value']}. "
-            f"Cognitive science shows that the human brain evolved to estimate linear distances, small groups, "
-            f"and immediate horizons—not orders of magnitude separated by factors of a thousand or more. "
-            f"Because our perception compresses huge numbers together, two figures that sound verbally similar "
-            f"can actually occupy completely different universes of time, energy, wealth, or physical force."
+            f"Key physical measurements behind {kw}: {f0['label'].lower()} hits {f0['value']}, "
+            f"while {f1['label'].lower()} reaches {f1['value']}. "
+            f"Under real-world operating loads, {f2['label'].lower()} ({f2['value']}) interacts directly with "
+            f"{f3['label'].lower()} ({f3['value']}) — creating the counterintuitive effect shown in this simulation."
         ),
         (
-            f"When we extend the exact same benchmark even further, {f2['label'].lower()} reaches {f2['value']} "
-            f"and {f3['label'].lower()} reveals an astonishing {f3['value']}. "
             f"{wiki_snip + ' ' if wiki_snip else ''}"
-            f"By visualizing these invisible systems through side-by-side scale bars, live telemetry counters, "
-            f"and real-world physical analogies, {brand['channel_name']} transforms raw data into clear intuition. "
-            f"Whether you study economics, engineering infrastructure, behavioral psychology, or extreme physics, "
-            f"understanding {kw} permanently upgrades how you read headlines, budgets, risk models, and global systems."
+            f"Every episode on {brand['channel_name']} decodes one overlooked piece of real-world engineering, physics, "
+            f"or hidden infrastructure in under 30 seconds using custom 60fps X-Ray cross-sections and verified data."
         ),
     ]
 
     geo_bullets = [
-        f"- Core Topic: {kw.title()} ({pillar})",
-        f"- Benchmark 1 ({f0['label']}): {f0['value']}",
-        f"- Benchmark 2 ({f1['label']}): {f1['value']}",
-        f"- Benchmark 3 ({f2['label']}): {f2['value']}",
-        f"- Benchmark 4 ({f3['label']}): {f3['value']}",
-        f"- Primary Takeaway: Human intuition compresses large ratios linearly; visual comparison exposes the true scale gap ({topic['shock_hook_stat']}).",
+        f"- Subject: {kw.title()} ({pillar})",
+        f"- Metric 1 ({f0['label']}): {f0['value']}",
+        f"- Metric 2 ({f1['label']}): {f1['value']}",
+        f"- Metric 3 ({f2['label']}): {f2['value']}",
+        f"- Metric 4 ({f3['label']}): {f3['value']}",
+        f"- Core Mechanism: {topic['shock_hook_stat']} ({hook_sub})",
     ]
 
     aeo_faq = [
         {
-            "q": f"Why is {kw} so hard for the human brain to picture?",
+            "q": f"How does {kw} actually work in real life?",
             "a": (
-                f"Human intuition evolved for linear, everyday scales rather than exponential jumps. "
-                f"Comparing {f0['value']} against {f1['value']} reveals how quickly verbal similarity hides massive real-world gaps."
+                f"The physical trigger comes down to {f0['label'].lower()} ({f0['value']}) acting against "
+                f"{f1['label'].lower()} ({f1['value']}), as shown in the 60fps cutaway above."
             ),
         },
         {
-            "q": f"What are the most important verified numbers in {kw}?",
+            "q": f"What are the exact engineering numbers for {kw}?",
             "a": (
-                f"The four core telemetry anchors are {f0['label']} ({f0['value']}), {f1['label']} ({f1['value']}), "
+                f"Verified benchmarks include {f0['label']} ({f0['value']}), {f1['label']} ({f1['value']}), "
                 f"{f2['label']} ({f2['value']}), and {f3['label']} ({f3['value']})."
             ),
         },
         {
-            "q": f"How does visualizing {kw} change real-world decision making?",
+            "q": f"Why does {kw} surprise most people?",
             "a": (
-                f"Translating abstract figures into time, physical height, or daily rates eliminates scale blindness, "
-                f"making hidden economic, technological, and scientific constraints immediately obvious."
+                f"Everyday intuition misses hidden pressure, thermal, or geometric forces like {f2['label'].lower()} "
+                f"({f2['value']}) until you slice open the mechanism in X-Ray view."
             ),
         },
     ]
 
     hashtags = [
-        "#VelumArchive",
-        "#VisualComparison",
-        "#HiddenSystems",
-        "#DataVisualization",
+        "#VelumDispatch",
+        "#Engineering",
+        "#HowItWorks",
+        "#Physics",
         "#Shorts" if script["format"] == "shorts" else "#Documentary",
     ]
 
@@ -296,21 +289,20 @@ def _build_native_omni_seo(
     description_full = (
         f"{topic['title_variants'][0]}\n\n"
         + "\n\n".join(article_paragraphs)
-        + "\n\n--- KEY DATA SUMMARY (GEO FACT SHEET) ---\n"
+        + "\n\n--- VERIFIED ENGINEERING DATA ---\n"
         + "\n".join(geo_bullets)
-        + "\n\n--- TIMELINE CHAPTERS ---\n"
+        + "\n\n--- CHAPTERS ---\n"
         + "\n".join(chapters)
-        + "\n\n--- FREQUENTLY ASKED QUESTIONS (FAQ) ---\n"
+        + "\n\n--- QUICK FAQ ---\n"
         + faq_text
-        + f"\n\nSubscribe to {brand['channel_name']} ({brand['handle']}) for daily borderless visual breakdowns of money, technology, psychology, and science anomalies.\n\n"
+        + f"\n\nSubscribe to {brand['channel_name']} ({brand['handle']}) for daily 60fps X-Ray breakdowns of hidden engineering & physics.\n\n"
         + " ".join(hashtags)
     )
 
     debate = topic.get("debate_hook") or {}
     pinned_comment = debate.get("pinned") or (
-        f"Honest question: before seeing {f0['value']} next to {f1['value']}, "
-        f"did your brain assume the gap was way smaller? Drop your country & which hidden system "
-        f"we should decode next — top voted topic gets built tomorrow."
+        f"Honest question: did you expect {f0['value']} vs {f1['value']}? "
+        f"Drop which hidden machine or physics mystery we should X-Ray next — top comment gets built tomorrow."
     )
 
     tags = list(
@@ -319,18 +311,14 @@ def _build_native_omni_seo(
                 kw,
                 topic["topic_id"].replace("-", " "),
                 f"{kw} explained",
-                "visual comparison",
-                "hidden systems",
-                "extreme facts",
-                "data visualization",
-                "vox style explainer",
-                "scale comparison",
-                "velum archive",
+                "how it works",
+                "engineering explained",
+                "physics animation",
+                "hidden mechanics",
+                "x-ray animation",
+                "velum dispatch",
                 pillar.lower(),
-                "science anomalies",
-                "money scale",
-                "psychology facts",
-                "documentary shorts" if script["format"] == "shorts" else "mini documentary",
+                "science shorts" if script["format"] == "shorts" else "engineering documentary",
             ]
         )
     )

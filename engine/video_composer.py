@@ -127,19 +127,35 @@ def _load_beat_visual(
     """Materialize a single beat's graded frames on demand so peak RAM stays under ~450 MB."""
     w, h = size
     if spec["kind"] == "v6_schematic":
-        # VELUM V7.2: pre-bake static chapter chrome once (~12 MB RAM) and stream true 60fps frames live!
+        # VELUM V8: load real-world cinema plate for Ch1 Reality->X-Ray Hook & Ch4 pattern interrupt!
+        real_pil: Optional[Image.Image] = None
+        rb_path = spec.get("real_backdrop_path")
+        if rb_path is not None and Path(rb_path).exists():
+            try:
+                p_img = Image.open(rb_path).convert("RGB")
+                if p_img.size != (w, h):
+                    p_img = p_img.resize((w, h), Image.Resampling.LANCZOS)
+                graded_bgr = _apply_cinematic_grade(cv2.cvtColor(np.asarray(p_img), cv2.COLOR_RGB2BGR))
+                real_pil = Image.fromarray(cv2.cvtColor(graded_bgr, cv2.COLOR_BGR2RGB))
+            except Exception as exc:
+                logger.debug("V8 real backdrop skipped for chapter %s (%s)", spec.get("chapter_num"), type(exc).__name__)
+        ch_num = int(spec.get("chapter_num", 1))
+        tot_ch = int(spec.get("total_chapters", 6))
         ctx = prepare_v6_chapter_context(
             schematic_mode=spec.get("schematic_mode", "step_sequence_blueprint"),
             schematic_data=spec.get("schematic_data", {}),
             size=size,
-            chapter_num=int(spec.get("chapter_num", 1)),
-            total_chapters=int(spec.get("total_chapters", 6)),
+            chapter_num=ch_num,
+            total_chapters=tot_ch,
             chapter_tag=str(spec.get("chapter_tag", "MECHANISM")),
             headline_line1=str(spec.get("headline_line1", "HIDDEN SCALE")),
             headline_line2=str(spec.get("headline_line2", "EXPOSED")),
             accent_word=str(spec.get("accent_word", "")),
             episode_num=int(spec.get("episode_num", 9)),
             source_credit=str(spec.get("source_credit", "VELUM ARCHIVE")),
+            real_backdrop_rgb=real_pil,
+            hook_reality_mode=(ch_num == 1 and real_pil is not None),
+            show_subscribe_cta=(ch_num >= max(2, tot_ch - 1)),
         )
         return {"kind": "v6_schematic_stream", "ctx": ctx}
 
@@ -601,6 +617,15 @@ def compose_cinematic_video(
         if beat_dur <= 0.11:
             beat_dur = float(beat.get("duration", 2.2))
         if beat.get("visual_type") == "v6_schematic":
+            real_backdrop_path = None
+            # V8 Hybrid Reality Hook (Ch 1) & mid-video visual reset (Ch 4): fetch real-world cinema plate zero-key!
+            if idx in (0, 3):
+                vq = str(beat.get("visual_query") or script.get("primary_keyword") or "").strip()
+                if vq:
+                    try:
+                        real_backdrop_path = fetcher.fetch_photo_plate(vq, size, variant_index=idx)
+                    except Exception as exc:
+                        logger.debug("V8 real plate fetch skipped at beat %d (%s)", idx, type(exc).__name__)
             beat_specs.append(
                 {
                     "kind": "v6_schematic",
@@ -615,6 +640,7 @@ def compose_cinematic_video(
                     "accent_word": str(beat.get("accent_word", "")),
                     "episode_num": ep_num,
                     "source_credit": str(beat.get("source_credit", "VELUM ARCHIVE")),
+                    "real_backdrop_path": real_backdrop_path,
                 }
             )
             continue
@@ -754,8 +780,25 @@ def compose_cinematic_video(
                         local_t=local_t,
                     )
                 frame_bgr = cached_sch_bgr
-                # Silky 10-frame (166ms) cubic-eased crossfade between schematic chapters
-                if beat_cursor > 0 and local_frame < sch_transition_frames and prev_beat_last_frame is not None:
+                # VELUM V8 Signature X-Ray Laser Wipe (Ch 1 Reality -> Ch 2 60fps CAD reveal!)
+                if beat_cursor == 1 and local_frame < 14 and prev_beat_last_frame is not None:
+                    raw_w = (local_frame + 1) / 15.0
+                    wipe_p = 1.0 - (1.0 - raw_w) ** 3
+                    wipe_y = max(4, min(h - 4, int(round(h * wipe_p))))
+                    composed = prev_beat_last_frame.copy()
+                    composed[:wipe_y, :, :] = frame_bgr[:wipe_y, :, :]
+                    # Glowing cyan laser peel bar (BGR: 238, 211, 34) with bright white core
+                    b0, b1 = max(0, wipe_y - 10), min(h, wipe_y + 10)
+                    composed[b0:b1, :, :] = np.clip(
+                        composed[b0:b1, :, :].astype(np.float32) * 0.35
+                        + np.array([238.0, 211.0, 34.0], dtype=np.float32) * 0.65,
+                        0,
+                        255,
+                    ).astype(np.uint8)
+                    composed[max(0, wipe_y - 2):min(h, wipe_y + 2), :, :] = (255, 252, 235)
+                    frame_bgr = composed
+                # Silky 10-frame (166ms) cubic-eased crossfade between subsequent schematic chapters
+                elif beat_cursor > 0 and local_frame < sch_transition_frames and prev_beat_last_frame is not None:
                     raw_cf = (local_frame + 1) / float(sch_transition_frames + 1)
                     alpha_cf = 1.0 - (1.0 - raw_cf) ** 3
                     frame_bgr = cv2.addWeighted(frame_bgr, alpha_cf, prev_beat_last_frame, 1.0 - alpha_cf, 0.0)

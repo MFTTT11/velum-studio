@@ -25,9 +25,9 @@ from core.llm_client import ZeroCostLLMClient
 
 logger = get_logger("script_engine")
 
-SHORTS_MIN_WORDS = 84
-SHORTS_MAX_WORDS = 116
-SHORTS_TARGET_WORDS = 100
+SHORTS_MIN_WORDS = 68
+SHORTS_MAX_WORDS = 94
+SHORTS_TARGET_WORDS = 82
 
 PART2_CONTINUITY_HOOKS = (
     ("Part two goes even deeper. ", False),
@@ -459,14 +459,12 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "Will humans walk on Mars before we ever reach Earth's mantle? Drop your bet below—",
     ],
     "cargo-ship-250k-tons-float-physics": [
-        "Drop a one-gram steel nail into the ocean and it sinks straight to the bottom.",
-        "Yet a two hundred and fifty thousand ton steel cargo ship floats effortlessly across the sea.",
-        "A mega container ship stretches four hundred meters long and carries twenty four thousand stacked steel boxes.",
-        "It weighs a quarter of a million tons, heavier than seven hundred fully loaded jumbo jets.",
-        "So why does solid steel sink while this floating skyscraper stays on top?",
-        "Because roughly ninety percent of its massive hollow hull is trapped empty air.",
-        "Spread across that footprint, the ship's average density drops below seawater, pushing back upward with equal force.",
-        "So a quarter-million-ton steel skyscraper floats simply because it traps an entire ocean of air inside.",
+        "Drop a tiny steel nail in the ocean and it sinks, yet a massive steel cargo ship floats.",
+        "Solid steel is nearly eight times denser than seawater, so gravity should drag it straight down.",
+        "Stretch four hundred meters of that steel into a giant hollow shell, and everything flips.",
+        "Over eighty five percent of a container ship's massive hull is trapped empty air.",
+        "Its average density drops below seawater, so displaced ocean water pushes back upward harder.",
+        "Trapping an entire ocean of air changes buoyancy completely, explaining why you can",
     ],
     "slot-machine-near-miss-brain-hack": [
         "When two jackpots line up and the third symbol misses by one millimeter, your brain does something bizarre.",
@@ -534,44 +532,44 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "The inner metal flange barely touches the rail in normal turns — pure cone geometry steers the entire train.",
     ],
     "volcano-trash-drop-explosion": [
-        "Drop a single thirty kilogram bag of everyday garbage into an active volcano and the entire lava lake erupts.",
-        "It sounds like the cheapest landfill on Earth until you see what happens below the cooled dark crust.",
-        "Molten basalt lava sits at eleven hundred degrees, trapped right beneath a thin semi-solid skin.",
-        "When researchers tossed one thirty kilogram organic bundle into Erta Ale volcano, it punched clean through that crust.",
-        "Moisture inside the bundle instantly flashed into steam, expanding sixteen hundred times in a split second.",
-        "That steam shockwave blew a violent fountain of molten rock skyward from just thirty kilograms of waste.",
+        "Drop one small bag of trash into a volcano, and the entire lava lake violently erupts.",
+        "Scientists proved what happens when you throw thirty kilograms of waste onto eleven hundred degree lava.",
+        "The heavy bundle punches straight through the dark cooled crust into liquid basalt below.",
+        "Trapped moisture flashes instantly into steam, expanding sixteen hundred times in one split second.",
+        "That underground shockwave blasts a violent fountain of glowing molten rock straight skyward.",
+        "That chain reaction is the exact reason geologists warn you never to",
     ],
     "bridge-metal-expansion-teeth": [
-        "Drive across any major bridge and you hear a sharp metallic clunk over giant steel teeth built right into the road.",
-        "Those interlocking metal fingers are the only reason summer sunlight does not snap the bridge in half.",
-        "Between a freezing winter night and a scorching forty five degree afternoon, steel and concrete physically stretch.",
-        "Across a one kilometer highway bridge, that invisible thermal growth pushes the deck more than forty centimeters longer.",
-        "Without a flexible expansion joint, thousands of tons of sideways force would buckle the roadway violently upward.",
-        "Instead, those steel teeth slide cleanly together in July and pull apart in January while traffic rolls right over them.",
+        "Drive across any major bridge and those giant metal teeth are stopping it from snapping in half.",
+        "Steel bridges have these interlocking gaps because summer sunlight physically stretches the road.",
+        "Between a freezing night and forty five degree heat, a one kilometer deck grows forty centimeters.",
+        "Without room to expand, thousands of tons of pressure would buckle the highway upward.",
+        "Instead, those steel fingers slide tightly shut in July and pull apart in January.",
+        "Every hidden metallic clunk absorbs massive thermal force whenever you",
     ],
     "nuclear-submarine-25-years-underwater": [
-        "A modern nuclear submarine can circle the planet underwater for twenty five years without surfacing for fuel once.",
-        "Deep inside its steel hull sits a compact nuclear reactor core sealed for the entire operational life of the ship.",
-        "It never runs out of drinking water either, distilling thousands of liters of fresh water straight from the ocean.",
-        "Even breathable oxygen is endless: onboard electrolysis machines split seawater molecules directly into pure oxygen.",
-        "So with infinite fuel, infinite water, and infinite air, what actually forces a three billion dollar submarine back to port?",
-        "Just one surprisingly human bottleneck: its storage lockers run out of crew food after roughly ninety days.",
+        "A nuclear submarine can stay underwater for twenty five years, yet one absurd limit stops it.",
+        "Its sealed nuclear reactor core runs for decades without surfacing for fuel even once.",
+        "Onboard evaporators distill endless fresh drinking water straight out of salty ocean water.",
+        "Electrolysis machines even split seawater molecules directly into an infinite supply of oxygen.",
+        "So what forces a three billion dollar war machine back to port every few months?",
+        "Its pantry simply runs out of crew food in ninety days, proving why",
     ],
     "deep-sea-diver-pure-oxygen-toxic": [
-        "Fill a scuba diver's tank with one hundred percent pure oxygen and it becomes deadly just six meters underwater.",
-        "Most people assume scuba tanks hold pure oxygen, when they actually contain normal compressed air at twenty one percent.",
-        "As a diver descends, water pressure squeezes more gas molecules into every single breath their lungs pull in.",
-        "At just six meters down, pure oxygen crosses one point six atmospheres of partial pressure inside the bloodstream.",
-        "Past that invisible line, oxygen turns neurotoxic, overwhelming brain cells and triggering sudden underwater seizures.",
-        "That is why deep technical divers actually dilute oxygen down below ten percent using helium.",
+        "Breathe pure oxygen just six meters underwater, and it turns into a deadly brain poison.",
+        "Scuba divers never use pure oxygen tanks — they breathe ordinary twenty one percent air.",
+        "As you sink deeper, crushing water pressure packs far more gas into every single breath.",
+        "At just six meters down, pure oxygen crosses one point six atmospheres in your bloodstream.",
+        "Past that invisible ceiling, oxygen overwhelms nerve cells and triggers sudden underwater seizures.",
+        "That is why deep divers dilute tanks with helium and never",
     ],
     "spacesuit-vacuum-balloon-layers": [
-        "Step into the vacuum of space inside an ordinary airtight suit and it would inflate into a rigid immobile balloon.",
-        "With zero outside air pushing back, Earth-level cabin pressure pushes outward with tons of force across every seam.",
-        "To keep astronauts moving, NASA drops internal spacesuit pressure to just zero point three atmospheres of pure oxygen.",
-        "Even at that lower pressure, a flexible rubber bladder alone would still balloon outward until you could not bend an elbow.",
-        "Hidden right over the bladder sits a woven Dacron restraint mesh that locks the suit's exact human silhouette in place.",
-        "Wrapped inside fourteen total layers against two hundred and seventy degree swings, every spacesuit is a wearable spacecraft.",
+        "Step into space wearing a normal airtight suit and it balloons rigid until you cannot move.",
+        "Spacesuits do not explode like balloons in total vacuum only because of a hidden mesh.",
+        "With zero outside air pushing back, Earth pressure would inflate rubber seams with tons of force.",
+        "First, NASA drops internal suit pressure down to zero point three atmospheres of pure oxygen.",
+        "Then a woven Dacron restraint shell locks the suit's exact human shape inside fourteen thermal layers.",
+        "That wearable spacecraft survives two hundred and seventy degree swings, proving why nobody can",
     ],
 }
 

@@ -338,6 +338,109 @@ def _create_v6_backdrop(w: int, h: int, accent: Tuple[int, int, int], phase_t: f
     return canvas
 
 
+def _compose_reality_backdrop(
+    real_rgb: Image.Image,
+    w: int,
+    h: int,
+    accent_col: Tuple[int, int, int],
+    full_hook: bool,
+) -> Image.Image:
+    """Blend a real-world cinema photo cleanly into the VELUM V8 blueprint frame."""
+    photo = real_rgb.convert("RGB")
+    if photo.size != (w, h):
+        photo = photo.resize((w, h), Image.Resampling.LANCZOS)
+    p_arr = np.asarray(photo, dtype=np.float32)
+    base_arr = _base_canvas_array(w, h, accent_col).astype(np.float32)
+
+    if not full_hook:
+        # Mid-video pattern interrupt (Ch 4): sleek 18% atmospheric real-world depth layer behind CAD
+        blended = np.clip(base_arr * 0.82 + p_arr * 0.18, 0, 255).astype(np.uint8)
+        return Image.fromarray(blended, mode="RGB")
+
+    # Chapter 1 Scroll-Stopper Hook: vivid real subject in center viewport (y=428..1246)
+    # with deep editorial vignette top (headline) & bottom (captions) for razor-sharp contrast
+    yy = np.linspace(0.0, 1.0, h, dtype=np.float32)[:, None, None]
+    # Center band (0.22..0.67) showcases vibrant reality at ~82% visibility; top/bottom fade to dark slate
+    top_fade = np.clip((yy - 0.17) / 0.10, 0.0, 1.0)
+    bot_fade = np.clip((0.72 - yy) / 0.11, 0.0, 1.0)
+    window_vis = (top_fade * bot_fade) * 0.84 + 0.14
+    blended = np.clip(base_arr * (1.0 - window_vis) + p_arr * window_vis, 0, 255).astype(np.uint8)
+    return Image.fromarray(blended, mode="RGB")
+
+
+def _draw_reality_xray_scanner(
+    draw: ImageDraw.ImageDraw,
+    box: Tuple[int, int, int, int],
+    data: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    accent_col: Tuple[int, int, int],
+) -> None:
+    """VELUM V8 Chapter-1 live 60fps X-Ray target reticle & cyan laser scanner over real-world footage."""
+    x0, y0, x1, y1 = box
+    cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
+    eased = _ease_out(anim_t)
+
+    # Crisp corner viewport brackets framing the real-world subject
+    b_len = 52
+    b_col = (*CYAN, 235)
+    corners = [
+        [(x0, y0 + b_len), (x0, y0), (x0 + b_len, y0)],
+        [(x1 - b_len, y0), (x1, y0), (x1, y0 + b_len)],
+        [(x0, y1 - b_len), (x0, y1), (x0 + b_len, y1)],
+        [(x1 - b_len, y1), (x1, y1), (x1, y1 - b_len)],
+    ]
+    for c_pts in corners:
+        draw.line(c_pts, fill=b_col, width=4)
+
+    # Sweeping vertical X-Ray cyan laser beam + glowing trail
+    scan_prog = (phase_t * 1.15) % 1.0
+    scan_y = int(y0 + 18 + (y1 - y0 - 36) * scan_prog)
+    trail_top = max(y0 + 6, scan_y - 68)
+    draw.rectangle([x0 + 6, trail_top, x1 - 6, scan_y], fill=(CYAN[0], CYAN[1], CYAN[2], 32))
+    draw.line([(x0 + 4, scan_y), (x1 - 4, scan_y)], fill=(*CYAN, 250), width=4)
+    draw.line([(x0 + 4, scan_y - 3), (x1 - 4, scan_y - 3)], fill=(*WHITE, 195), width=2)
+
+    # Pulsing central target lock reticle over real subject
+    pulse = 0.5 + 0.5 * math.sin(phase_t * math.tau * 3.0)
+    r_outer = int(112 + 12 * pulse)
+    _draw_dashed_ellipse(draw, cx, cy, r_outer, r_outer, (*accent_col, 235), width=3, segments=24, phase=phase_t * 2.5)
+    r_inner = int(64 * max(0.35, eased))
+    draw.ellipse([cx - r_inner, cy - r_inner, cx + r_inner, cy + r_inner], outline=(*WHITE, 215), width=2)
+    draw.line([(cx - 24, cy), (cx + 24, cy)], fill=(*accent_col, 240), width=2)
+    draw.line([(cx, cy - 24), (cx, cy + 24)], fill=(*accent_col, 240), width=2)
+
+    # Top-left live X-Ray scan status pill + bottom-right key metric badge
+    pill_f = _font("mono", 21)
+    scan_pct = min(99, int(phase_t * 100))
+    status_txt = f"X-RAY LOCK · {scan_pct:02d}%"
+    sbb = draw.textbbox((0, 0), status_txt, font=pill_f)
+    pw = (sbb[2] - sbb[0]) + 46
+    draw.rounded_rectangle(
+        [x0 + 18, y0 + 18, x0 + 18 + pw, y0 + 58],
+        radius=8,
+        fill=(7, 14, 24, 215),
+        outline=(*CYAN, 210),
+        width=2,
+    )
+    draw.ellipse([x0 + 30, y0 + 32, x0 + 42, y0 + 44], fill=(*CORAL, int(170 + 85 * pulse)))
+    draw.text((x0 + 50, y0 + 27 - sbb[1]), status_txt, font=pill_f, fill=(*WHITE, 245))
+
+    m_val = _clean_lbl(str(data.get("metric_value") or ""), 22)
+    if m_val:
+        mf = _font("headline", 32)
+        mbb = draw.textbbox((0, 0), m_val, font=mf)
+        mw = (mbb[2] - mbb[0]) + 36
+        draw.rounded_rectangle(
+            [x1 - 18 - mw, y1 - 74, x1 - 18, y1 - 18],
+            radius=10,
+            fill=(7, 14, 24, 222),
+            outline=(*accent_col, 230),
+            width=2,
+        )
+        draw.text((x1 - 18 - mw + 18, y1 - 62 - mbb[1]), m_val, font=mf, fill=(*accent_col, 255))
+
+
 def prepare_v6_chapter_context(
     schematic_mode: str,
     schematic_data: Dict[str, Any],
@@ -350,12 +453,18 @@ def prepare_v6_chapter_context(
     accent_word: str = "",
     episode_num: int = 1,
     source_credit: str = "VELUM RESEARCH",
+    real_backdrop_rgb: Optional[Image.Image] = None,
+    hook_reality_mode: bool = False,
+    show_subscribe_cta: bool = False,
 ) -> Dict[str, Any]:
     """Pre-bake static per-chapter chrome & settled typography ONCE for butter-smooth native 60fps streaming."""
     w, h = size
     pad = 60
     accent_col = _accent_color(str(schematic_data.get("accent", "amber")))
-    base_bg = Image.fromarray(_base_canvas_array(w, h, accent_col).copy(), mode="RGB")
+    if real_backdrop_rgb is not None:
+        base_bg = _compose_reality_backdrop(real_backdrop_rgb, w, h, accent_col, full_hook=hook_reality_mode)
+    else:
+        base_bg = Image.fromarray(_base_canvas_array(w, h, accent_col).copy(), mode="RGB")
     draw = ImageDraw.Draw(base_bg, "RGBA")
 
     # 1. Top Editorial Header: @VelumDispatch  |  EPISODE XX
@@ -442,13 +551,16 @@ def prepare_v6_chapter_context(
     for tx, tok, col in l2_layout:
         sdraw.text((tx, y_l2_settled), tok, font=head_f, fill=(*col, 255))
 
-    # Resolve renderer callable once per chapter
-    renderer = _RENDERERS.get(schematic_mode)
-    if renderer is None and schematic_mode.startswith("mech_"):
-        from engine.v7_mechanisms import V7_MECHANISM_RENDERERS
-        renderer = V7_MECHANISM_RENDERERS.get(schematic_mode)
-    if renderer is None:
-        renderer = _render_step_sequence_blueprint
+    # Resolve renderer callable once per chapter (V8 Chapter-1 Reality Hook uses X-Ray scanner overlay!)
+    if hook_reality_mode and real_backdrop_rgb is not None:
+        renderer = _draw_reality_xray_scanner
+    else:
+        renderer = _RENDERERS.get(schematic_mode)
+        if renderer is None and schematic_mode.startswith("mech_"):
+            from engine.v7_mechanisms import V7_MECHANISM_RENDERERS
+            renderer = V7_MECHANISM_RENDERERS.get(schematic_mode)
+        if renderer is None:
+            renderer = _render_step_sequence_blueprint
 
     return {
         "size": (w, h),
@@ -468,6 +580,8 @@ def prepare_v6_chapter_context(
         "l1": l1,
         "y_l2_offset": y_l2_offset,
         "l2_layout": l2_layout,
+        "hook_reality_mode": bool(hook_reality_mode and real_backdrop_rgb is not None),
+        "show_subscribe_cta": bool(show_subscribe_cta),
     }
 
 
@@ -478,16 +592,17 @@ def _draw_v6_dynamic_frame(
     global_t_sec: Optional[float] = None,
     local_t: Optional[float] = None,
 ) -> Image.Image:
-    """Render one silky V7.2 frame onto cached chapter chrome (zero full-frame alpha_composite overhead)."""
+    """Render one silky V8 frame onto cached chapter chrome (zero full-frame alpha_composite overhead)."""
     w, h = ctx["size"]
     pad = ctx["pad"]
     settled = anim_t >= 0.56
     canvas = ctx["settled_bg"].copy() if settled else ctx["base_bg"].copy()
     draw = ImageDraw.Draw(canvas, "RGBA")
 
-    # 1. Unbroken continuous background telemetry flow streaks
+    # 1. Unbroken continuous background telemetry flow streaks (skip over bright reality hook center)
     stream_t = global_t_sec if global_t_sec is not None else (phase_t * 4.5)
-    _draw_living_backdrop_streams(draw, w, stream_t)
+    if not ctx.get("hook_reality_mode"):
+        _draw_living_backdrop_streams(draw, w, stream_t)
 
     # 2. Smooth fractional progress beam + pulsing active diamond node
     cur_idx = ctx["cur_idx"]
@@ -531,6 +646,25 @@ def _draw_v6_dynamic_frame(
 
     stage_box = (60 + jitter_x, 428 + jitter_y, w - 60 + jitter_x, 1246 + jitter_y)
     ctx["renderer"](draw, stage_box, ctx["schematic_data"], anim_t, phase_t, ctx["accent_col"])
+
+    # 5. V8 Climax-Moment Subscriber Micro-Pill (Ch 5 & 6 dopamine peak — ZERO extra outro seconds!)
+    if ctx.get("show_subscribe_cta"):
+        cta_f = _font("mono", 20)
+        cta_txt = "+ SUBSCRIBE  ·  DAILY 60FPS X-RAY MECHANICS"
+        cbb = draw.textbbox((0, 0), cta_txt, font=cta_f)
+        cw = (cbb[2] - cbb[0]) + 56
+        cx0 = (w - cw) // 2
+        cy0 = 1218
+        draw.rounded_rectangle(
+            [cx0, cy0, cx0 + cw, cy0 + 40],
+            radius=20,
+            fill=(16, 24, 38, 232),
+            outline=(*CORAL, int(175 + 75 * pulse)),
+            width=2,
+        )
+        draw.ellipse([cx0 + 18, cy0 + 14, cx0 + 30, cy0 + 26], fill=(*CORAL, int(190 + 65 * pulse)))
+        draw.text((cx0 + 40, cy0 + 10 - cbb[1]), cta_txt, font=cta_f, fill=(*WHITE, 248))
+
     return canvas
 
 
