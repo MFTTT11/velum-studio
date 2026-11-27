@@ -187,9 +187,16 @@ def _verify_vseo_in_whisper(words: List[Dict[str, Any]], primary_keyword: str) -
         w["word"].lower() for w in words if float(w.get("start", 99.0)) <= 15.0
     ]
     spoken_15s = " ".join(first_15s_tokens)
-    kw_parts = [p for p in re.findall(r"[a-z0-9]+", primary_keyword.lower()) if len(p) > 2]
-    matched = [p for p in kw_parts if p in spoken_15s]
-    verified = len(matched) >= max(1, len(kw_parts) - 1)
+    stop = {"how", "why", "the", "and", "for", "can", "you", "are", "with", "each", "long", "vs", "dont"}
+    kw_parts = [
+        p for p in re.findall(r"[a-z0-9]+", primary_keyword.lower())
+        if len(p) > 2 and p not in stop
+    ]
+    matched = [
+        p for p in kw_parts
+        if p in spoken_15s or (len(p) > 4 and p[:-1] in spoken_15s)
+    ]
+    verified = len(matched) >= max(1, (len(kw_parts) + 1) // 2)
     return {
         "primary_keyword": primary_keyword,
         "verified_under_15s": verified,

@@ -46,7 +46,12 @@ def _probe_duration(media_path: Path) -> float:
 
 
 async def _synthesize_edge_tts_async(
-    text: str, voice: str, out_mp3: Path, rate: str = "+16%", pitch: str = "+0Hz"
+    text: str,
+    voice: str,
+    out_mp3: Path,
+    rate: str = "+16%",
+    pitch: str = "+0Hz",
+    voice_out: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Synthesize speech with Edge-TTS with automatic multi-voice fallback and backoff retry."""
     out_mp3.parent.mkdir(parents=True, exist_ok=True)
@@ -96,6 +101,9 @@ async def _synthesize_edge_tts_async(
                             }
                         )
             if out_mp3.exists() and out_mp3.stat().st_size >= 1024:
+                if voice_out is not None:
+                    voice_out.clear()
+                    voice_out.append(active_voice)
                 if attempt > 1:
                     logger.info(
                         "Edge-TTS succeeded on retry #%d using voice=%s (%d bytes)",
@@ -417,6 +425,7 @@ def _synthesize_shorts_per_beat(
     m_rate = re.search(r"([+-]?\d+)", base_rate)
     base_pct = int(m_rate.group(1)) if m_rate else 18
 
+    locked_voice = voice
     n_beats = len(beats)
     for idx, beat in enumerate(beats):
         narration = str(beat.get("narration", "")).strip()
@@ -436,7 +445,19 @@ def _synthesize_shorts_per_beat(
         if idx > 0:
             await_gap = 0.85
             asyncio.run(asyncio.sleep(await_gap))
-        raw_bounds = asyncio.run(_synthesize_edge_tts_async(narration, voice, b_mp3, rate=b_rate))
+        used_voice_holder: List[str] = []
+        raw_bounds = asyncio.run(
+            _synthesize_edge_tts_async(
+                narration, locked_voice, b_mp3, rate=b_rate, voice_out=used_voice_holder
+            )
+        )
+        if used_voice_holder and used_voice_holder[0] != locked_voice:
+            logger.info(
+                "Locking single narrator across remaining beats: %s -> %s",
+                locked_voice,
+                used_voice_holder[0],
+            )
+            locked_voice = used_voice_holder[0]
         raw_dur = _probe_duration(b_mp3)
         clean_dur = _clean_voice_with_silenceremove(b_mp3, b_wav)
         b_pcm = _read_pcm_stereo_48k(b_wav)

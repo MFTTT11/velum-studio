@@ -72,13 +72,40 @@ def _parse_utc_ts(raw_ts: Optional[str]) -> Optional[datetime]:
         return None
 
 
+def _is_video_publicly_live(
+    video_row: Dict[str, Any],
+    views: int,
+    now_utc: datetime,
+) -> bool:
+    """Return False when a video is still waiting in scheduled private publishAt with 0 views."""
+    if views > 0:
+        return True
+    publish_dt = _parse_utc_ts(video_row.get("publish_at"))
+    if publish_dt is not None and now_utc < publish_dt:
+        return False
+    return True
+
+
 def _compute_age_hours(
     video_row: Dict[str, Any],
     published_at_iso: Optional[str],
     now_utc: datetime,
+    views: int = 0,
 ) -> float:
-    """Compute video age in hours from YouTube publishedAt (fallback: state.db created_at)."""
-    ref_dt = _parse_utc_ts(published_at_iso) or _parse_utc_ts(video_row.get("created_at"))
+    """Compute public age in hours, respecting scheduled publishAt so private queues never age prematurely."""
+    publish_dt = _parse_utc_ts(video_row.get("publish_at"))
+    upload_dt = _parse_utc_ts(published_at_iso) or _parse_utc_ts(video_row.get("created_at"))
+    if publish_dt is not None:
+        if now_utc < publish_dt:
+            if views <= 0:
+                return 0.0
+            ref_dt = upload_dt or publish_dt
+        elif upload_dt is None or publish_dt >= upload_dt:
+            ref_dt = publish_dt
+        else:
+            ref_dt = upload_dt
+    else:
+        ref_dt = upload_dt
     if ref_dt is None:
         return 0.0
     return round(max(0.0, (now_utc - ref_dt).total_seconds() / 3600.0), 2)
@@ -499,18 +526,19 @@ def run_growth_mutation_cycle(
                     views = int(rt["views"])
                     likes = int(rt["likes"])
                     comments = int(rt["comments"])
-                    age_hours = _compute_age_hours(vid, rt.get("published_at"), now)
-                    views_per_hour = round(views / max(age_hours, 1.0), 2)
+                    is_public_live = _is_video_publicly_live(vid, views, now)
+                    age_hours = _compute_age_hours(vid, rt.get("published_at"), now, views=views)
+                    views_per_hour = round(views / max(age_hours, 1.0), 2) if is_public_live else 0.0
 
                     # Optional Analytics API v2 enhancement (never blocks or crashes)
                     avg_view_pct = float(vid.get("avg_view_pct", 0.0))
                     ctr = float(vid.get("ctr", 0.0))
-                    an_metrics = _fetch_live_video_metrics(an_svc, yt_id)
+                    an_metrics = _fetch_live_video_metrics(an_svc, yt_id) if is_public_live else None
                     if an_metrics:
                         views = max(views, int(an_metrics["views"]))
                         avg_view_pct = float(an_metrics["avg_view_pct"])
                         ctr = float(an_metrics["ctr"])
-                        views_per_hour = round(views / max(age_hours, 1.0), 2)
+                        views_per_hour = round(views / max(age_hours, 1.0), 2) if is_public_live else 0.0
 
                     state_db.update_video_metrics(vid["video_uid"], views, avg_view_pct, ctr)
                     vid["views"] = views
@@ -560,10 +588,10 @@ def run_growth_mutation_cycle(
                         if queued:
                             report["part2_queued"].append(queued)
 
-                    # 3. 18-Hour A/B Title Rescue (zero 48h Analytics delay)
+                    # 3. 18-Hour A/B Title Rescue (zero 48h Analytics delay; never fires on scheduled private videos)
                     hours_since_mut = _hours_since_last_mutation(state_db, vid["video_uid"], now)
                     mutated_this_cycle = False
-                    if _should_trigger_18h_title_rescue(vid, age_hours, views, titles, hours_since_mut):
+                    if is_public_live and _should_trigger_18h_title_rescue(vid, age_hours, views, titles, hours_since_mut):
                         next_var = cur_var + 1
                         new_title = titles[next_var]
                         reason = (

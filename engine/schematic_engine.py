@@ -684,20 +684,20 @@ def _draw_v6_dynamic_frame(
     stage_box = (56 + jitter_x, 434 + jitter_y, 916 + jitter_x, 1236 + jitter_y)
     ctx["renderer"](draw, stage_box, ctx["schematic_data"], anim_t, phase_t, ctx["accent_col"])
 
-    # 5. V9 High-Converting Climax Subscribe Pill & Comment-Loop Spark (zero jargon, inside safe zone!)
+    # 5. V9 High-Converting Climax Subscribe/Like Pill & Comment-Loop Spark (clears stage_box & safe zone!)
     if ctx.get("show_subscribe_cta"):
         is_final_ch = ctx["chapter_num"] >= ctx["n_steps"]
         cta_f = _font("mono", 20)
         cta_txt = (
             "WHAT SHOULD WE X-RAY NEXT?  ->  COMMENTS"
             if (is_final_ch and lt >= 0.55)
-            else "+ SUBSCRIBE  ·  1 HIDDEN MACHINE DAILY"
+            else "LIKE + SUBSCRIBE  ·  1 MACHINE DAILY"
         )
         pill_col = CYAN if (is_final_ch and lt >= 0.55) else CORAL
         cbb = draw.textbbox((0, 0), cta_txt, font=cta_f)
         cw = (cbb[2] - cbb[0]) + 56
         cx0 = max(56, (916 + 56 - cw) // 2)
-        cy0 = 1216
+        cy0 = 1222
         draw.rounded_rectangle(
             [cx0, cy0, cx0 + cw, cy0 + 42],
             radius=21,

@@ -803,6 +803,382 @@ def _mech_spacesuit_layers(
     _draw_meter_bar(draw, x0 + 65 + bar_w, y1 - 125, bar_w, 16, str(data.get("sub_label", "SUIT PRESSURE")), _roll_number(str(data.get("sub_value", "0.3 ATM")), anim_t), 0.72 * eased, MINT)
 
 
+def _mech_dam_arch(
+    draw: ImageDraw.ImageDraw,
+    box: Tuple[int, int, int, int],
+    data: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    accent: Tuple[int, int, int],
+) -> None:
+    """Top-down arch dam CAD wedged between canyon walls: reservoir thrust routes into bedrock."""
+    x0, y0, x1, y1 = box
+    cx, cy = (x0 + x1) // 2, y0 + 405
+    eased = _ease_out(anim_t)
+    mono = _font("mono", 20)
+
+    stages = data.get("stages") or ["22 ATM THRUST", "ARCH CURVE", "ROCK LOCK"]
+    _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
+
+    stage = int(data.get("scene_stage", 0))
+    # Left & Right solid granite canyon walls
+    wall_l = [(x0 + 30, y0 + 115), (x0 + 175, y0 + 150), (x0 + 190, y1 - 185), (x0 + 30, y1 - 165)]
+    wall_r = [(x1 - 30, y0 + 115), (x1 - 175, y0 + 150), (x1 - 190, y1 - 185), (x1 - 30, y1 - 165)]
+    draw.polygon(wall_l, fill=(26, 36, 52, 235), outline=(*MUTED, 210))
+    draw.polygon(wall_r, fill=(26, 36, 52, 235), outline=(*MUTED, 210))
+    _draw_centered(draw, "GRANITE", x0 + 102, cy + 5, _font("mono", 17), (*MUTED, 235))
+    _draw_centered(draw, "GRANITE", x1 - 102, cy + 5, _font("mono", 17), (*MUTED, 235))
+
+    # Reservoir water body pressing down from top toward convex arch
+    draw.rectangle([x0 + 182, y0 + 125, x1 - 182, cy - 18], fill=(12, 56, 86, 130))
+    _draw_centered(draw, "RESERVOIR (22 ATM BASE)", cx, y0 + 155, mono, (*CYAN, 245))
+
+    # Curved concrete arch bowing UPSTREAM toward the water!
+    arch_rect_outer = [x0 + 145, cy - 82, x1 - 145, cy + 275]
+    arch_rect_inner = [x0 + 175, cy - 34, x1 - 175, cy + 315]
+    draw.arc(arch_rect_outer, start=205, end=335, fill=(*WHITE, 245), width=26)
+    draw.arc(arch_rect_inner, start=208, end=332, fill=(*AMBER, 225), width=6)
+
+    # Animated water thrust arrows pushing down -> redirected sideways into rock abutments!
+    pulse_off = int(14 * ((phase_t * 2.2) % 1.0))
+    for ax in (cx - 110, cx, cx + 110):
+        _draw_arrow(draw, (ax, y0 + 195 + pulse_off), (ax, cy - 92 + pulse_off), (*CORAL, 245), width=5, head_len=14)
+
+    show_compression = (stage >= 3) if stage > 0 else (phase_t > 0.35)
+    if show_compression:
+        for side in (-1, 1):
+            # Curved compression path along arch wings into solid rock!
+            p_start = (cx + side * 42, cy - 66)
+            p_mid = (cx + side * 165, cy - 28)
+            p_wall = (cx + side * 245, cy + 20)
+            _draw_arrow(draw, p_start, p_mid, (*MINT, 250), width=5, head_len=14)
+            _draw_arrow(draw, p_mid, p_wall, (*MINT, 250), width=5, head_len=14)
+        _draw_centered(draw, "COMPRESSION SQUEEZE INTO CANYON ROCK", cx, cy + 92, mono, (*MINT, 250))
+    else:
+        _draw_centered(draw, "200M THICK BASE VS 14M CREST", cx, cy + 92, mono, (*AMBER, 245))
+
+    bar_w = (x1 - x0 - 90) // 2
+    _draw_meter_bar(draw, x0 + 25, y1 - 125, bar_w, 16, str(data.get("metric_label", "BASE THICKNESS")), _roll_number(str(data.get("metric_value", "200 METERS")), anim_t), 0.94 * eased, AMBER)
+    _draw_meter_bar(draw, x0 + 65 + bar_w, y1 - 125, bar_w, 16, str(data.get("sub_label", "CREST WIDTH")), _roll_number(str(data.get("sub_value", "14 METERS")), anim_t), 0.25 * eased, CYAN)
+
+
+def _mech_bulletproof_glass(
+    draw: ImageDraw.ImageDraw,
+    box: Tuple[int, int, int, int],
+    data: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    accent: Tuple[int, int, int],
+) -> None:
+    """Multi-layer glass + polycarbonate laminate absorbing 850 m/s round via radial energy cone."""
+    x0, y0, x1, y1 = box
+    cx, cy = (x0 + x1) // 2, y0 + 385
+    eased = _ease_out(anim_t)
+    mono = _font("mono", 19)
+
+    stages = data.get("stages") or ["850 M/S IMPACT", "GLASS SHATTERS", "PLASTIC CATCH"]
+    _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
+
+    top_y, bot_y = y0 + 135, y1 - 210
+    # 4 vertical laminated layers: Outer Glass -> Urethane Bond -> Polycarbonate Core -> Spall Shield
+    layers_cfg = [
+        (cx - 145, 34, "GLASS", CORAL, 55),
+        (cx - 65, 20, "BOND", AMBER, 48),
+        (cx + 35, 68, "PLASTIC", CYAN, 70),
+        (cx + 145, 26, "SHIELD", MINT, 55),
+    ]
+    stage = int(data.get("scene_stage", 0))
+    if stage in (1, 2):
+        impact_t = 0.0
+        fly_t = min(0.95, phase_t * 1.1)
+    elif stage >= 3:
+        impact_t = _ease_out(min(1.0, (phase_t + (0.25 if stage >= 5 else 0.0))))
+        fly_t = 1.0
+    else:
+        fly_t = min(1.0, phase_t / 0.35)
+        impact_t = _ease_out(max(0.0, (phase_t - 0.35) / 0.65))
+
+    for lx, lw, lbl, col, alpha in layers_cfg:
+        draw.rounded_rectangle([lx - lw // 2, top_y, lx + lw // 2, bot_y], radius=6, fill=(col[0], col[1], col[2], alpha), outline=(*col, 245), width=3)
+        _draw_centered(draw, lbl, lx, bot_y + 28, _font("mono", 17), (*col, 240))
+
+    # Incoming projectile -> blunts on outer glass & pushes flexible polycarbonate bow!
+    outer_x = cx - 162
+    if fly_t < 1.0:
+        bx = int(x0 + 42 + fly_t * (outer_x - (x0 + 42)))
+        draw.polygon([(bx - 36, cy - 8), (bx - 8, cy - 8), (bx + 12, cy), (bx - 8, cy + 8), (bx - 36, cy + 8)], fill=(*AMBER, 255), outline=(*WHITE, 250))
+        _draw_dashed_line(draw, (x0 + 32, cy), (bx - 42, cy), (*CORAL, 190), width=2, dash=8, gap=6)
+    else:
+        # Shatter crack web in outer glass + radial kinetic dispersion cone into polycarbonate!
+        for ang_d in (-52, -26, 0, 26, 52):
+            ang = math.radians(ang_d)
+            cone_len = 65 + int(155 * impact_t)
+            px = outer_x + 18 + math.cos(ang) * cone_len
+            py = cy + math.sin(ang) * cone_len * 0.85
+            _draw_arrow(draw, (outer_x + 14, cy), (px, py), (*CYAN, 235), width=3, head_len=10)
+        # Flattened mushroomed slug stopped inside polycarbonate!
+        slug_x = int(outer_x + 36 + 64 * impact_t)
+        draw.ellipse([slug_x - 10, cy - 16, slug_x + 12, cy + 16], fill=(*AMBER, 255), outline=(*WHITE, 255), width=2)
+        _draw_centered(draw, "ENERGY SPREAD OVER 14X AREA", cx, top_y - 38, mono, (*MINT, 255))
+
+    bar_w = (x1 - x0 - 90) // 2
+    _draw_meter_bar(draw, x0 + 25, y1 - 125, bar_w, 16, str(data.get("metric_label", "BULLET SPEED")), _roll_number(str(data.get("metric_value", "850 M/S")), anim_t), 0.90 * eased, CORAL)
+    _draw_meter_bar(draw, x0 + 65 + bar_w, y1 - 125, bar_w, 16, str(data.get("sub_label", "POLYCARBONATE")), _roll_number(str(data.get("sub_value", "FLEX ABSORB")), anim_t), (0.96 if fly_t >= 1.0 else 0.45) * eased, MINT)
+
+
+def _mech_helicopter_autorotation(
+    draw: ImageDraw.ImageDraw,
+    box: Tuple[int, int, int, int],
+    data: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    accent: Tuple[int, int, int],
+) -> None:
+    """Helicopter autorotation: engine off, freewheel clutch decouples, rising air spins rotor."""
+    x0, y0, x1, y1 = box
+    cx, cy = (x0 + x1) // 2, y0 + 385
+    eased = _ease_out(anim_t)
+    mono = _font("mono", 20)
+
+    stages = data.get("stages") or ["ENGINE OFF", "CLUTCH FREE", "AIR SPINS ROTOR"]
+    _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
+
+    stage = int(data.get("scene_stage", 0))
+    flare = (stage >= 5) if stage > 0 else (phase_t > 0.65)
+    bob_y = int(18 * (1.0 - phase_t)) if flare else int(10 * math.sin(phase_t * math.tau))
+    hy = cy - 10 + bob_y
+
+    # Upward rushing airflow arrows spinning the rotor blades from below!
+    for idx_a, ax in enumerate((cx - 210, cx - 105, cx + 105, cx + 210)):
+        flow_t = (phase_t * 2.0 + idx_a * 0.25) % 1.0
+        ay0 = y1 - 185 - int(flow_t * 90)
+        ay1 = ay0 - 110
+        _draw_arrow(draw, (ax, ay0), (ax, ay1), (*(MINT if flare else CYAN), 235), width=4, head_len=14)
+    _draw_centered(draw, "RISING AIRFLOW SPINS BLADES", cx, y1 - 178, mono, (*(MINT if flare else CYAN), 250))
+
+    # Helicopter fuselage CAD profile + tail boom + skids
+    draw.rounded_rectangle([cx - 105, hy - 35, cx + 125, hy + 68], radius=46, fill=(18, 32, 50, 240), outline=(*CYAN, 245), width=4)
+    # Cockpit bubble
+    draw.arc([cx - 100, hy - 30, cx - 15, hy + 48], start=105, end=270, fill=(*AMBER, 240), width=4)
+    # Tail boom & rotor
+    draw.polygon([(cx + 122, hy - 8), (cx + 285, hy - 22), (cx + 285, hy - 6), (cx + 122, hy + 18)], fill=(18, 32, 50, 235), outline=(*CYAN, 235))
+    draw.ellipse([cx + 272, hy - 36, cx + 302, hy - 6], outline=(*MUTED, 220), width=3)
+    # Landing skids
+    draw.line([(cx - 75, hy + 88), (cx + 95, hy + 88)], fill=(*WHITE, 235), width=5)
+    draw.line([(cx - 45, hy + 68), (cx - 55, hy + 88)], fill=(*WHITE, 215), width=4)
+    draw.line([(cx + 55, hy + 68), (cx + 65, hy + 88)], fill=(*WHITE, 215), width=4)
+
+    # Dead engine core vs decoupled freewheeling rotor mast
+    draw.rounded_rectangle([cx - 32, hy - 58, cx + 58, hy - 32], radius=6, fill=(*CORAL, 140), outline=(*CORAL, 250), width=2)
+    _draw_centered(draw, "0 RPM ENG", cx + 13, hy - 53, _font("mono", 14), (*WHITE, 250))
+
+    # Spinning overhead rotor disc
+    mast_y = hy - 86
+    draw.line([(cx + 10, hy - 58), (cx + 10, mast_y)], fill=(*MINT, 250), width=6)
+    blade_span = int(265 * (0.45 + 0.55 * abs(math.cos(phase_t * math.tau * 5.0))))
+    draw.line([(cx + 10 - blade_span, mast_y), (cx + 10 + blade_span, mast_y)], fill=(*MINT, 255), width=7)
+    _draw_dashed_ellipse(draw, cx + 10, mast_y, 265, 22, (*MINT, 195), width=2, segments=20, phase=phase_t * 2.5)
+    _draw_centered(draw, "AUTOROTATION FLARE: SAFE LANDING" if flare else "FREEWHEEL CLUTCH DECOUPLED", cx, y0 + 105, mono, (*(MINT if flare else AMBER), 250))
+
+    bar_w = (x1 - x0 - 90) // 2
+    _draw_meter_bar(draw, x0 + 25, y1 - 125, bar_w, 16, str(data.get("metric_label", "ENGINE POWER")), _roll_number(str(data.get("metric_value", "0% FUEL")), anim_t), 0.08 * eased, CORAL)
+    _draw_meter_bar(draw, x0 + 65 + bar_w, y1 - 125, bar_w, 16, str(data.get("sub_label", "ROTOR LIFT")), _roll_number(str(data.get("sub_value", "100% STORED")), anim_t), 0.94 * eased, MINT)
+
+
+def _mech_golf_dimples(
+    draw: ImageDraw.ImageDraw,
+    box: Tuple[int, int, int, int],
+    data: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    accent: Tuple[int, int, int],
+) -> None:
+    """Split airflow comparison: smooth ball (early separation, 2x drag wake) vs 336 dimples (2x distance)."""
+    x0, y0, x1, y1 = box
+    cx = (x0 + x1) // 2
+    eased = _ease_out(anim_t)
+    mono = _font("mono", 19)
+
+    stages = data.get("stages") or ["SMOOTH = 2X DRAG", "336 DIMPLES", "2X CARRY"]
+    _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
+
+    top_cy = y0 + 235
+    bot_cy = y0 + 490
+    bx = x0 + 230
+    r = 66
+
+    # Divider hairline
+    draw.line([(x0 + 40, (top_cy + bot_cy) // 2 + 8), (x1 - 40, (top_cy + bot_cy) // 2 + 8)], fill=(*GRID_DIM, 210), width=2)
+
+    # TOP: Smooth sphere -> early flow separation + giant turbulent drag wake!
+    draw.ellipse([bx - r, top_cy - r, bx + r, top_cy + r], fill=(22, 34, 52, 235), outline=(*CORAL, 245), width=4)
+    _draw_centered(draw, "SMOOTH", bx, top_cy - 10, mono, (*CORAL, 250))
+    for s_side in (-1, 1):
+        pts_sep = [
+            (bx - 125, top_cy + s_side * 22),
+            (bx - 60, top_cy + s_side * 54),
+            (bx - 5, top_cy + s_side * 84),
+            (bx + 145, top_cy + s_side * 100),
+        ]
+        draw.line(pts_sep, fill=(*CORAL, 235), width=4)
+    # Swirling low-pressure wake vortices behind smooth ball (placed cleanly below label)
+    for k in range(4):
+        vt = (phase_t * 2.0 + k * 0.25) % 1.0
+        vx = bx + r + 34 + int(vt * 165)
+        vy = top_cy + 26 + int(math.sin(k * 2.0 + vt * 8.0) * 32)
+        draw.ellipse([vx - 14, vy - 14, vx + 14, vy + 14], outline=(*CORAL, int(230 * (1.0 - vt))), width=3)
+    draw.text((bx + r + 32, top_cy - 76), "GIANT LOW-PRESSURE WAKE", font=mono, fill=(*CORAL, 250))
+
+    # BOTTOM: 336 Dimples -> boundary layer clings tightly, tiny wake, 2x distance!
+    draw.ellipse([bx - r, bot_cy - r, bx + r, bot_cy + r], fill=(16, 36, 52, 240), outline=(*MINT, 250), width=4)
+    for dy_o in (-34, 0, 34):
+        for dx_o in (-34, 0, 34):
+            if dx_o * dx_o + dy_o * dy_o <= (r - 18) ** 2:
+                draw.ellipse([bx + dx_o - 7, bot_cy + dy_o - 7, bx + dx_o + 7, bot_cy + dy_o + 7], outline=(*CYAN, 210), width=2)
+    for s_side in (-1, 1):
+        pts_cling = [
+            (bx - 135, bot_cy + s_side * 22),
+            (bx - 60, bot_cy + s_side * 66),
+            (bx + 42, bot_cy + s_side * 58),
+            (bx + 130, bot_cy + s_side * 24),
+            (bx + 240, bot_cy + s_side * 22),
+        ]
+        draw.line(pts_cling, fill=(*MINT, 245), width=4)
+    _draw_arrow(draw, (bx + r + 28, bot_cy), (bx + r + 150, bot_cy), (*MINT, 250), width=5, head_len=14)
+    draw.text((bx + r + 164, bot_cy - 12), "50% LESS DRAG!", font=mono, fill=(*MINT, 255))
+
+    bar_w = (x1 - x0 - 90) // 2
+    _draw_meter_bar(draw, x0 + 25, y1 - 125, bar_w, 16, str(data.get("metric_label", "SMOOTH CARRY")), _roll_number(str(data.get("metric_value", "130 YARDS")), anim_t), 0.48 * eased, CORAL)
+    _draw_meter_bar(draw, x0 + 65 + bar_w, y1 - 125, bar_w, 16, str(data.get("sub_label", "336 DIMPLES")), _roll_number(str(data.get("sub_value", "260+ YARDS")), anim_t), 0.96 * eased, MINT)
+
+
+def _mech_crumple_zone(
+    draw: ImageDraw.ImageDraw,
+    box: Tuple[int, int, int, int],
+    data: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    accent: Tuple[int, int, int],
+) -> None:
+    """Side-profile car chassis impact: accordion crumple rail stretches collision time 0.02s -> 0.12s (-80% G)."""
+    x0, y0, x1, y1 = box
+    cx, cy = (x0 + x1) // 2, y0 + 365
+    eased = _ease_out(anim_t)
+    mono = _font("mono", 19)
+
+    stages = data.get("stages") or ["60 KM/H HIT", "METAL FOLDS 6X", "CAGE INTACT"]
+    _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
+
+    stage = int(data.get("scene_stage", 0))
+    if stage in (1, 2):
+        crush = 0.08 * phase_t
+    elif stage in (3, 4):
+        crush = _ease_out(phase_t) * 0.68
+    elif stage >= 5:
+        crush = 0.68 + 0.25 * _ease_out(phase_t)
+    else:
+        crush = _ease_out(phase_t) * 0.88
+
+    # Solid concrete crash barrier on right
+    wall_x = x1 - 115
+    draw.rectangle([wall_x, cy - 145, wall_x + 48, cy + 95], fill=(32, 42, 56, 245), outline=(*CORAL, 245), width=4)
+    _draw_centered(draw, "BARRIER", wall_x + 24, cy - 172, _font("mono", 16), (*CORAL, 240))
+
+    # Rigid steel passenger safety cell (NEVER crushes!)
+    cage_r = wall_x - int(195 - 105 * crush)
+    cage_l = cage_r - 230
+    draw.polygon([(cage_l, cy + 55), (cage_l + 32, cy - 75), (cage_r - 45, cy - 75), (cage_r, cy + 55)], fill=(16, 42, 44, 235), outline=(*MINT, 255))
+    draw.line([(cage_l, cy + 55), (cage_l + 32, cy - 75), (cage_r - 45, cy - 75), (cage_r, cy + 55), (cage_l, cy + 55)], fill=(*MINT, 255), width=4)
+    _draw_centered(draw, "RIGID SAFETY CAGE", (cage_l + cage_r) // 2, cy - 18, mono, (*MINT, 255))
+
+    # Accordion front crumple zone rails compressing smoothly against barrier!
+    n_folds = 5
+    zone_len = max(38, wall_x - cage_r)
+    step_x = zone_len / n_folds
+    pts_top = [(cage_r, cy - 16)]
+    pts_bot = [(cage_r, cy + 44)]
+    for i in range(1, n_folds + 1):
+        fx = cage_r + i * step_x
+        zig = (12 + int(22 * crush)) * (1 if i % 2 == 1 else -1)
+        pts_top.append((fx, cy - 16 + zig * 0.5))
+        pts_bot.append((fx, cy + 44 - zig * 0.5))
+    z_col = CORAL if crush > 0.5 else AMBER
+    draw.line(pts_top, fill=(*z_col, 250), width=5)
+    draw.line(pts_bot, fill=(*z_col, 250), width=5)
+
+    # Wheels
+    for wx in (cage_l + 55, cage_r - 20):
+        draw.ellipse([wx - 32, cy + 32, wx + 32, cy + 96], fill=(*SURFACE, 250), outline=(*WHITE, 235), width=4)
+
+    _draw_centered(draw, "STOPPING TIME STRETCHED 0.02S -> 0.12S (-80% G-FORCE)", cx, cy + 132, mono, (*AMBER, 250))
+
+    bar_w = (x1 - x0 - 90) // 2
+    _draw_meter_bar(draw, x0 + 25, y1 - 125, bar_w, 16, str(data.get("metric_label", "RIGID FRAME")), _roll_number(str(data.get("metric_value", "85 G SPIKE")), anim_t), 0.92 * eased, CORAL)
+    _draw_meter_bar(draw, x0 + 65 + bar_w, y1 - 125, bar_w, 16, str(data.get("sub_label", "CRUMPLE ZONE")), _roll_number(str(data.get("sub_value", "17 G SAFE")), anim_t), 0.26 * eased, MINT)
+
+
+def _mech_siphon_trap(
+    draw: ImageDraw.ImageDraw,
+    box: Tuple[int, int, int, int],
+    data: Dict[str, Any],
+    anim_t: float,
+    phase_t: float,
+    accent: Tuple[int, int, int],
+) -> None:
+    """Translucent S-bend trap cutaway: 5cm water plug blocks sewer gas, flush triggers gravity siphon."""
+    x0, y0, x1, y1 = box
+    cx, cy = (x0 + x1) // 2, y0 + 385
+    eased = _ease_out(anim_t)
+    mono = _font("mono", 19)
+
+    stages = data.get("stages") or ["5CM WATER LOCK", "SEWER BLOCKED", "SIPHON PULL"]
+    _draw_stage_strip(draw, x0 + 20, y0 + 14, (x1 - x0) - 40, stages, anim_t, accent)
+
+    stage = int(data.get("scene_stage", 0))
+    siphon_active = (stage >= 4) if stage > 0 else (phase_t > 0.45)
+
+    # S-bend pipe centerline from Bowl (left) -> U-valley -> Crest -> Vertical Sewer Drop (right)
+    pipe_pts = [
+        (x0 + 145, cy - 110),
+        (x0 + 145, cy + 55),
+        (cx - 55, cy + 120),
+        (cx + 55, cy - 38),
+        (cx + 165, cy - 38),
+        (cx + 185, cy + 165),
+    ]
+    # Outer glass pipe wall + inner dark bore
+    draw.line(pipe_pts, fill=(*WHITE, 235), width=66, joint="curve")
+    draw.line(pipe_pts, fill=(14, 24, 38, 255), width=52, joint="curve")
+
+    # Permanent 5cm cyan water airlock filling the U-valley (or roaring over the crest during flush!)
+    if not siphon_active:
+        seal_pts = [
+            (x0 + 145, cy + 20),
+            (x0 + 145, cy + 55),
+            (cx - 55, cy + 120),
+            (cx + 18, cy + 24),
+        ]
+        draw.line(seal_pts, fill=(*CYAN, 215), width=46, joint="curve")
+        # Rising coral sewer gas bubbles stopped dead by the water seal!
+        for g in range(3):
+            gt = (phase_t * 1.8 + g * 0.33) % 1.0
+            gx = cx + 178 + (g - 1) * 14
+            gy = cy + 145 - int(gt * 140)
+            draw.ellipse([gx - 7, gy - 7, gx + 7, gy + 7], outline=(*CORAL, 235), width=2)
+        _draw_centered(draw, "TOXIC SEWER GAS BLOCKED", cx + 165, cy + 185, mono, (*CORAL, 245))
+        _draw_centered(draw, "5 CM WATER AIRLOCK", cx - 55, cy + 165, mono, (*CYAN, 250))
+    else:
+        draw.line(pipe_pts, fill=(*MINT, 225), width=46, joint="curve")
+        # Flowing siphon arrows pulling water over crest & down sewer drop!
+        _draw_arrow(draw, (cx - 45, cy + 75), (cx + 48, cy - 32), (*WHITE, 250), width=4, head_len=12)
+        _draw_arrow(draw, (cx + 180, cy - 10), (cx + 185, cy + 135), (*MINT, 255), width=5, head_len=14)
+        _draw_centered(draw, "GRAVITY SIPHON PULLS BOWL EMPTY", cx, cy - 135, mono, (*MINT, 255))
+
+    bar_w = (x1 - x0 - 90) // 2
+    _draw_meter_bar(draw, x0 + 25, y1 - 125, bar_w, 16, str(data.get("metric_label", "WATER SEAL")), _roll_number(str(data.get("metric_value", "5 CM PLUG")), anim_t), 0.85 * eased, CYAN)
+    _draw_meter_bar(draw, x0 + 65 + bar_w, y1 - 125, bar_w, 16, str(data.get("sub_label", "MOVING PARTS")), _roll_number(str(data.get("sub_value", "ZERO PARTS")), anim_t), 0.96 * eased, MINT)
+
+
 V7_MECHANISM_RENDERERS = {
     "mech_elevator_brake": _mech_elevator_brake,
     "mech_sr71_blackbird": _mech_sr71_blackbird,
@@ -814,4 +1190,10 @@ V7_MECHANISM_RENDERERS = {
     "mech_diver_oxygen": _mech_diver_oxygen,
     "mech_cargo_ship": _mech_cargo_ship,
     "mech_spacesuit_layers": _mech_spacesuit_layers,
+    "mech_dam_arch": _mech_dam_arch,
+    "mech_bulletproof_glass": _mech_bulletproof_glass,
+    "mech_helicopter_autorotation": _mech_helicopter_autorotation,
+    "mech_golf_dimples": _mech_golf_dimples,
+    "mech_crumple_zone": _mech_crumple_zone,
+    "mech_siphon_trap": _mech_siphon_trap,
 }
