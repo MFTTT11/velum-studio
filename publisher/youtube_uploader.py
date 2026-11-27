@@ -320,7 +320,7 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
             },
         ).execute()
         result["metadata_updated"] = True
-        logger.info("Applied channel brandingSettings (compact Banner + Bio + Keywords + Country=TR) on %s", channel_id)
+        logger.info("Applied channel brandingSettings (compact Banner + Bio + Keywords + Country=US) on %s", channel_id)
 
         # 2b. Update 11-language Channel Localizations in a separate API call (YouTube forbids combining parts)
         try:

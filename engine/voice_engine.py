@@ -68,8 +68,11 @@ async def _synthesize_edge_tts_async(
     last_error: Exception | None = None
 
     for attempt in range(1, max_attempts + 1):
-        active_voice = unique_voices[min(attempt - 1, len(unique_voices) - 1)]
-        active_pitch = pitch if attempt <= 2 else "+0Hz"
+        # V9.1: Retry the SAME requested voice on attempts 1-3 before switching fallback voices
+        # so multi-beat Shorts NEVER mix two different narrators mid-video!
+        voice_idx = 0 if attempt <= 3 else min(attempt - 3, len(unique_voices) - 1)
+        active_voice = unique_voices[voice_idx]
+        active_pitch = pitch if attempt <= 3 else "+0Hz"
         word_boundaries: List[Dict[str, Any]] = []
         try:
             if out_mp3.exists():
@@ -430,6 +433,9 @@ def _synthesize_shorts_per_beat(
 
         b_mp3 = voice_dir / f"beat_{idx:02d}_raw.mp3"
         b_wav = voice_dir / f"beat_{idx:02d}_clean.wav"
+        if idx > 0:
+            await_gap = 0.85
+            asyncio.run(asyncio.sleep(await_gap))
         raw_bounds = asyncio.run(_synthesize_edge_tts_async(narration, voice, b_mp3, rate=b_rate))
         raw_dur = _probe_duration(b_mp3)
         clean_dur = _clean_voice_with_silenceremove(b_mp3, b_wav)
