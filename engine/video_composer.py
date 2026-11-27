@@ -127,18 +127,40 @@ def _load_beat_visual(
     """Materialize a single beat's graded frames on demand so peak RAM stays under ~450 MB."""
     w, h = size
     if spec["kind"] == "v6_schematic":
-        # VELUM V8: load real-world cinema plate for Ch1 Reality->X-Ray Hook & Ch4 pattern interrupt!
+        # VELUM V9: Load REAL motion video frames OR verified real photo for Ch1 Reality->X-Ray Hook (never synthetic blobs!)
         real_pil: Optional[Image.Image] = None
-        rb_path = spec.get("real_backdrop_path")
-        if rb_path is not None and Path(rb_path).exists():
+        real_motion_frames: List[Image.Image] = []
+        clip_path = spec.get("real_clip_path")
+        if clip_path is not None and Path(clip_path).exists():
+            cap = cv2.VideoCapture(str(clip_path))
             try:
-                p_img = Image.open(rb_path).convert("RGB")
-                if p_img.size != (w, h):
-                    p_img = p_img.resize((w, h), Image.Resampling.LANCZOS)
-                graded_bgr = _apply_cinematic_grade(cv2.cvtColor(np.asarray(p_img), cv2.COLOR_RGB2BGR))
-                real_pil = Image.fromarray(cv2.cvtColor(graded_bgr, cv2.COLOR_BGR2RGB))
-            except Exception as exc:
-                logger.debug("V8 real backdrop skipped for chapter %s (%s)", spec.get("chapter_num"), type(exc).__name__)
+                while len(real_motion_frames) < 72:
+                    ok, f_bgr = cap.read()
+                    if not ok or f_bgr is None:
+                        break
+                    if f_bgr.shape[1] != w or f_bgr.shape[0] != h:
+                        f_bgr = cv2.resize(f_bgr, (w, h), interpolation=cv2.INTER_LINEAR)
+                    graded_bgr = _apply_cinematic_grade(f_bgr)
+                    real_motion_frames.append(Image.fromarray(cv2.cvtColor(graded_bgr, cv2.COLOR_BGR2RGB)))
+            finally:
+                cap.release()
+            if len(real_motion_frames) >= 12:
+                real_pil = real_motion_frames[0]
+            else:
+                real_motion_frames = []
+
+        if real_pil is None:
+            rb_path = spec.get("real_backdrop_path")
+            if rb_path is not None and MediaFetcher.is_real_media_file(Path(rb_path)):
+                try:
+                    p_img = Image.open(rb_path).convert("RGB")
+                    if p_img.size != (w, h):
+                        p_img = p_img.resize((w, h), Image.Resampling.LANCZOS)
+                    graded_bgr = _apply_cinematic_grade(cv2.cvtColor(np.asarray(p_img), cv2.COLOR_RGB2BGR))
+                    real_pil = Image.fromarray(cv2.cvtColor(graded_bgr, cv2.COLOR_BGR2RGB))
+                except Exception as exc:
+                    logger.debug("V9 real backdrop skipped for chapter %s (%s)", spec.get("chapter_num"), type(exc).__name__)
+
         ch_num = int(spec.get("chapter_num", 1))
         tot_ch = int(spec.get("total_chapters", 6))
         ctx = prepare_v6_chapter_context(
@@ -154,7 +176,8 @@ def _load_beat_visual(
             episode_num=int(spec.get("episode_num", 9)),
             source_credit=str(spec.get("source_credit", "VELUM ARCHIVE")),
             real_backdrop_rgb=real_pil,
-            hook_reality_mode=(ch_num == 1 and real_pil is not None),
+            real_motion_frames=real_motion_frames if real_motion_frames else None,
+            hook_reality_mode=(ch_num == 1 and (real_pil is not None or bool(real_motion_frames))),
             show_subscribe_cta=(ch_num >= max(2, tot_ch - 1)),
         )
         return {"kind": "v6_schematic_stream", "ctx": ctx}
@@ -458,12 +481,13 @@ def _build_sfx_stem(
 
     loaded_cache: Dict[str, np.ndarray] = {}
     sfx_gains = {
-        "sub_boom": 0.58,
-        "whoosh": 0.34,
+        "sub_boom": 0.60,
+        "whoosh": 0.36,
         "tick": 0.24,
-        "sonar": 0.30,
-        "glitch": 0.32,
-        "riser": 0.34,
+        "sonar": 0.32,
+        "glitch": 0.34,
+        "riser": 0.36,
+        "xray_scan": 0.88,
     }
 
     # Always fire sub_boom + subtle whoosh right at 0.00s for the 0-2s Shock Hook!
@@ -621,15 +645,21 @@ def compose_cinematic_video(
         if beat_dur <= 0.11:
             beat_dur = float(beat.get("duration", 2.2))
         if beat.get("visual_type") == "v6_schematic":
+            real_clip_path = None
             real_backdrop_path = None
-            # V8 Hybrid Reality Hook (Ch 1) & mid-video visual reset (Ch 4): fetch real-world cinema plate zero-key!
+            # V9 Hybrid Reality Hook (Ch 1: real moving video clip -> verified photo fallback) & Ch 4 atmospheric reset
             if idx in (0, 3):
                 vq = str(beat.get("visual_query") or script.get("primary_keyword") or "").strip()
                 if vq:
                     try:
-                        real_backdrop_path = fetcher.fetch_photo_plate(vq, size, variant_index=idx)
+                        if idx == 0:
+                            real_clip_path = fetcher.fetch_motion_clip(vq, size, duration_sec=beat_dur, variant_index=0)
+                        if real_clip_path is None:
+                            cand_photo = fetcher.fetch_photo_plate(vq, size, variant_index=idx)
+                            if MediaFetcher.is_real_media_file(cand_photo):
+                                real_backdrop_path = cand_photo
                     except Exception as exc:
-                        logger.debug("V8 real plate fetch skipped at beat %d (%s)", idx, type(exc).__name__)
+                        logger.debug("V9 real media fetch skipped at beat %d (%s)", idx, type(exc).__name__)
             beat_specs.append(
                 {
                     "kind": "v6_schematic",
@@ -644,6 +674,7 @@ def compose_cinematic_video(
                     "accent_word": str(beat.get("accent_word", "")),
                     "episode_num": ep_num,
                     "source_credit": str(beat.get("source_credit", "VELUM ARCHIVE")),
+                    "real_clip_path": real_clip_path,
                     "real_backdrop_path": real_backdrop_path,
                 }
             )
@@ -724,11 +755,13 @@ def compose_cinematic_video(
         str(raw_video_mp4),
     ]
 
+    pipe_log_path = work_dir / "ffmpeg_pipe.log"
+    pipe_log_fh = open(pipe_log_path, "wb")
     proc = subprocess.Popen(
         pipe_cmd,
         stdin=subprocess.PIPE,
         stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
+        stderr=pipe_log_fh,
     )
 
     total_frames = max(1, int(round(total_dur * fps)))
@@ -899,9 +932,10 @@ def compose_cinematic_video(
             proc.stdin.write(composited.tobytes())
     finally:
         proc.stdin.close()
+        ret = proc.wait()
+        pipe_log_fh.close()
 
-    stderr_out = proc.stderr.read().decode("utf-8", errors="ignore") if proc.stderr else ""
-    ret = proc.wait()
+    stderr_out = pipe_log_path.read_text(encoding="utf-8", errors="ignore") if pipe_log_path.exists() else ""
     if ret != 0:
         raise RuntimeError(f"FFmpeg rawvideo encode failed (code={ret}): {stderr_out[-600:]}")
 
@@ -913,20 +947,19 @@ def compose_cinematic_video(
     beat_specs.clear()
     gc.collect()
 
-    # 5. Burn kinetic ASS subtitles (+ true 4K Lanczos upscale for Shorts to force YouTube VP9/AV1)
-    #    and mux mastered 3-stem cinema audio into high-bitrate MP4
+    # 5. V9 Sharpness Order: Upscale 1080p -> 4K Lanczos FIRST, then rasterize razor-sharp vector ASS captions at native 4K!
     output_mp4.parent.mkdir(parents=True, exist_ok=True)
     if fmt == "shorts":
         vf_filter = (
-            f"ass={ass_path.name},"
             "scale=2160:3840:flags=lanczos,"
-            "unsharp=5:5:0.70:5:5:0.0,"
-            "eq=contrast=1.05:saturation=1.12"
+            "unsharp=5:5:0.55:5:5:0.0,"
+            "eq=contrast=1.05:saturation=1.12,"
+            f"ass={ass_path.name}"
         )
         crf_val = "18"
         bitrate_guard = ["-maxrate", "45M", "-bufsize", "90M", "-threads", "4"]
     else:
-        vf_filter = f"ass={ass_path.name},unsharp=3:3:0.45:3:3:0.0,eq=contrast=1.04:saturation=1.08"
+        vf_filter = f"unsharp=3:3:0.45:3:3:0.0,eq=contrast=1.04:saturation=1.08,ass={ass_path.name}"
         crf_val = "17"
         bitrate_guard = ["-maxrate", "25M", "-bufsize", "50M", "-threads", "4"]
 

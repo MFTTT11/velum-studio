@@ -449,6 +449,7 @@ def prepare_v6_chapter_context(
     episode_num: int = 1,
     source_credit: str = "VELUM RESEARCH",
     real_backdrop_rgb: Optional[Image.Image] = None,
+    real_motion_frames: Optional[List[Image.Image]] = None,
     hook_reality_mode: bool = False,
     show_subscribe_cta: bool = False,
 ) -> Dict[str, Any]:
@@ -462,22 +463,22 @@ def prepare_v6_chapter_context(
         base_bg = Image.fromarray(_base_canvas_array(w, h, accent_col).copy(), mode="RGB")
     draw = ImageDraw.Draw(base_bg, "RGBA")
 
-    # 1. Top Editorial Header: @VelumDispatch  |  EPISODE XX
-    hdr_f = _font("mono", 25)
-    draw.text((pad, 48), "@VelumDispatch", font=hdr_f, fill=(*WHITE, 232))
-    ep_txt = f"EPISODE {episode_num:02d}"
+    # 1. Top Editorial Header (V9 Mobile Safe Zone: y=118 clears YouTube top UI overlay!)
+    hdr_f = _font("mono", 23)
+    draw.text((pad, 112), "@VelumDispatch", font=hdr_f, fill=(*WHITE, 232))
+    ep_txt = f"HIDDEN MECHANICS #{episode_num:02d}"
     ebb = draw.textbbox((0, 0), ep_txt, font=hdr_f)
-    draw.text((w - pad - (ebb[2] - ebb[0]), 48), ep_txt, font=hdr_f, fill=(*MUTED, 220))
+    draw.text((w - pad - (ebb[2] - ebb[0]), 112), ep_txt, font=hdr_f, fill=(*AMBER, 230))
 
-    # 2. Static parts of 6-Node VELUM Geometric Phase Progress Rail (y=108)
-    rail_y = 108
-    rail_f = _font("mono", 20)
-    draw.text((pad, rail_y - 12), "START", font=rail_f, fill=(*MUTED, 200))
+    # 2. 6-Node VELUM Geometric Phase Progress Rail (y=158)
+    rail_y = 158
+    rail_f = _font("mono", 19)
+    draw.text((pad, rail_y - 11), "START", font=rail_f, fill=(*MUTED, 200))
     end_txt = "RESULT"
     eb = draw.textbbox((0, 0), end_txt, font=rail_f)
-    draw.text((w - pad - (eb[2] - eb[0]), rail_y - 12), end_txt, font=rail_f, fill=(*MUTED, 200))
+    draw.text((w - pad - (eb[2] - eb[0]), rail_y - 11), end_txt, font=rail_f, fill=(*MUTED, 200))
 
-    rx0, rx1 = pad + 96, w - pad - 116
+    rx0, rx1 = pad + 92, w - pad - 112
     n_steps = max(2, min(8, total_chapters))
     cur_idx = max(0, min(n_steps - 1, chapter_num - 1))
     xs = [rx0 + i * ((rx1 - rx0) / max(1, n_steps - 1)) for i in range(n_steps)]
@@ -487,35 +488,35 @@ def prepare_v6_chapter_context(
         draw.line([(rx0, rail_y), (xs[cur_idx], rail_y)], fill=(*AMBER, 240), width=4)
     for i, nx in enumerate(xs):
         if i < cur_idx:
-            _draw_diamond(draw, nx, rail_y, 9, (*AMBER, 255), (*AMBER, 255), width=2)
+            _draw_diamond(draw, nx, rail_y, 8, (*AMBER, 255), (*AMBER, 255), width=2)
         elif i > cur_idx:
-            _draw_diamond(draw, nx, rail_y, 8, (*BG_TOP, 255), (*MUTED, 165), width=2)
+            _draw_diamond(draw, nx, rail_y, 7, (*BG_TOP, 255), (*MUTED, 165), width=2)
 
-    # 3. Chapter Pill Badge (y=154..198)
-    pill_f = _font("mono", 22)
+    # 3. Chapter Pill Badge (y=190..230)
+    pill_f = _font("mono", 21)
     pill_txt = f"{chapter_num}  ·  {chapter_tag.upper()[:24]}"
     pbb = draw.textbbox((0, 0), pill_txt, font=pill_f)
-    pw = (pbb[2] - pbb[0]) + 40
-    ph = 44
+    pw = (pbb[2] - pbb[0]) + 38
+    ph = 40
     draw.rounded_rectangle(
-        [pad, 154, pad + pw, 154 + ph],
+        [pad, 190, pad + pw, 190 + ph],
         radius=10,
         fill=(accent_col[0], accent_col[1], accent_col[2], 32),
         outline=(*accent_col, 165),
         width=2,
     )
-    draw.text((pad + 20, 154 + 10 - pbb[1]), pill_txt, font=pill_f, fill=(*accent_col, 250))
+    draw.text((pad + 19, 190 + 9 - pbb[1]), pill_txt, font=pill_f, fill=(*accent_col, 250))
 
-    # 4. Pre-fit Colossal 2-Line Editorial Headline ONCE (avoids 10+ textbbox lookups per frame)
+    # 4. Pre-fit Colossal 2-Line Editorial Headline ONCE (y=244..412, clears stage box cleanly!)
     max_hw = w - pad * 2
     l1 = headline_line1.upper().strip()
     l2 = headline_line2.upper().strip()
-    f1 = _fit_font(draw, l1, "headline", 86, max_hw, min_size=46)
-    f2 = _fit_font(draw, l2, "headline", 86, max_hw, min_size=46)
-    uni_size = min(getattr(f1, "size", 76), getattr(f2, "size", 76))
+    f1 = _fit_font(draw, l1, "headline", 82, max_hw, min_size=44)
+    f2 = _fit_font(draw, l2, "headline", 82, max_hw, min_size=44)
+    uni_size = min(getattr(f1, "size", 74), getattr(f2, "size", 74))
     head_f = _font("headline", uni_size)
     bb1 = draw.textbbox((0, 0), l1, font=head_f)
-    y_l2_offset = (bb1[3] - bb1[1]) + 22
+    y_l2_offset = (bb1[3] - bb1[1]) + 18
 
     acc_target = (accent_word or "").upper().strip()
     words_l2 = l2.split()
@@ -527,34 +528,36 @@ def prepare_v6_chapter_context(
         l2_layout.append((cur_x, tok, col))
         cur_x += draw.textbbox((0, 0), tok + " ", font=head_f)[2]
 
-    # 5. Subtle Schematic Attribution Strip (y=1278) right above editorial captions
+    # 5. Subtle Schematic Attribution Strip (y=1278, right side tucked clear of Shorts UI buttons!)
     foot_y = 1278
-    foot_f = _font("mono", 20)
+    foot_f = _font("mono", 19)
     draw.ellipse([pad, foot_y + 6, pad + 10, foot_y + 16], fill=(*CYAN, 220))
-    draw.text((pad + 20, foot_y), "SCHEMATIC SIMULATION · VELUM", font=foot_f, fill=(*MUTED, 195))
+    draw.text((pad + 20, foot_y), "X-RAY SIMULATION · VELUM", font=foot_f, fill=(*MUTED, 195))
     if source_credit:
-        src_txt = f"SOURCE: {source_credit.upper()[:28]}"
+        src_txt = f"SOURCE: {source_credit.upper()[:24]}"
         sbb = draw.textbbox((0, 0), src_txt, font=foot_f)
-        draw.text((w - pad - (sbb[2] - sbb[0]), foot_y), src_txt, font=foot_f, fill=(*MUTED, 185))
+        draw.text((min(w - pad, 905) - (sbb[2] - sbb[0]), foot_y), src_txt, font=foot_f, fill=(*MUTED, 185))
 
-    # Pre-bake settled headline backdrop used for ~76% of frames once intro slide finishes
+    # Pre-bake settled headline backdrop (y=246, used from Frame 0 on Ch 1 for razor-sharp Shorts cover!)
     settled_bg = base_bg.copy()
     sdraw = ImageDraw.Draw(settled_bg, "RGBA")
-    y_l1_settled = 218
+    y_l1_settled = 246
     sdraw.text((pad, y_l1_settled), l1, font=head_f, fill=(*WHITE, 255))
     y_l2_settled = y_l1_settled + y_l2_offset
     for tx, tok, col in l2_layout:
         sdraw.text((tx, y_l2_settled), tok, font=head_f, fill=(*col, 255))
 
-    # Resolve renderer callable once per chapter (V8 Chapter-1 Reality Hook uses X-Ray scanner overlay!)
-    is_hook_reality = bool(hook_reality_mode and real_backdrop_rgb is not None)
+    # Resolve renderer callable once per chapter (V9 Chapter-1 Reality Hook uses X-Ray scanner overlay!)
+    is_hook_reality = bool(hook_reality_mode and (real_backdrop_rgb is not None or bool(real_motion_frames)))
     real_zoom_src: Optional[Image.Image] = None
-    if is_hook_reality:
+    if is_hook_reality and real_backdrop_rgb is not None:
         renderer = _draw_reality_xray_scanner
         p_src = real_backdrop_rgb.convert("RGB")
         if p_src.size != (w, h):
             p_src = p_src.resize((w, h), Image.Resampling.LANCZOS)
         real_zoom_src = p_src
+    elif is_hook_reality:
+        renderer = _draw_reality_xray_scanner
     else:
         renderer = _RENDERERS.get(schematic_mode)
         if renderer is None and schematic_mode.startswith("mech_"):
@@ -569,6 +572,7 @@ def prepare_v6_chapter_context(
         "base_bg": base_bg,
         "settled_bg": settled_bg,
         "real_zoom_src": real_zoom_src,
+        "real_motion_frames": real_motion_frames,
         "accent_col": accent_col,
         "schematic_mode": schematic_mode,
         "schematic_data": schematic_data,
@@ -597,29 +601,37 @@ def _draw_v6_dynamic_frame(
     """Render one silky V8.1 frame onto cached chapter chrome (with live 60fps Ch-1 reality push-in!)."""
     w, h = ctx["size"]
     pad = ctx["pad"]
-    settled = anim_t >= 0.56
+    # V9: Chapter 1 ALWAYS starts 100% opaque on Frame 0 so YouTube's auto-thumbnail is razor-sharp!
+    settled = (ctx["chapter_num"] == 1) or (anim_t >= 0.56)
     canvas = ctx["settled_bg"].copy() if settled else ctx["base_bg"].copy()
 
-    # V8.1 Chapter-1 live 60fps Ken Burns slow push-in (1.00 -> 1.095) inside the real-world viewport
-    if ctx.get("hook_reality_mode") and ctx.get("real_zoom_src") is not None:
-        src_img: Image.Image = ctx["real_zoom_src"]
-        vx0, vy0, vx1, vy1 = 56, 424, w - 56, 1250
+    # V9 Chapter-1 live 60fps optical viewfinder (real motion video clip OR smooth Ken Burns photo!)
+    if ctx.get("hook_reality_mode"):
+        vx0, vy0, vx1, vy1 = 56, 434, 916, 1236
         vw, vh = vx1 - vx0, vy1 - vy0
-        z_scale = 1.0 + 0.095 * _ease_out(max(0.0, min(1.0, phase_t)))
-        cw = vw / z_scale
-        ch = vh / z_scale
-        cx_v = (vx0 + vx1) * 0.5
-        cy_v = (vy0 + vy1) * 0.5
-        crop_box = (
-            max(0.0, cx_v - cw * 0.5),
-            max(0.0, cy_v - ch * 0.5),
-            min(float(w), cx_v + cw * 0.5),
-            min(float(h), cy_v + ch * 0.5),
-        )
-        zoomed_patch = src_img.crop(crop_box).resize((vw, vh), Image.Resampling.BILINEAR)
-        canvas.paste(zoomed_patch, (vx0, vy0))
-        vdraw = ImageDraw.Draw(canvas, "RGBA")
-        vdraw.rectangle([vx0, vy0, vx1, vy1], outline=(*CYAN, 115), width=2)
+        motion_frames = ctx.get("real_motion_frames")
+        if motion_frames:
+            m_idx = min(len(motion_frames) - 1, int(max(0.0, min(1.0, phase_t)) * (len(motion_frames) - 1)))
+            src_img = motion_frames[m_idx]
+        else:
+            src_img = ctx.get("real_zoom_src")
+        if src_img is not None:
+            z_scale = 1.0 + 0.085 * _ease_out(max(0.0, min(1.0, phase_t)))
+            sw_i, sh_i = src_img.size
+            cw = min(float(sw_i), vw / z_scale)
+            ch = min(float(sh_i), vh / z_scale)
+            cx_v = sw_i * 0.5
+            cy_v = sh_i * 0.48
+            crop_box = (
+                max(0.0, cx_v - cw * 0.5),
+                max(0.0, cy_v - ch * 0.5),
+                min(float(sw_i), cx_v + cw * 0.5),
+                min(float(sh_i), cy_v + ch * 0.5),
+            )
+            zoomed_patch = src_img.crop(crop_box).resize((vw, vh), Image.Resampling.BILINEAR)
+            canvas.paste(zoomed_patch, (vx0, vy0))
+            vdraw = ImageDraw.Draw(canvas, "RGBA")
+            vdraw.rectangle([vx0, vy0, vx1, vy1], outline=(*CYAN, 115), width=2)
 
     draw = ImageDraw.Draw(canvas, "RGBA")
 
@@ -652,7 +664,7 @@ def _draw_v6_dynamic_frame(
         e_head = _ease_out(min(1.0, anim_t * 1.8))
         alpha_h = int(255 * min(1.0, 0.30 + 0.70 * e_head))
         slide_y = int(round((1.0 - _ease_out(min(1.0, anim_t * 2.0))) * 16.0))
-        y_l1 = 218 + slide_y
+        y_l1 = 246 + slide_y
         head_f = ctx["head_f"]
         draw.text((pad, y_l1), ctx["l1"], font=head_f, fill=(*WHITE, alpha_h))
         y_l2 = y_l1 + ctx["y_l2_offset"]
@@ -668,26 +680,33 @@ def _draw_v6_dynamic_frame(
         jitter_x = int(round(math.sin(lt * 92.0) * 5.0 * decay))
         jitter_y = int(round(math.cos(lt * 74.0) * 3.5 * decay))
 
-    stage_box = (60 + jitter_x, 428 + jitter_y, w - 60 + jitter_x, 1246 + jitter_y)
+    # V9 Mobile Safe-Zone Stage Box (x=56..916 keeps right edge 100% clear of YouTube Shorts UI buttons!)
+    stage_box = (56 + jitter_x, 434 + jitter_y, 916 + jitter_x, 1236 + jitter_y)
     ctx["renderer"](draw, stage_box, ctx["schematic_data"], anim_t, phase_t, ctx["accent_col"])
 
-    # 5. V8 Climax-Moment Subscriber Micro-Pill (Ch 5 & 6 dopamine peak — ZERO extra outro seconds!)
+    # 5. V9 High-Converting Climax Subscribe Pill & Comment-Loop Spark (zero jargon, inside safe zone!)
     if ctx.get("show_subscribe_cta"):
+        is_final_ch = ctx["chapter_num"] >= ctx["n_steps"]
         cta_f = _font("mono", 20)
-        cta_txt = "+ SUBSCRIBE  ·  DAILY 60FPS X-RAY MECHANICS"
+        cta_txt = (
+            "WHAT SHOULD WE X-RAY NEXT?  ->  COMMENTS"
+            if (is_final_ch and lt >= 0.55)
+            else "+ SUBSCRIBE  ·  1 HIDDEN MACHINE DAILY"
+        )
+        pill_col = CYAN if (is_final_ch and lt >= 0.55) else CORAL
         cbb = draw.textbbox((0, 0), cta_txt, font=cta_f)
         cw = (cbb[2] - cbb[0]) + 56
-        cx0 = (w - cw) // 2
-        cy0 = 1218
+        cx0 = max(56, (916 + 56 - cw) // 2)
+        cy0 = 1216
         draw.rounded_rectangle(
-            [cx0, cy0, cx0 + cw, cy0 + 40],
-            radius=20,
-            fill=(16, 24, 38, 232),
-            outline=(*CORAL, int(175 + 75 * pulse)),
+            [cx0, cy0, cx0 + cw, cy0 + 42],
+            radius=21,
+            fill=(14, 22, 36, 238),
+            outline=(*pill_col, int(185 + 70 * pulse)),
             width=2,
         )
-        draw.ellipse([cx0 + 18, cy0 + 14, cx0 + 30, cy0 + 26], fill=(*CORAL, int(190 + 65 * pulse)))
-        draw.text((cx0 + 40, cy0 + 10 - cbb[1]), cta_txt, font=cta_f, fill=(*WHITE, 248))
+        draw.ellipse([cx0 + 18, cy0 + 15, cx0 + 30, cy0 + 27], fill=(*pill_col, int(195 + 60 * pulse)))
+        draw.text((cx0 + 40, cy0 + 11 - cbb[1]), cta_txt, font=cta_f, fill=(*WHITE, 250))
 
     return canvas
 

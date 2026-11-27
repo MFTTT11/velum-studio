@@ -812,26 +812,38 @@ class MediaFetcher:
         with self._get_lock(self._output_file_locks, f"photo_{key}"):
             if out_path.exists() and out_path.stat().st_size > 0:
                 return out_path
-            tmp_path = out_path.with_name(f"{out_path.stem}.{threading.get_ident()}.tmp.jpg")
+            synth_path = self.cache_dir / f"synth_plate_{key}.jpg"
+            if chosen_img is None and synth_path.exists() and synth_path.stat().st_size > 0:
+                return synth_path
+            target_out = out_path if chosen_img is not None else synth_path
+            tmp_path = target_out.with_name(f"{target_out.stem}.{threading.get_ident()}.tmp.jpg")
             try:
                 if chosen_img is not None:
                     final = _cover_resize(chosen_img, ov_w, ov_h)
                     final.save(tmp_path, format="JPEG", quality=94)
-                    os.replace(tmp_path, out_path)
-                    logger.info("Sourced verified photo [%s] -> %s", query[:32], out_path.name)
+                    os.replace(tmp_path, target_out)
+                    logger.info("Sourced verified photo [%s] -> %s", query[:32], target_out.name)
                 else:
                     fallback = _generate_cinematic_editorial_plate(
                         f"{query}-{variant_index}", ov_w, ov_h
                     )
                     fallback.save(tmp_path, format="JPEG", quality=94)
-                    os.replace(tmp_path, out_path)
+                    os.replace(tmp_path, target_out)
                     logger.info(
-                        "Rendered cinematic editorial plate [%s] -> %s", query[:32], out_path.name
+                        "Rendered cinematic editorial plate [%s] -> %s", query[:32], target_out.name
                     )
             finally:
                 tmp_path.unlink(missing_ok=True)
 
-        return out_path
+        return target_out
+
+    @staticmethod
+    def is_real_media_file(path: Optional[Path]) -> bool:
+        """Return True only when the file is genuinely fetched photography/video (never synthetic fallback)."""
+        if path is None:
+            return False
+        p = Path(path)
+        return p.exists() and p.stat().st_size > 0 and not p.name.startswith("synth_plate_")
 
     # ------------------------------------------------------------------
     # PARALLEL BATCH PREFETCH FOR ALL PHOTO_GRADE BEATS

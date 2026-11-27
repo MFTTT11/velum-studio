@@ -548,12 +548,12 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "Every hidden metallic clunk absorbs massive thermal force whenever you",
     ],
     "nuclear-submarine-25-years-underwater": [
-        "A nuclear submarine can stay underwater for twenty five years, yet one absurd limit stops it.",
-        "Its sealed nuclear reactor core runs for decades without surfacing for fuel even once.",
+        "Even a three billion dollar nuclear submarine running for twenty five years is stopped by one absurd limit.",
+        "Its sealed nuclear reactor core stays underwater for decades without surfacing for fuel even once.",
         "Onboard evaporators distill endless fresh drinking water straight out of salty ocean water.",
         "Electrolysis machines even split seawater molecules directly into an infinite supply of oxygen.",
-        "So what forces a three billion dollar war machine back to port every few months?",
-        "Its pantry simply runs out of crew food in ninety days, proving why",
+        "So what forces this unstoppable machine back to port every three months?",
+        "Its pantry runs out of crew food in ninety days, proving why",
     ],
     "deep-sea-diver-pure-oxygen-toxic": [
         "Breathe pure oxygen just six meters underwater, and it turns into a deadly brain poison.",
@@ -561,7 +561,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "As you sink deeper, crushing water pressure packs far more gas into every single breath.",
         "At just six meters down, pure oxygen crosses one point six atmospheres in your bloodstream.",
         "Past that invisible ceiling, oxygen overwhelms nerve cells and triggers sudden underwater seizures.",
-        "That is why deep divers dilute tanks with helium and never",
+        "That is why deep divers blend tanks with helium so they never",
     ],
     "spacesuit-vacuum-balloon-layers": [
         "Step into space wearing a normal airtight suit and it balloons rigid until you cannot move.",
@@ -569,7 +569,7 @@ TOPIC_STORY_ARCS: Dict[str, List[str]] = {
         "With zero outside air pushing back, Earth pressure would inflate rubber seams with tons of force.",
         "First, NASA drops internal suit pressure down to zero point three atmospheres of pure oxygen.",
         "Then a woven Dacron restraint shell locks the suit's exact human shape inside fourteen thermal layers.",
-        "That wearable spacecraft survives two hundred and seventy degree swings, proving why nobody can",
+        "Fourteen woven layers turn cloth into a tiny spacecraft, which is why you never",
     ],
 }
 
@@ -1133,7 +1133,10 @@ def _topic_specific_beats(topic: Dict[str, Any], fmt: str) -> List[Dict[str, Any
                 "Finally, step outside into the total vacuum of space where ordinary pressure turns cloth into an unbendable balloon.",
             ),
         ]
-        chosen_companions = [c for c in companion_pool if c[0] != base_tid][:3]
+        eligible_companions = [c for c in companion_pool if c[0] != base_tid]
+        rot_offset = int(hashlib.md5(base_tid.encode("utf-8")).hexdigest()[:8], 16) % max(len(eligible_companions), 1)
+        rotated = eligible_companions[rot_offset:] + eligible_companions[:rot_offset]
+        chosen_companions = rotated[:3]
         for ch_idx, (c_tid, c_title, c_metric, c_query, c_bridge) in enumerate(chosen_companions, start=2):
             arc_lines = list(TOPIC_STORY_ARCS.get(c_tid, []))
             if not arc_lines:
@@ -1640,9 +1643,10 @@ class ScriptEngine:
                     hl2 = f"REACHING {val_clean}" if len(f"REACHING {val_clean}") <= 26 else val_clean
                     acc_word = val_clean.split()[0] if val_clean.split() else ""
 
-            # V7.1: ZERO retention-killing poll outro! Finale stays on the triumphant physical mechanism!
+            # V9: NEVER betray the Ch1->Ch2 X-Ray wipe with boring text boxes!
+            # All bespoke signature mechanisms stay inside the live escalating CAD cutaway across Ch 2..6!
             if is_v7_sig:
-                mode = bespoke_mode if (idx in (0, 2, 4) or is_last) else seq[idx % len(seq)]
+                mode = bespoke_mode
             else:
                 mode = seq[0] if is_last else seq[idx % len(seq)]
 
@@ -1744,13 +1748,16 @@ class ScriptEngine:
         self._apply_viewer_request_hook(normalized_beats, topic)
         self._apply_part2_continuity_hook(normalized_beats, topic)
 
-        if fmt == "shorts":
+        base_tid_check = re.sub(r"-(?:v\d+|part2(?:-\d+)?)$", "", str(topic.get("topic_id", "")))
+        is_curated_six_beat = base_tid_check in TOPIC_STORY_ARCS and len(normalized_beats) <= 6
+        if fmt == "shorts" and not is_curated_six_beat:
             normalized_beats = self._enforce_shorts_word_budget(normalized_beats, topic)
 
         vseo_ok = self._verify_vseo_first_15s(normalized_beats, topic["primary_keyword"])
-        if not vseo_ok and len(normalized_beats) >= 2:
+        if not vseo_ok and len(normalized_beats) >= 2 and not is_curated_six_beat:
+            clean_kw = re.sub(r"^(?:why|how|what happens if you)\s+", "", topic["primary_keyword"], flags=re.IGNORECASE).strip()
             normalized_beats[1]["narration"] = (
-                f"This {topic['primary_keyword']} proves how distorted human intuition really is."
+                f"Look closely at {clean_kw} — the real physical mechanism behind it is completely counterintuitive."
             )
             if fmt == "shorts":
                 normalized_beats = self._enforce_shorts_word_budget(normalized_beats, topic)

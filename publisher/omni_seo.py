@@ -286,16 +286,20 @@ def _build_native_omni_seo(
     ]
 
     faq_text = "\n\n".join(f"Q: {item['q']}\nA: {item['a']}" for item in aeo_faq)
+    chapters_section = (
+        "\n\n--- CHAPTERS ---\n" + "\n".join(chapters)
+        if script.get("format") != "shorts"
+        else ""
+    )
     description_full = (
         f"{topic['title_variants'][0]}\n\n"
         + "\n\n".join(article_paragraphs)
         + "\n\n--- VERIFIED ENGINEERING DATA ---\n"
         + "\n".join(geo_bullets)
-        + "\n\n--- CHAPTERS ---\n"
-        + "\n".join(chapters)
+        + chapters_section
         + "\n\n--- QUICK FAQ ---\n"
         + faq_text
-        + f"\n\nSubscribe to {brand['channel_name']} ({brand['handle']}) for daily 60fps X-Ray breakdowns of hidden engineering & physics.\n\n"
+        + f"\n\nSubscribe to {brand['channel_name']} ({brand['handle']}) for daily X-Ray breakdowns of hidden engineering & physics.\n\n"
         + " ".join(hashtags)
     )
 
@@ -397,12 +401,17 @@ def generate_omni_seo_package(
             if isinstance(llm_seo.get("aeo_faq"), list) and len(llm_seo["aeo_faq"]) == 3:
                 package["aeo_faq"] = llm_seo["aeo_faq"]
 
-    srt_tracks = generate_multilang_srt_tracks(
-        voice_data.get("timed_beats", []), out_dir, slug, llm=llm
-    )
-    localizations = generate_video_localizations(
-        package["titles_ab"][0], package["description_full"]
-    )
+    # V9: Shorts use burned-in English captions & strictly English metadata (zero unsubtitled foreign bait!)
+    if script.get("format") == "shorts":
+        srt_tracks: Dict[str, str] = {}
+        localizations: Dict[str, Dict[str, str]] = {}
+    else:
+        srt_tracks = generate_multilang_srt_tracks(
+            voice_data.get("timed_beats", []), out_dir, slug, llm=llm
+        )
+        localizations = generate_video_localizations(
+            package["titles_ab"][0], package["description_full"]
+        )
 
     word_count = len(package["description_full"].split())
     full_seo = {
@@ -422,6 +431,7 @@ def generate_omni_seo_package(
         "subtitles_srt": srt_tracks,
     }
 
+    out_dir.mkdir(parents=True, exist_ok=True)
     seo_path = out_dir / "omni_seo_package.json"
     seo_path.write_text(json.dumps(full_seo, ensure_ascii=False, indent=2), encoding="utf-8")
     logger.info(

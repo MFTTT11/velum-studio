@@ -272,8 +272,14 @@ def _mech_train_wheel_cone(
         draw.rectangle([rx - 10, rail_y + 14, rx + 10, rail_y + 42], fill=(*MUTED, 200))
         draw.rectangle([rx - 30, rail_y + 42, rx + 30, rail_y + 52], fill=(*MUTED, 230))
 
-    # Oscillating lateral curve shift (wheelset slides right -> larger cone radius contacts right rail!)
-    shift_x = int(34 * math.sin(phase_t * math.tau * 1.2) * eased)
+    # V9 progressive stage-locked steering (Ch 1-2 neutral axle -> Ch 3-4 curve shift -> Ch 5-6 active self-steering!)
+    stage = int(data.get("scene_stage", 0))
+    if stage in (1, 2):
+        shift_x = int(8 * math.sin(phase_t * math.tau) * eased)
+    elif stage in (3, 4):
+        shift_x = int(38 * _ease_out(min(1.0, phase_t * 1.4)))
+    else:
+        shift_x = int(38 * math.sin(phase_t * math.tau * 1.35) * eased)
     axle_y = cy + 12
 
     # Solid rigid steel axle connecting both wheels
@@ -412,22 +418,35 @@ def _mech_volcano_eruption(
     draw.line([(cx - 135, lava_y), (cx + 135, lava_y)], fill=(*AMBER, 255), width=6)
 
     stage = int(data.get("scene_stage", 0))
-    if stage == 1:
+    if stage in (1, 2):
         erupt = False
+        drop_t = min(0.88, phase_t * 0.95)
+    elif stage == 3:
+        erupt = False
+        drop_t = min(1.0, 0.35 + phase_t * 0.65)
+    elif stage == 4:
+        erupt = phase_t >= 0.25
+        drop_t = min(1.0, phase_t / 0.25)
     elif stage >= 5:
         erupt = True
+        drop_t = 1.0
     else:
         erupt = phase_t >= 0.42
+        drop_t = min(1.0, phase_t / 0.42)
     if not erupt:
         # Falling 30kg waste bundle dropping toward crust
-        drop_t = min(1.0, phase_t / 0.42)
         by = int(y0 + 125 + drop_t * (lava_y - y0 - 145))
         draw.rounded_rectangle([cx - 24, by - 18, cx + 24, by + 18], radius=6, fill=(*CYAN, 180), outline=(*WHITE, 245), width=3)
         _draw_arrow(draw, (cx, by - 45), (cx, by - 22), (*CYAN, 235), width=3, head_len=10)
         draw.text((cx + 36, by - 12), "30 KG WATER/TRASH", font=mono, fill=(*CYAN, 245))
     else:
-        # Instant 1,100C steam flash bubble + violent upward magma chain eruption!
-        bt = min(1.0, (phase_t - 0.42) / 0.58)
+        # Instant 1,100C steam flash bubble + violent upward magma chain eruption (V9: zero negative-bt freeze!)
+        if stage >= 5:
+            bt = min(1.0, 0.22 + phase_t * 0.78)
+        elif stage == 4:
+            bt = min(1.0, max(0.0, (phase_t - 0.25) / 0.75))
+        else:
+            bt = min(1.0, max(0.0, (phase_t - 0.42) / 0.58))
         bub_r = int(26 + 62 * _ease_out(bt))
         draw.ellipse([cx - bub_r, lava_y - bub_r // 2, cx + bub_r, lava_y + bub_r], fill=(*WHITE, int(190 * (1.0 - 0.4 * bt))), outline=(*CYAN, 255), width=4)
         # Rising magma plume & projectiles
@@ -552,29 +571,34 @@ def _mech_nuclear_sub(
         by = cy + int(math.sin(b * 2.1 + phase_t * 8) * 26)
         draw.ellipse([bx - 5, by - 5, bx + 5, by + 5], outline=(*CYAN, int(210 * (1.0 - bt))), width=2)
 
-    # 3 Internal CAD Sub-Compartments inside hull: REACTOR | ELECTROLYSIS O2 | FOOD BAY!
+    # 3 Internal CAD Sub-Compartments with V9 chapter spotlighting (Ch 2 Reactor -> Ch 3-4 O2 -> Ch 5-6 Food Alarm!)
+    stage = int(data.get("scene_stage", 0))
+    hi_reactor = stage in (0, 1, 2)
+    hi_o2 = stage in (0, 3, 4)
+    hi_food = stage in (0, 5, 6)
+
     # 1. Reactor Core (left-mid, pulsing cyan)
     rx = cx - 185
-    rp = 26 + int(6 * math.sin(phase_t * math.tau * 3))
-    draw.ellipse([rx - rp, cy - rp, rx + rp, cy + rp], fill=(*CYAN, 60), outline=(*CYAN, 255), width=3)
-    _draw_centered(draw, "NUCLEAR", rx, cy - 10, _font("mono", 16), (*WHITE, 245))
-    draw.line([(rx, cy + hull_h), (rx, cy + hull_h + 44)], fill=(*CYAN, 210), width=2)
-    _draw_centered(draw, "25 YR FUEL", rx, cy + hull_h + 50, mono, (*CYAN, 250))
+    rp = (28 if hi_reactor else 22) + int((7 if hi_reactor else 2) * math.sin(phase_t * math.tau * 3))
+    draw.ellipse([rx - rp, cy - rp, rx + rp, cy + rp], fill=(*CYAN, 90 if hi_reactor else 30), outline=(*CYAN, 255 if hi_reactor else 130), width=4 if hi_reactor else 2)
+    _draw_centered(draw, "NUCLEAR", rx, cy - 10, _font("mono", 16), (*WHITE, 255 if hi_reactor else 160))
+    draw.line([(rx, cy + hull_h), (rx, cy + hull_h + 44)], fill=(*CYAN, 230 if hi_reactor else 110), width=3 if hi_reactor else 2)
+    _draw_centered(draw, "25 YR FUEL", rx, cy + hull_h + 50, mono, (*CYAN, 255 if hi_reactor else 140))
 
     # 2. Seawater Electrolysis (center, mint oxygen bubbles)
     ex = cx - 10
-    draw.rounded_rectangle([ex - 54, cy - 38, ex + 54, cy + 38], radius=10, fill=(*MINT, 45), outline=(*MINT, 245), width=3)
-    _draw_centered(draw, "H2O -> O2", ex, cy - 10, _font("mono", 17), (*MINT, 255))
-    draw.line([(ex, cy + hull_h), (ex, cy + hull_h + 44)], fill=(*MINT, 210), width=2)
-    _draw_centered(draw, "UNLIMITED AIR", ex, cy + hull_h + 50, mono, (*MINT, 250))
+    draw.rounded_rectangle([ex - 54, cy - 38, ex + 54, cy + 38], radius=10, fill=(*MINT, 75 if hi_o2 else 22), outline=(*MINT, 255 if hi_o2 else 120), width=4 if hi_o2 else 2)
+    _draw_centered(draw, "H2O -> O2", ex, cy - 10, _font("mono", 17), (*MINT, 255 if hi_o2 else 150))
+    draw.line([(ex, cy + hull_h), (ex, cy + hull_h + 44)], fill=(*MINT, 230 if hi_o2 else 110), width=3 if hi_o2 else 2)
+    _draw_centered(draw, "UNLIMITED AIR", ex, cy + hull_h + 50, mono, (*MINT, 255 if hi_o2 else 140))
 
-    # 3. Food Storage Bay (front-right, flashing coral bottleneck!)
+    # 3. Food Storage Bay (front-right, flashing coral bottleneck on climax!)
     fx = cx + 185
-    pulse_f = 0.5 + 0.5 * math.sin(phase_t * math.tau * 3.5)
-    draw.rounded_rectangle([fx - 64, cy - 42, fx + 64, cy + 42], radius=10, fill=(*CORAL, int(55 + 45 * pulse_f)), outline=(*CORAL, 255), width=4)
-    _draw_centered(draw, "FOOD BAY", fx, cy - 12, _font("mono", 17), (*WHITE, 255))
-    draw.line([(fx, cy + hull_h), (fx, cy + hull_h + 44)], fill=(*CORAL, 240), width=3)
-    _draw_centered(draw, "90-DAY LIMIT!", fx, cy + hull_h + 50, mono, (*CORAL, 255))
+    pulse_f = 0.5 + 0.5 * math.sin(phase_t * math.tau * 4.0)
+    draw.rounded_rectangle([fx - 64, cy - 42, fx + 64, cy + 42], radius=10, fill=(*CORAL, int((85 + 65 * pulse_f) if hi_food else 25)), outline=(*CORAL, 255 if hi_food else 120), width=5 if hi_food else 2)
+    _draw_centered(draw, "FOOD BAY", fx, cy - 12, _font("mono", 17), (*WHITE, 255 if hi_food else 150))
+    draw.line([(fx, cy + hull_h), (fx, cy + hull_h + 44)], fill=(*CORAL, 250 if hi_food else 110), width=4 if hi_food else 2)
+    _draw_centered(draw, "90-DAY LIMIT!", fx, cy + hull_h + 50, mono, (*CORAL, 255 if hi_food else 140))
 
     bar_w = (x1 - x0 - 90) // 2
     _draw_meter_bar(draw, x0 + 25, y1 - 125, bar_w, 16, str(data.get("metric_label", "REACTOR LIFE")), _roll_number(str(data.get("metric_value", "25 YEARS")), anim_t), 0.96 * eased, CYAN)
@@ -608,8 +632,19 @@ def _mech_diver_oxygen(
     draw.text((x1 - 310, toxic_y - 32), "6 M  PURE O2 TOXIC LIMIT", font=mono, fill=(*CORAL, 255))
     draw.text((ax + 20, bot_y - 12), "20 M (3.0 ATM · SEIZURE)", font=mono, fill=(*CORAL, 230))
 
-    # Animated scuba diver wireframe descending smoothly past 6m line
-    dy = int(top_y + 52 + (bot_y - top_y - 115) * eased)
+    # Animated scuba diver wireframe descending smoothly by chapter stage (Ch 2 safe -> Ch 4 crosses 6m -> Ch 5-6 toxic!)
+    stage = int(data.get("scene_stage", 0))
+    if stage in (1, 2):
+        depth_frac = 0.12 + 0.20 * phase_t
+    elif stage == 3:
+        depth_frac = 0.28 + 0.20 * phase_t
+    elif stage == 4:
+        depth_frac = 0.42 + 0.30 * phase_t
+    elif stage >= 5:
+        depth_frac = 0.72 + 0.22 * phase_t
+    else:
+        depth_frac = eased
+    dy = int(top_y + 52 + (bot_y - top_y - 115) * max(0.0, min(1.0, depth_frac)))
     dx = cx + 30
     danger = dy >= toxic_y
     d_col = CORAL if danger else CYAN
@@ -681,8 +716,11 @@ def _mech_cargo_ship(
         (cx + 148, cy + 102 + bob),
         (cx - 148, cy + 102 + bob),
     ]
-    draw.polygon(inner_pts, fill=(*CYAN, 36), outline=(*CYAN, 210))
-    _draw_centered(draw, "85% HOLLOW AIR CAVITY", cx, cy + 32 + bob, _font("headline", 28), (*CYAN, 255))
+    stage = int(data.get("scene_stage", 0))
+    # Inner hollow air chamber glows brighter on Ch 3-6 as buoyancy physics is revealed!
+    air_alpha = 20 if stage in (1, 2) else int(48 + 26 * (0.5 + 0.5 * math.sin(phase_t * math.tau * 2.5)))
+    draw.polygon(inner_pts, fill=(*CYAN, air_alpha), outline=(*CYAN, 235 if stage >= 3 else 130))
+    _draw_centered(draw, "85% HOLLOW AIR CAVITY", cx, cy + 32 + bob, _font("headline", 28), (*CYAN, 255 if stage >= 3 else 160))
 
     # Stacked colorful shipping containers on top deck
     cols_c = [CORAL, AMBER, MINT, CYAN]
@@ -733,12 +771,14 @@ def _mech_spacesuit_layers(
     draw.rounded_rectangle([ax - 44, cy + 16, ax + 44, cy + 84], radius=10, fill=(*SURFACE, 255), outline=(*AMBER, 225), width=2)
     _draw_centered(draw, "0.3 ATM", ax, cy + 40, _font("mono", 18), (*AMBER, 255))
 
-    # Outward pressure arrows attempting to inflate the suit like a balloon
+    stage = int(data.get("scene_stage", 0))
+    # Outward pressure arrows swell in Ch 2-3 before Dacron mesh locks shape in Ch 4-6!
+    arrow_push = (18 if stage in (1, 2, 3) else 6)
     for ang_d in (-150, 150, -30, 30):
         ang = math.radians(ang_d)
         r0 = 104
-        r1 = 138 + int(10 * math.sin(phase_t * math.tau * 2.5))
-        _draw_arrow(draw, (ax + math.cos(ang) * r0, cy + 60 + math.sin(ang) * r0), (ax + math.cos(ang) * r1, cy + 60 + math.sin(ang) * r1), (*CORAL, 235), width=4, head_len=12)
+        r1 = 132 + int(arrow_push * math.sin(phase_t * math.tau * 2.5))
+        _draw_arrow(draw, (ax + math.cos(ang) * r0, cy + 60 + math.sin(ang) * r0), (ax + math.cos(ang) * r1, cy + 60 + math.sin(ang) * r1), (*(CORAL if stage <= 3 else MINT), 235), width=4, head_len=12)
 
     # Right: Magnified 14-layer cross-section lens showing restraint mesh!
     lx = x1 - 245

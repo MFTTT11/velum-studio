@@ -1142,7 +1142,10 @@ def run_comment_cycle(
                     if rep_id and not (my_channel_id and rep_author == my_channel_id):
                         incoming_entries.append((rep_id, top_id, rep.get("snippet", {}).get("textDisplay", ""), False))
 
+            max_replies_per_cycle = 15
             for cid, reply_parent_id, text, is_top_level in incoming_entries:
+                if summary["sent_now"] >= max_replies_per_cycle:
+                    break
                 if state_db.is_comment_processed(cid):
                     continue
                 summary["fetched"] += 1
@@ -1164,14 +1167,6 @@ def run_comment_cycle(
                 if harvested is not None:
                     summary["ideas_harvested"] += 1
                     reply_text = _build_idea_accepted_reply(harvested["title_clean"], decision["detected_lang"])
-
-                if is_top_level:
-                    try:
-                        youtube.comments().setModerationStatus(
-                            id=cid, moderationStatus="published"
-                        ).execute()
-                    except Exception as exc:
-                        logger.debug("Moderation publish skipped (%s)", type(exc).__name__)
 
                 sent_ok = False
                 try:

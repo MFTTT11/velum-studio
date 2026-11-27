@@ -52,11 +52,11 @@ BREAKOUT_MIN_VIEWS = 1000
 BREAKOUT_FAST_VIEWS = 250
 BREAKOUT_FAST_VPH = 80.0
 
-FAST_RESCUE_MIN_AGE_HOURS = 4.0
+FAST_RESCUE_MIN_AGE_HOURS = 24.0
 FAST_RESCUE_MAX_VIEWS = 250
-TITLE_RESCUE_MIN_AGE_HOURS = 8.0
+TITLE_RESCUE_MIN_AGE_HOURS = 36.0
 TITLE_RESCUE_MAX_VIEWS = 950
-TITLE_RESCUE_COOLDOWN_HOURS = 8.0
+TITLE_RESCUE_COOLDOWN_HOURS = 24.0
 
 
 def _parse_utc_ts(raw_ts: Optional[str]) -> Optional[datetime]:
@@ -160,7 +160,7 @@ def _fetch_live_video_metrics(analytics_svc, youtube_id: str) -> Optional[Dict[s
             ids="channel==MINE",
             startDate=start_date,
             endDate=end_date,
-            metrics="views,averageViewPercentage",
+            metrics="views,averageViewPercentage,averageViewDuration,subscribersGained,shares",
             filters=f"video=={youtube_id}",
         ).execute()
         rows = resp.get("rows", [])
@@ -168,6 +168,9 @@ def _fetch_live_video_metrics(analytics_svc, youtube_id: str) -> Optional[Dict[s
             return None
         views = int(rows[0][0])
         avg_pct = float(rows[0][1])
+        avg_dur_sec = float(rows[0][2]) if len(rows[0]) > 2 else 0.0
+        subs_gained = int(rows[0][3]) if len(rows[0]) > 3 else 0
+        shares = int(rows[0][4]) if len(rows[0]) > 4 else 0
 
         ctr = 0.0
         try:
@@ -185,7 +188,14 @@ def _fetch_live_video_metrics(analytics_svc, youtube_id: str) -> Optional[Dict[s
         except Exception as exc:
             logger.debug("CTR metric unavailable for %s (%s)", youtube_id, type(exc).__name__)
 
-        return {"views": views, "avg_view_pct": avg_pct, "ctr": ctr}
+        return {
+            "views": views,
+            "avg_view_pct": avg_pct,
+            "avg_view_duration": avg_dur_sec,
+            "subscribers_gained": subs_gained,
+            "shares": shares,
+            "ctr": ctr,
+        }
     except Exception as exc:
         logger.debug("Optional Analytics v2 query skipped for %s (%s)", youtube_id, type(exc).__name__)
         return None

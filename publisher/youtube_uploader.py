@@ -134,14 +134,24 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
     day_num = max(1, (now.date() - launch_dt.date()).days + 1)
 
     daily_shorts_cap = 2
-    shorts_hours = [8, 18]
+    shorts_hours = [15, 21]  # Peak US/EU Tier-1 English Shorts browsing windows (UTC)
 
-    if day_num <= 5:
+    all_videos = state_db.get_all_videos()
+    total_channel_views = sum(int(v.get("views", 0) or 0) for v in all_videos)
+    max_short_views = max(
+        (int(v.get("views", 0) or 0) for v in all_videos if v.get("format") == "shorts"),
+        default=0,
+    )
+    has_longform_traction = (
+        total_channel_views >= 25_000 or max_short_views >= 3_000 or day_num >= 14
+    )
+
+    if not has_longform_traction:
         allow_longform = False
-        phase = f"V8_IGNITION_DAY_{day_num} (2 High-Craft Reality->X-Ray 4K Shorts/day)"
+        phase = f"V9_BREAKOUT_DAY_{day_num} (2 High-Craft Reality->X-Ray 4K Shorts/day)"
     else:
         allow_longform = True
-        phase = f"V8_MONETIZATION_SCALE_DAY_{day_num} (2 X-Ray Shorts/day + 16:9 4-Chapter Doc every 3d)"
+        phase = f"V9_MONETIZATION_SCALE_DAY_{day_num} (2 X-Ray Shorts/day + 16:9 Doc every 3d)"
 
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
     three_days_ago = (now - timedelta(days=3)).isoformat()
@@ -158,8 +168,6 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
         candidate_hours = shorts_hours
         minute_offset = 0
         daily_quota_reached = shorts_today >= daily_shorts_cap
-
-    all_videos = state_db.get_all_videos()
 
     # Compute hours elapsed since the most recent uploaded/produced video
     latest_upload_dt: Optional[datetime] = None
@@ -180,8 +188,8 @@ def compute_warmup_plan(state_db: StateDB, now_utc: Optional[datetime] = None) -
         v.get("publish_at") for v in all_videos if v.get("publish_at")
     }
 
-    # Find next clean future slot (>= 25 min ahead for YouTube HD/4K processing)
-    min_publish_dt = now + timedelta(minutes=25)
+    # Find next clean future slot (>= 45 min ahead so YouTube completes 4K VP9/AV1 before Frame 0 serves!)
+    min_publish_dt = now + timedelta(minutes=45)
     chronological_hours = sorted(candidate_hours)
     chosen_dt: Optional[datetime] = None
     for day_offset in range(0, 14):
@@ -244,7 +252,7 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
         "watermark_uploaded": False,
         "metadata_updated": False,
     }
-    if not force and state_db.get_meta("channel_branding_synced") == "v3":
+    if not force and state_db.get_meta("channel_branding_synced") == "v4":
         return result
 
     brand = load_brand_config()
@@ -283,13 +291,13 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
             except Exception as exc:
                 logger.warning("Channel banner API insert error (%s)", exc)
 
-        # 2. Update Channel Description (Bio), Keywords, Country (TR) & 10-Language Regional Localizations
+        # 2. Update Channel Description (Bio), Keywords & Tier-1 English Country ("US")
         bio_en = brand.get("seo_bio", "")[:990]
         ch_title = brand.get("channel_name", "Velum Dispatch")
         ch_settings["description"] = bio_en
         kw_list = brand.get("seo_keywords", [])
         ch_settings["keywords"] = " ".join(f'"{k}"' if " " in k else k for k in kw_list)[:490]
-        ch_settings["country"] = "TR"
+        ch_settings["country"] = "US"
         ch_settings["defaultLanguage"] = "en"
         branding["channel"] = ch_settings
 
@@ -348,10 +356,11 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
             except Exception as exc:
                 logger.warning("Channel watermark API upload error (%s)", exc)
 
-        # 4. Retro-apply 10-language regional Title & Description localizations to recent uploaded videos
+        # 4. Retro-apply 10-language regional Title & Description localizations to Long-form videos ONLY
+        #    (V9: NEVER push unsubtitled foreign titles onto English-only Shorts!)
         for vid in state_db.get_all_videos()[:5]:
             yt_id = vid.get("youtube_id")
-            if not yt_id:
+            if not yt_id or vid.get("format") == "shorts":
                 continue
             try:
                 v_resp = youtube.videos().list(part="snippet,localizations", id=yt_id).execute()
@@ -417,8 +426,8 @@ def sync_channel_branding(youtube, state_db: StateDB, force: bool = False) -> Di
             except Exception as exc:
                 logger.debug("First comment check skipped for %s (%s)", yt_id, type(exc).__name__)
 
-        if result["banner_uploaded"] and result["metadata_updated"]:
-            state_db.set_meta("channel_branding_synced", "v3")
+        if result["metadata_updated"]:
+            state_db.set_meta("channel_branding_synced", "v4")
     except Exception as exc:
         logger.warning("Channel branding sync skipped (%s)", exc)
 
@@ -526,12 +535,32 @@ def upload_video_package(
         branding_sync = sync_channel_branding(youtube, state_db)
         manifest["channel_branding_sync"] = branding_sync
 
-        loc_map = _sanitize_localizations(
-            seo_package.get("localizations", {}),
-            primary_title,
-            primary_desc,
+        # V9: Shorts use strictly clean English metadata (never bait non-English viewers with unsubtitled foreign titles!)
+        loc_map = (
+            {}
+            if effective_fmt == "shorts"
+            else _sanitize_localizations(
+                seo_package.get("localizations", {}),
+                primary_title,
+                primary_desc,
+            )
         )
-        body = {
+        # V9: Schedule >= 45 min ahead via publishAt so YouTube finishes 4K VP9/AV1 before seed viewers see Frame 0!
+        now_utc = datetime.now(timezone.utc)
+        scheduled_dt = _parse_utc_iso(publish_at)
+        use_scheduled_publish = bool(
+            scheduled_dt is not None and scheduled_dt >= (now_utc + timedelta(minutes=20))
+        )
+        status_block: Dict[str, Any] = {
+            "privacyStatus": "private" if use_scheduled_publish else "public",
+            "selfDeclaredMadeForKids": False,
+            "embeddable": True,
+            "publicStatsViewable": True,
+        }
+        if use_scheduled_publish and publish_at:
+            status_block["publishAt"] = publish_at
+
+        body: Dict[str, Any] = {
             "snippet": {
                 "title": primary_title,
                 "description": primary_desc,
@@ -540,40 +569,41 @@ def upload_video_package(
                 "defaultLanguage": "en",
                 "defaultAudioLanguage": "en",
             },
-            "status": {
-                "privacyStatus": "public",
-                "selfDeclaredMadeForKids": False,
-                "embeddable": True,
-                "publicStatsViewable": True,
-            },
-            "localizations": loc_map,
+            "status": status_block,
         }
+        insert_parts = "snippet,status"
+        if loc_map:
+            body["localizations"] = loc_map
+            insert_parts = "snippet,status,localizations"
 
         logger.info(
-            "Uploading %s to YouTube (privacyStatus=public, format=%s, %d regional languages)...",
+            "Uploading %s to YouTube (privacyStatus=%s%s, format=%s, localizations=%d)...",
             video_path.name,
+            status_block["privacyStatus"],
+            f" publishAt={publish_at}" if use_scheduled_publish else "",
             effective_fmt,
             len(loc_map),
         )
         media = MediaFileUpload(str(video_path), mimetype="video/mp4", resumable=True, chunksize=8 * 1024 * 1024)
-        request = youtube.videos().insert(part="snippet,status,localizations", body=body, media_body=media)
+        request = youtube.videos().insert(part=insert_parts, body=body, media_body=media)
 
         response = None
         while response is None:
             _, response = request.next_chunk()
 
         yt_id = response["id"]
-        manifest["mode"] = "live_uploaded"
-        manifest["privacyStatus"] = "public"
+        manifest["mode"] = "live_scheduled" if use_scheduled_publish else "live_uploaded"
+        manifest["privacyStatus"] = status_block["privacyStatus"]
         manifest["youtube_id"] = yt_id
         logger.info(
-            "YouTube upload complete | videoId=%s | privacyStatus=public | format=%s",
+            "YouTube upload complete | videoId=%s | privacyStatus=%s | format=%s",
             yt_id,
+            status_block["privacyStatus"],
             effective_fmt,
         )
 
-        # 1. Set Variant A high-contrast thumbnail
-        if primary_thumb and Path(primary_thumb).exists():
+        # 1. Set Variant A high-contrast thumbnail (Long-form only; YouTube ignores custom 16:9 thumbnails on Shorts)
+        if effective_fmt != "shorts" and primary_thumb and Path(primary_thumb).exists():
             try:
                 youtube.thumbnails().set(
                     videoId=yt_id,
